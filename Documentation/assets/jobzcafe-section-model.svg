@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="650" viewBox="0 0 1150 650" role="img" aria-labelledby="title desc">
+  <title id="title">JOBZCAFE Enterprise Section Model</title>
+  <desc id="desc">Enterprise CEO sits at the center with Strategy, Product, Operations, and Commercial sections connected to their functional tables.</desc>
+  <rect width="1150" height="650" fill="#ffffff"/>
+
+  <defs>
+    <style>
+      .label { font-family: Inter, Arial, sans-serif; fill: #17131f; font-size: 15px; }
+      .small { font-family: Inter, Arial, sans-serif; fill: #17131f; font-size: 14px; }
+      .circle-label { font-family: Inter, Arial, sans-serif; fill: #ffffff; font-size: 16px; font-weight: 500; }
+      .center-label { font-family: Inter, Arial, sans-serif; fill: #111111; font-size: 14px; font-weight: 700; letter-spacing: 1.2px; }
+      .footnote { font-family: Inter, Arial, sans-serif; fill: #111111; font-size: 12px; font-weight: 600; }
+      .blue-line { stroke: #2563eb; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .strategy { stroke: #7e22ce; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .product { stroke: #3b95f4; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .operations { stroke: #14b8a6; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .commercial { stroke: #99002f; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+  </defs>
+
+  <!-- Center -->
+  <circle cx="575" cy="310" r="66" fill="#ffffff" stroke="#2563eb" stroke-width="4"/>
+  <text x="575" y="306" text-anchor="middle" class="center-label">ENTERPRISE</text>
+  <text x="575" y="325" text-anchor="middle" class="center-label">(CEO)</text>
+
+  <!-- Section connector lines -->
+  <path d="M523 268 L384 176" class="blue-line"/>
+  <path d="M639 277 L762 142" class="blue-line"/>
+  <path d="M538 365 L388 464" class="blue-line"/>
+  <path d="M638 344 L766 464" class="blue-line"/>
+
+  <!-- Strategy -->
+  <text x="310" y="102" text-anchor="middle" class="label">Where we go next</text>
+  <circle cx="384" cy="142" r="68" fill="#8224d8"/>
+  <text x="384" y="148" text-anchor="middle" class="circle-label">Strategy</text>
+  <path d="M210 44 H256 V246 H210" class="strategy"/>
+  <path d="M210 95 H256" class="strategy"/>
+  <path d="M210 145 H316" class="strategy"/>
+  <path d="M210 196 H256" class="strategy"/>
+  <circle cx="210" cy="44" r="5" fill="#8224d8"/>
+  <circle cx="210" cy="95" r="5" fill="#8224d8"/>
+  <circle cx="210" cy="145" r="5" fill="#8224d8"/>
+  <circle cx="210" cy="196" r="5" fill="#8224d8"/>
+  <circle cx="210" cy="246" r="5" fill="#8224d8"/>
+  <text x="195" y="49" text-anchor="end" class="label">Growth Planning</text>
+  <text x="195" y="100" text-anchor="end" class="label">Market Insights</text>
+  <text x="195" y="150" text-anchor="end" class="label">Alliances</text>
+  <text x="195" y="201" text-anchor="end" class="label">Innovation</text>
+  <text x="195" y="251" text-anchor="end" class="label">Strategy Intelligence</text>
+
+  <!-- Product -->
+  <text x="764" y="58" text-anchor="middle" class="label">Build what we sell</text>
+  <circle cx="764" cy="144" r="68" fill="#4096f5"/>
+  <text x="764" y="150" text-anchor="middle" class="circle-label">Product</text>
+  <path d="M833 142 H884 V41 H929" class="product"/>
+  <path d="M884 92 H929" class="product"/>
+  <path d="M884 143 H929" class="product"/>
+  <path d="M884 193 H929" class="product"/>
+  <path d="M884 243 H929" class="product"/>
+  <circle cx="929" cy="41" r="5" fill="#4096f5"/>
+  <circle cx="929" cy="92" r="5" fill="#4096f5"/>
+  <circle cx="929" cy="143" r="5" fill="#4096f5"/>
+  <circle cx="929" cy="193" r="5" fill="#4096f5"/>
+  <circle cx="929" cy="243" r="5" fill="#4096f5"/>
+  <text x="947" y="46" class="label">Research &amp; Design</text>
+  <text x="947" y="97" class="label">Core Platform</text>
+  <text x="947" y="148" class="label">AI / DNA Engine</text>
+  <text x="947" y="198" class="label">Infrastructure</text>
+  <text x="947" y="248" class="label">Product Intelligence</text>
+
+  <!-- Operations -->
+  <circle cx="388" cy="464" r="68" fill="#18b9a7"/>
+  <text x="388" y="470" text-anchor="middle" class="circle-label">Operations</text>
+  <text x="390" y="567" text-anchor="middle" class="label">Enable what we sell</text>
+  <path d="M212 361 H260 V561 H212" class="operations"/>
+  <path d="M212 411 H260" class="operations"/>
+  <path d="M212 461 H320" class="operations"/>
+  <path d="M212 512 H260" class="operations"/>
+  <circle cx="212" cy="361" r="5" fill="#18b9a7"/>
+  <circle cx="212" cy="411" r="5" fill="#18b9a7"/>
+  <circle cx="212" cy="461" r="5" fill="#18b9a7"/>
+  <circle cx="212" cy="512" r="5" fill="#18b9a7"/>
+  <circle cx="212" cy="561" r="5" fill="#18b9a7"/>
+  <text x="198" y="366" text-anchor="end" class="label">Finance</text>
+  <text x="198" y="416" text-anchor="end" class="label">Legal &amp; Risk</text>
+  <text x="198" y="466" text-anchor="end" class="label">People &amp; Culture</text>
+  <text x="198" y="517" text-anchor="end" class="label">Customer Success</text>
+  <text x="198" y="566" text-anchor="end" class="label">Operations Intelligence</text>
+
+  <!-- Commercial -->
+  <circle cx="770" cy="464" r="68" fill="#99002f"/>
+  <text x="770" y="470" text-anchor="middle" class="circle-label">Commercial</text>
+  <text x="771" y="557" text-anchor="middle" class="label">Grow what we sell</text>
+  <path d="M838 464 H900 V363 H945" class="commercial"/>
+  <path d="M900 413 H945" class="commercial"/>
+  <path d="M900 464 H945" class="commercial"/>
+  <path d="M900 513 H945" class="commercial"/>
+  <path d="M900 564 H945" class="commercial"/>
+  <circle cx="945" cy="363" r="5" fill="#99002f"/>
+  <circle cx="945" cy="413" r="5" fill="#99002f"/>
+  <circle cx="945" cy="464" r="5" fill="#99002f"/>
+  <circle cx="945" cy="513" r="5" fill="#99002f"/>
+  <circle cx="945" cy="564" r="5" fill="#99002f"/>
+  <text x="970" y="368" class="label">Sales</text>
+  <text x="970" y="418" class="label">Marketing</text>
+  <text x="970" y="469" class="label">Partnerships</text>
+  <text x="970" y="518" class="label">Customer Revenue</text>
+  <text x="970" y="569" class="label">Revenue Intelligence</text>
+
+  <!-- Footnote -->
+  <text x="575" y="626" text-anchor="middle" class="footnote">Large Circles (Sections) - Core business function, led by a Section Lead (C-Level)</text>
+  <text x="575" y="641" text-anchor="middle" class="footnote">Branches (Tables) - Functional areas within a section, led by a Table Lead</text>
+</svg>

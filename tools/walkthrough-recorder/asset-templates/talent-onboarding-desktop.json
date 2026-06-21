@@ -1,0 +1,133 @@
+{
+  "slug": "talent-onboarding-desktop",
+  "name": "Talent Onboarding Desktop Walkthrough",
+  "description": "Captures a desktop onboarding walkthrough from work email through first-role setup and match preview.",
+  "app": "talent",
+  "baseUrlEnv": "JOBZCAFE_DEV_URL",
+  "authRequired": false,
+  "device": "desktop",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "durationTargetSeconds": 60,
+  "durationMaxSeconds": 120,
+  "startPath": "/dev/recruiter-onboarding-preview",
+  "steps": [
+    {
+      "type": "goto",
+      "path": "/dev/recruiter-onboarding-preview",
+      "waitUntil": "networkidle"
+    },
+    {
+      "type": "assertText",
+      "text": "Start with your work email",
+      "timeout": 10000
+    },
+    {
+      "type": "fill",
+      "selector": "input",
+      "value": "sally@jobzcafe.com",
+      "optional": true
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-onboarding-work-email"
+    },
+    {
+      "type": "clickText",
+      "text": "Continue",
+      "timeout": 10000
+    },
+    {
+      "type": "assertText",
+      "text": "Tell us about yourself",
+      "timeout": 10000
+    },
+    {
+      "type": "fill",
+      "selector": "input[placeholder=\"First name\"]",
+      "value": "Sally"
+    },
+    {
+      "type": "fill",
+      "selector": "input[placeholder=\"Last name\"]",
+      "value": "Hart"
+    },
+    {
+      "type": "fill",
+      "selector": "input[placeholder=\"Recruiter title\"]",
+      "value": "Talent Partner"
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-onboarding-about-you"
+    },
+    {
+      "type": "clickText",
+      "text": "Continue",
+      "timeout": 10000
+    },
+    {
+      "type": "assertText",
+      "text": "Create or request access",
+      "timeout": 10000
+    },
+    {
+      "type": "fill",
+      "selector": "input[placeholder=\"Company name\"]",
+      "value": "JobzCafe Preview"
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-onboarding-company"
+    },
+    {
+      "type": "clickText",
+      "text": "Create company",
+      "timeout": 10000
+    },
+    {
+      "type": "assertText",
+      "text": "Add your first roles",
+      "timeout": 10000
+    },
+    {
+      "type": "fill",
+      "selector": "input[placeholder=\"Role title *\"]",
+      "value": "Customer Success Lead"
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-onboarding-first-role"
+    },
+    {
+      "type": "clickText",
+      "text": "Review matches",
+      "timeout": 10000
+    },
+    {
+      "type": "assertText",
+      "text": "Library match preview",
+      "timeout": 10000
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-onboarding-library-match"
+    },
+    {
+      "type": "clickText",
+      "text": "Preview matrix",
+      "timeout": 10000
+    },
+    {
+      "type": "assertText",
+      "text": "Confirm your first roles",
+      "timeout": 10000
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-onboarding-review"
+    }
+  ]
+}

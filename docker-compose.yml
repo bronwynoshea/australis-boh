@@ -1,0 +1,12 @@
+services:
+  openclaw:
+    image: ghcr.io/hostinger/hvps-openclaw:latest
+    init: true
+    ports:
+      - "59901:59901"
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+      - ./data/linuxbrew:/home/linuxbrew

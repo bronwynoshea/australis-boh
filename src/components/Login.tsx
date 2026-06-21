@@ -1,0 +1,388 @@
+import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { getCurrentBohUserId } from '../boh/api/bohApi';
+import BohSlideOver from './boh/BohSlideOver';
+
+interface LoginProps {
+  onLogin: (email: string) => void;
+}
+
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const navigate = useNavigate();
+
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [legalPanel, setLegalPanel] = useState<'terms' | 'privacy' | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [codeSentMessage, setCodeSentMessage] = useState('');
+
+  const codeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage('');
+    setCodeSentMessage('');
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    try {
+      const lastRequestRaw = localStorage.getItem('boh_otp_last_request_at');
+      if (lastRequestRaw) {
+        const lastRequest = Number(lastRequestRaw);
+        if (Number.isFinite(lastRequest)) {
+          const elapsed = Date.now() - lastRequest;
+          if (elapsed < 60_000) {
+            setErrorMessage(
+              'We just sent a verification email. Please wait a minute before requesting another code.',
+            );
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: {
+          shouldCreateUser: false,
+        },
+      });
+
+      if (error) {
+        const status = (error as any)?.status;
+
+        if (status === 429 || error.message?.toLowerCase().includes('rate')) {
+          setErrorMessage('Too many attempts. Please wait a couple of minutes and try again.');
+        } else {
+          setErrorMessage(error.message || 'Failed to send verification code. Please try again.');
+        }
+
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem('boh_otp_last_request_at', String(Date.now()));
+
+      setCodeSentMessage(`Verification code sent to ${normalizedEmail}`);
+      setStep('code');
+      setLoading(false);
+
+      setTimeout(() => {
+        codeInputRefs.current[0]?.focus();
+      }, 100);
+    } catch (err) {
+      console.error('[BOH] OTP send error:', err);
+      setErrorMessage('An unexpected error occurred. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const handleCodeChange = (index: number, value: string) => {
+    if (value && !/^\d$/.test(value)) return;
+
+    const newCode = code.length === 6
+      ? code.split('')
+      : Array(6)
+          .fill('')
+          .map((_, i) => code[i] || '');
+
+    newCode[index] = value || '';
+    const codeString = newCode.join('');
+    setCode(codeString);
+
+    if (value && index < 5) {
+      codeInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleCodeKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !code[index] && index > 0) {
+      codeInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData
+      .getData('text')
+      .slice(0, 6)
+      .replace(/\D/g, '');
+
+    if (pastedData.length === 6) {
+      setCode(pastedData);
+      codeInputRefs.current[5]?.focus();
+    }
+  };
+
+  const handleCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMessage('');
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: normalizedEmail,
+        token: code,
+        type: 'email',
+      });
+
+      if (error) {
+        setErrorMessage(error.message || 'Invalid verification code.');
+        setCode('');
+        setLoading(false);
+        codeInputRefs.current[0]?.focus();
+        return;
+      }
+
+      if (data.session) {
+        try {
+          const bohUserId = await getCurrentBohUserId();
+
+          if (!bohUserId) {
+            const { data: emailUser, error: emailError } = await supabase
+              .from('boh_user')
+              .select('id, auth_user_id')
+              .eq('email', normalizedEmail)
+              .eq('app_context', 'boh')
+              .maybeSingle();
+
+            if (!emailError && emailUser && !emailUser.auth_user_id) {
+              await supabase
+                .from('boh_user')
+                .update({ auth_user_id: data.session.user.id })
+                .eq('id', emailUser.id);
+            } else {
+              setErrorMessage(
+                'No BOH access found. You must accept an invitation before signing in. ' +
+                  'Please check your email for an invite or contact your admin.',
+              );
+              setCode('');
+              setLoading(false);
+              codeInputRefs.current[0]?.focus();
+              return;
+            }
+          }
+
+          onLogin(normalizedEmail);
+          navigate('/boh');
+        } catch (err) {
+          console.error('[BOH] User validation error:', err);
+          setErrorMessage('Unable to verify BOH access. Please contact your admin.');
+          setCode('');
+          setLoading(false);
+          codeInputRefs.current[0]?.focus();
+        }
+      } else {
+        setErrorMessage('Authentication failed. Please try again.');
+        setCode('');
+        setLoading(false);
+        codeInputRefs.current[0]?.focus();
+      }
+    } catch (err) {
+      console.error('[BOH] OTP verify error:', err);
+      setErrorMessage('An unexpected error occurred. Please try again.');
+      setCode('');
+      setLoading(false);
+      codeInputRefs.current[0]?.focus();
+    }
+  };
+
+  const handleBackToEmail = () => {
+    setStep('email');
+    setCode('');
+    setErrorMessage('');
+    setCodeSentMessage('');
+  };
+
+  const legalContent = legalPanel === 'terms'
+    ? {
+        title: 'Terms of Use',
+        description: 'JOBZ CAFE Back of House access',
+        sections: [
+          {
+            heading: 'Invitation-only workspace',
+            body:
+              'Back of House is a private JOBZ CAFE workspace. Use is limited to invited team members and approved collaborators.',
+          },
+          {
+            heading: 'Account responsibility',
+            body:
+              'Keep your sign-in email and verification codes secure. Do not share workspace access or use another person\'s account.',
+          },
+          {
+            heading: 'Operational data',
+            body:
+              'Information inside BOH is for JOBZ CAFE operations, delivery, product, and support work. Treat customer, candidate, staff, and business records as confidential.',
+          },
+          {
+            heading: 'Appropriate use',
+            body:
+              'Use BOH tools only for authorised work. Activity may be logged for security, audit, and service improvement.',
+          },
+        ],
+      }
+    : {
+        title: 'Privacy',
+        description: 'How BOH handles workspace information',
+        sections: [
+          {
+            heading: 'Information we process',
+            body:
+              'BOH may process your sign-in email, profile details, access records, audit activity, uploaded files, tickets, notes, and app-specific operational data.',
+          },
+          {
+            heading: 'Why it is used',
+            body:
+              'This information is used to authenticate access, run BOH applications, support JOBZ CAFE services, maintain security, and keep operational records accurate.',
+          },
+          {
+            heading: 'Access and retention',
+            body:
+              'Access is limited by BOH permissions. Records are retained where needed for operations, compliance, audit, support, and service continuity.',
+          },
+          {
+            heading: 'Support',
+            body:
+              'For privacy or access questions, contact your JOBZ CAFE admin or the BOH owner responsible for your workspace access.',
+          },
+        ],
+      };
+
+  return (
+    <div className="login-container">
+      <div className="login-shell">
+        <section className="login-visual-panel" aria-label="Back of House cafe kitchen entrance">
+          <img src="/boh-login/back-of-house-doors.png" alt="" aria-hidden="true" />
+          <div className="login-visual-overlay" />
+        </section>
+
+        <section className="login-panel" aria-label="Back of House sign in">
+          <div className="login-box">
+            <div className="logo-main">JOBZ CAFE®</div>
+            <h1>Sign in to Back of House</h1>
+
+            {step === 'email' ? (
+              <form className="login-form" onSubmit={handleEmailSubmit}>
+                <div className="form-group">
+                  <label htmlFor="login-email">Email address</label>
+                  <input
+                    type="email"
+                    id="login-email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value.trim())}
+                    placeholder="Enter your email address"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className={`btn btn-primary ${loading ? 'loading' : ''}`}
+                  disabled={loading}
+                >
+                  Send verification code
+                </button>
+
+                {errorMessage && <div className="error-message">{errorMessage}</div>}
+
+                <p className="helper-text">
+                  Access to Back of House is by invitation only.
+                  If you need access, please contact your JOBZ CAFE® admin.
+                </p>
+              </form>
+            ) : (
+              <form className="login-form" onSubmit={handleCodeSubmit}>
+                <div className="form-group">
+                  <label>Enter verification code</label>
+                  <p className="code-instructions">
+                    We sent a 6-digit code to <strong>{email}</strong>
+                  </p>
+
+                  <div className="code-inputs" onPaste={handlePaste}>
+                    {[0, 1, 2, 3, 4, 5].map((index) => (
+                      <input
+                        key={index}
+                        ref={(el) => (codeInputRefs.current[index] = el)}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={code[index] || ''}
+                        onChange={(e) => handleCodeChange(index, e.target.value)}
+                        onKeyDown={(e) => handleCodeKeyDown(index, e)}
+                        className="code-input"
+                        required
+                      />
+                    ))}
+                  </div>
+
+                  {codeSentMessage && (
+                    <div className="success-message">{codeSentMessage}</div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  className={`btn btn-primary ${loading ? 'loading' : ''}`}
+                  disabled={loading || code.length !== 6}
+                >
+                  Verify code
+                </button>
+
+                {errorMessage && <div className="error-message">{errorMessage}</div>}
+
+                <button
+                  type="button"
+                  className="btn-text-link"
+                  onClick={handleBackToEmail}
+                  disabled={loading}
+                >
+                  Back to email
+                </button>
+              </form>
+            )}
+
+            <div className="login-legal-links" aria-label="Legal links">
+              <button type="button" onClick={() => setLegalPanel('terms')}>
+                Terms
+              </button>
+              <span aria-hidden="true">/</span>
+              <button type="button" onClick={() => setLegalPanel('privacy')}>
+                Privacy
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <BohSlideOver
+        isOpen={legalPanel !== null}
+        title={legalContent.title}
+        description={legalContent.description}
+        onClose={() => setLegalPanel(null)}
+        closeLabel={`Close ${legalContent.title}`}
+        widthClassName="md:max-w-lg"
+        contentClassName="p-5 sm:p-6"
+      >
+        <div className="space-y-5 text-sm leading-6 text-boh-text-sub-light dark:text-boh-text-sub">
+          {legalContent.sections.map((section) => (
+            <section key={section.heading} className="space-y-1.5">
+              <h4 className="text-sm font-semibold text-boh-text-light dark:text-boh-text">
+                {section.heading}
+              </h4>
+              <p>{section.body}</p>
+            </section>
+          ))}
+        </div>
+      </BohSlideOver>
+    </div>
+  );
+};
+
+export default Login;

@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "supabase": "https://esm.sh/@supabase/supabase-js@2"
+  },
+  "env": {
+    "VPS_HOST": "",
+    "VPS_USER": "",
+    "VPS_SSH_KEY_PATH": "",
+    "VPS_AGENT_CONFIG_PATH": "/opt/openclaw/agents"
+  }
+}

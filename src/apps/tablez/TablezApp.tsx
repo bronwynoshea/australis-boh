@@ -5,7 +5,6 @@ import TablezBottomNav from './layouts/TablezBottomNav';
 import TablezBoardPage from './pages/TablezBoardPage';
 import TablezTodayPage from './pages/TablezTodayPage';
 import TablezProjectsPage from './pages/TablezProjectsPage';
-import { isBohLoggedIn } from '../../lib/bohAuth';
 import { supabase } from '../../lib/supabase';
 
 interface TablezAppProps {
@@ -31,14 +30,8 @@ const TablezApp: React.FC<TablezAppProps> = ({ isAdmin = false }) => {
   // Check authentication on mount and when location changes
   useEffect(() => {
     const checkAuth = async () => {
-      // Check BOH login state
-      const bohLoggedIn = isBohLoggedIn();
-      
-      // Check Supabase session
       const { data: { session } } = await supabase.auth.getSession();
-      
-      // Both must be true to be authenticated
-      const authenticated = bohLoggedIn && session !== null;
+      const authenticated = session !== null;
       setIsAuthenticated(authenticated);
       
       if (!authenticated) {
@@ -50,8 +43,7 @@ const TablezApp: React.FC<TablezAppProps> = ({ isAdmin = false }) => {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const bohLoggedIn = isBohLoggedIn();
-      const authenticated = bohLoggedIn && session !== null;
+      const authenticated = session !== null;
       setIsAuthenticated(authenticated);
       
       if (!authenticated) {

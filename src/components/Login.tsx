@@ -14,6 +14,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'email' | 'code'>('email');
+  const [authMode, setAuthMode] = useState<'signin' | 'create'>('signin');
   const [legalPanel, setLegalPanel] = useState<'terms' | 'privacy' | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -48,7 +49,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       const { error } = await supabase.auth.signInWithOtp({
         email: normalizedEmail,
         options: {
-          shouldCreateUser: false,
+          shouldCreateUser: authMode === 'create',
         },
       });
 
@@ -67,7 +68,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       localStorage.setItem('boh_otp_last_request_at', String(Date.now()));
 
-      setCodeSentMessage(`Verification code sent to ${normalizedEmail}`);
+      setCodeSentMessage(
+        authMode === 'create'
+          ? `Account verification code sent to ${normalizedEmail}`
+          : `Verification code sent to ${normalizedEmail}`,
+      );
       setStep('code');
       setLoading(false);
 
@@ -158,9 +163,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 .update({ auth_user_id: data.session.user.id })
                 .eq('id', emailUser.id);
             } else {
+              await supabase.auth.signOut();
               setErrorMessage(
-                'No BOH access found. You must accept an invitation before signing in. ' +
-                  'Please check your email for an invite or contact your admin.',
+                authMode === 'create'
+                  ? 'Your Australis account was created, but no BOH workspace access has been granted yet. Contact Australis support or your workspace owner to activate access.'
+                  : 'No Australis BOH workspace access found. Please contact Australis support or your workspace owner if you expected access.',
               );
               setCode('');
               setLoading(false);
@@ -203,12 +210,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const legalContent = legalPanel === 'terms'
     ? {
         title: 'Terms of Use',
-        description: 'JOBZ CAFE Back of House access',
+        description: 'Australis Back of House access',
         sections: [
           {
-            heading: 'Invitation-only workspace',
+            heading: 'Australis workspace',
             body:
-              'Back of House is a private JOBZ CAFE workspace. Use is limited to invited team members and approved collaborators.',
+              'Australis Back of House is operated by Australis, a division of JOBZCAFE®. Use is limited to authorised users and approved collaborators.',
           },
           {
             heading: 'Account responsibility',
@@ -218,7 +225,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           {
             heading: 'Operational data',
             body:
-              'Information inside BOH is for JOBZ CAFE operations, delivery, product, and support work. Treat customer, candidate, staff, and business records as confidential.',
+              'Information inside BOH is for Australis operations, delivery, product, and support work. Treat customer, candidate, staff, and business records as confidential.',
           },
           {
             heading: 'Appropriate use',
@@ -239,7 +246,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           {
             heading: 'Why it is used',
             body:
-              'This information is used to authenticate access, run BOH applications, support JOBZ CAFE services, maintain security, and keep operational records accurate.',
+              'This information is used to authenticate access, run BOH applications, support Australis services, maintain security, and keep operational records accurate.',
           },
           {
             heading: 'Access and retention',
@@ -249,7 +256,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           {
             heading: 'Support',
             body:
-              'For privacy or access questions, contact your JOBZ CAFE admin or the BOH owner responsible for your workspace access.',
+              'For privacy or access questions, contact Australis support or the BOH owner responsible for your workspace access.',
           },
         ],
       };
@@ -262,10 +269,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <div className="login-visual-overlay" />
         </section>
 
-        <section className="login-panel" aria-label="Back of House sign in">
+        <section className="login-panel" aria-label="Australis Back of House access">
           <div className="login-box">
-            <div className="logo-main">JOBZ CAFE®</div>
-            <h1>Sign in to Back of House</h1>
+            <div className="logo-main">Australis</div>
+            <h1>{authMode === 'create' ? 'Create your Australis account' : 'Sign in to Australis Back of House'}</h1>
 
             {step === 'email' ? (
               <form className="login-form" onSubmit={handleEmailSubmit}>
@@ -287,15 +294,31 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   className={`btn btn-primary ${loading ? 'loading' : ''}`}
                   disabled={loading}
                 >
-                  Send verification code
+                  {authMode === 'create' ? 'Create account and send code' : 'Send verification code'}
                 </button>
 
                 {errorMessage && <div className="error-message">{errorMessage}</div>}
 
                 <p className="helper-text">
-                  Access to Back of House is by invitation only.
-                  If you need access, please contact your JOBZ CAFE® admin.
+                  {authMode === 'create'
+                    ? 'Create an Australis account with your email. Workspace access is activated by your Australis workspace owner.'
+                    : 'Use your Australis workspace email to receive a secure sign-in code.'}
                 </p>
+
+                <button
+                  type="button"
+                  className="btn-text-link"
+                  onClick={() => {
+                    setAuthMode(authMode === 'create' ? 'signin' : 'create');
+                    setErrorMessage('');
+                    setCodeSentMessage('');
+                  }}
+                  disabled={loading}
+                >
+                  {authMode === 'create'
+                    ? 'Already have an account? Sign in'
+                    : 'New to Australis? Create account'}
+                </button>
               </form>
             ) : (
               <form className="login-form" onSubmit={handleCodeSubmit}>

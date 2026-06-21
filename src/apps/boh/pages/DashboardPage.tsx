@@ -33,6 +33,7 @@ const getExternalAppUrl = (prodUrl: string, devUrl: string) => {
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
     hostname === 'dev-boh.jobzcafe.com' ||
+    hostname === 'dev-boh.australis.cloud' ||
     hostname === 'boh.australis.cloud';
 
   return isDev ? devUrl : prodUrl;
@@ -59,7 +60,7 @@ const fallbackDescriptions: Record<string, string> = {
   mentor: 'Mentor matching and support workflows.',
   tablez: 'Sections, tables, chairs, and task execution.',
   talent: 'Talent marketplace and recruiter workflows.',
-  website: 'Public Jobs Cafe website.',
+  website: 'Public Australis website.',
 };
 
 const localBohRoutesBySlug = new Map([
@@ -281,8 +282,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   return (
     <section id="dashboard-section" className="main-section active">
       <header className="main-header">
-        <h1>Welcome to Back of House</h1>
-        <p>Your internal command center for JOBZ CAFE operations.</p>
+        <h1>Welcome to Australis Back of House</h1>
+        <p>Your command center for Australis operations.</p>
         <ThemeToggle theme={theme} onToggle={handleThemeToggle} />
       </header>
 

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Australis">
+  <defs>
+    <linearGradient id="a" x1="10" y1="58" x2="54" y2="6" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6D5EF6"/>
+      <stop offset="0.55" stop-color="#9B7CFF"/>
+      <stop offset="1" stop-color="#39D5FF"/>
+    </linearGradient>
+    <filter id="g" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#070A18"/>
+  <path d="M32 9 55 55H43.5l-4.2-9.4H24.6L20.5 55H9L32 9Zm-3.7 27.7h7.4L32 27.6l-3.7 9.1Z" fill="url(#a)" filter="url(#g)"/>
+  <path d="M21 49c9-9 18-18 30-25" fill="none" stroke="#D8D0FF" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+</svg>

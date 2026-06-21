@@ -39,7 +39,7 @@ const CookbookHomePage: React.FC = () => {
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-boh-text-light dark:text-boh-text">Cookbook</h1>
         <p className="mt-1 text-sm text-boh-text-sub-light dark:text-boh-text-sub">
-          Plan, create, and schedule JOBZ CAFE marketing content.
+          Plan, create, and schedule Australis marketing content.
         </p>
       </header>
 

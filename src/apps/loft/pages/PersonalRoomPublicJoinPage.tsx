@@ -42,7 +42,7 @@ const PersonalRoomPublicJoinPage: React.FC = () => {
   return (
     <main className="min-h-screen bg-boh-bg-light px-4 py-10 text-boh-text-light dark:bg-boh-bg dark:text-boh-text">
       <div className="mx-auto max-w-2xl rounded-3xl border border-boh-border-light bg-boh-card-light p-6 shadow-xl dark:border-boh-border dark:bg-boh-card sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-boh-primary-light dark:text-boh-primary">JOBZCAFE® Loft</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-boh-primary-light dark:text-boh-primary">Australis Loft</p>
         <h1 className="mt-3 text-3xl font-semibold">Join a Personal Room</h1>
         <p className="mt-3 text-sm leading-6 text-boh-text-sub-light dark:text-boh-text-sub">
           You are joining through the BOH-owned Loft guest route. Enter the name the host should see before requesting access to the room.

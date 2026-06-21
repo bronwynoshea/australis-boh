@@ -249,7 +249,7 @@ const SoundbyteManagerPage: React.FC = () => {
           Soundbyte Strategy
         </h1>
         <p className="text-sm text-boh-text-sub-light dark:text-boh-text-sub">
-          Define the core message structure for JOBZ CAFE using the PPR and PEACE models.
+          Define the core message structure for Australis using the PPR and PEACE models.
         </p>
       </header>
 

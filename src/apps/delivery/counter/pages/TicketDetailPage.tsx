@@ -563,7 +563,7 @@ const TicketDetailPage: React.FC<TicketDetailPageProps> = ({ ticket, agents, onB
     <div className="chat-transcript-card">
       <div className="chat-transcript-header">
         <h3>Chat transcript (from bot)</h3>
-        <p>Captured from JOBZ CAFE chatbot before this ticket was created.</p>
+        <p>Captured from the Australis chatbot before this ticket was created.</p>
       </div>
       <div className="chat-transcript-body">
         {ticket.chatTranscript?.map((msg, index) => (

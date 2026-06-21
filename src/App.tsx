@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import type { Theme, Section } from './types';
 import Login from './components/Login';
@@ -36,9 +35,6 @@ import { getBohTheme, setBohTheme } from './lib/bohAuth';
 import { useBohAccess } from './shared/hooks/useBohAccess';
 import { supabase } from './lib/supabase';
 import { SidebarProvider } from './contexts/SidebarContext';
-
-// Create a client
-const queryClient = new QueryClient();
 
 function App() {
   const navigate = useNavigate();
@@ -343,7 +339,6 @@ function App() {
 
   return (
     <SidebarProvider>
-      <QueryClientProvider client={queryClient}>
       <Routes>
       <Route path="/boh/cookbook/slow-cook/:projectType/new" element={renderProtectedRoute(<StoryboardPage mode="create" />)} />
       <Route path="/boh/cookbook/slow-cook/:projectType" element={renderProtectedRoute(<StoryboardPage mode="edit" />)} />
@@ -395,7 +390,6 @@ function App() {
         },
       }}
     />
-    </QueryClientProvider>
     </SidebarProvider>
   );
 }

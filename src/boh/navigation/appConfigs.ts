@@ -8,6 +8,7 @@ const getExternalAppUrl = (prodUrl: string, devUrl: string) => {
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
     hostname === 'dev-boh.jobzcafe.com' ||
+    hostname === 'dev-boh.australis.cloud' ||
     hostname === 'boh.australis.cloud';
 
   return isDev ? devUrl : prodUrl;
@@ -79,9 +80,9 @@ export const patronNavConfig: AppNavConfig = {
   baseRoute: '/patron',
   defaultRoute: '/patron/dashboard',
   sidebarItems: [
+    { key: 'dashboard', label: 'Dashboard', to: '/patron/dashboard' },
     { key: 'people', label: 'People', to: '/patron/people' },
     { key: 'organisations', label: 'Organisations', to: '/patron/organisations' },
-    { key: 'activity', label: 'Activity', to: '/patron/activity' },
     { key: 'pipeline', label: 'Pipeline', to: '/patron/pipeline' },
   ],
 };
@@ -96,9 +97,11 @@ export const counterNavConfig: AppNavConfig = {
   sidebarItems: [
     { key: 'dashboard', label: 'Dashboard', to: '/counter/dashboard' },
     { key: 'inbox', label: 'Inbox', to: '/counter/inbox' },
+    { key: 'my', label: 'My Tickets', to: '/counter/my' },
     { key: 'all', label: 'All Tickets', to: '/counter/all' },
+    { key: 'new', label: 'New Ticket', to: '/counter/new' },
     { key: 'agents', label: 'Agents', to: '/counter/agents' },
-    { key: 'reports', label: 'Reports', to: '/counter/reports' },
+    { key: 'settings', label: 'Settings', to: '/counter/settings' },
   ],
 };
 

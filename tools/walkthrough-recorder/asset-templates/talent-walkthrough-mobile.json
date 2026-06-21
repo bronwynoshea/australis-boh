@@ -1,0 +1,144 @@
+{
+  "slug": "talent-walkthrough-mobile",
+  "name": "Talent Mobile Walkthrough",
+  "description": "Records a mobile-first Talent recruiter walkthrough across dashboard, roles, matrix, Beacon, shortlist, and applications.",
+  "app": "talent",
+  "baseUrlEnv": "JOBZCAFE_DEV_URL",
+  "device": "mobile",
+  "deviceProfile": "iPhone 14",
+  "durationTargetSeconds": 60,
+  "durationMaxSeconds": 90,
+  "startPath": "/dashboard",
+  "steps": [
+    {
+      "type": "goto",
+      "path": "/dashboard",
+      "waitUntil": "networkidle"
+    },
+    {
+      "type": "assertText",
+      "text": "Shortlist Time",
+      "timeout": 10000
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-mobile-dashboard"
+    },
+    {
+      "type": "wait",
+      "ms": 6000
+    },
+    {
+      "type": "goto",
+      "path": "/roles",
+      "waitUntil": "networkidle"
+    },
+    {
+      "type": "assertText",
+      "text": "Roles",
+      "timeout": 10000
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-mobile-role-list"
+    },
+    {
+      "type": "wait",
+      "ms": 6000
+    },
+    {
+      "type": "click",
+      "name": "first role card",
+      "selector": "main a[href^=\"/roles/\"]:not([href=\"/roles/create\"])",
+      "timeout": 10000
+    },
+    {
+      "type": "rememberRolePath"
+    },
+    {
+      "type": "assertText",
+      "text": "Senior Product Manager",
+      "timeout": 10000
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-mobile-role-overview"
+    },
+    {
+      "type": "wait",
+      "ms": 6000
+    },
+    {
+      "type": "gotoRememberedRoleSubpath",
+      "suffix": "/matrix",
+      "waitUntil": "networkidle"
+    },
+    {
+      "type": "assertText",
+      "text": "Contribution",
+      "timeout": 10000
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-mobile-contribution-matrix"
+    },
+    {
+      "type": "wait",
+      "ms": 7000
+    },
+    {
+      "type": "gotoRememberedRoleSubpath",
+      "suffix": "/beacon",
+      "waitUntil": "networkidle"
+    },
+    {
+      "type": "assertText",
+      "text": "Beacon",
+      "timeout": 10000
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-mobile-beacon"
+    },
+    {
+      "type": "wait",
+      "ms": 6000
+    },
+    {
+      "type": "gotoRememberedRoleSubpath",
+      "suffix": "/shortlist",
+      "waitUntil": "networkidle"
+    },
+    {
+      "type": "assertText",
+      "text": "Shortlist",
+      "timeout": 10000
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-mobile-shortlist"
+    },
+    {
+      "type": "wait",
+      "ms": 7000
+    },
+    {
+      "type": "gotoRememberedRoleSubpath",
+      "suffix": "/applications",
+      "waitUntil": "networkidle"
+    },
+    {
+      "type": "assertText",
+      "text": "Applications",
+      "timeout": 10000
+    },
+    {
+      "type": "screenshot",
+      "name": "talent-mobile-applications"
+    },
+    {
+      "type": "wait",
+      "ms": 7000
+    }
+  ]
+}

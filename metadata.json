@@ -1,0 +1,5 @@
+{
+  "name": "ACTIVE V1.0 JOBZ CAFE® – Back of House Prototype",
+  "description": "A mobile-first HTML/CSS/JS prototype for an internal dashboard. It features a sidebar, app cards for Counter, Career Studio, and Talent, and a first-time onboarding wizard to manage app access states. All state is managed in-memory with plain JavaScript.",
+  "requestFramePermissions": []
+}

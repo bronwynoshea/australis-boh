@@ -1,0 +1,959 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soundbyte Studio</title>
+    <style>
+        :root {
+            --bg-color: #f4f5f7;
+            --text-color: #172b4d;
+            --primary-color: #0052cc;
+            --primary-hover: #0041a3;
+            --secondary-color: #42526e;
+            --secondary-hover: #253858;
+            --card-bg: #ffffff;
+            --border-color: #dfe1e6;
+            --input-bg: #fafbfc;
+            --error-color: #de350b;
+            --success-color: #00875a;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #0d1117;
+                --text-color: #c9d1d9;
+                --primary-color: #58a6ff;
+                --primary-hover: #80b6ff;
+                --secondary-color: #8b949e;
+                --secondary-hover: #acb6c0;
+                --card-bg: #161b22;
+                --border-color: #30363d;
+                --input-bg: #0d1117;
+                --error-color: #f85149;
+                --success-color: #56d364;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        header {
+            text-align: center;
+            padding-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            color: var(--primary-color);
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.05);
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+        }
+
+        .form-row .form-group {
+            flex-grow: 1;
+        }
+
+        label {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 25%, transparent);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.1s, opacity 0.2s;
+            white-space: nowrap;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-primary:hover:not(:disabled) { background-color: var(--primary-hover); }
+
+        .btn-secondary { background-color: var(--secondary-color); color: white; }
+        .btn-secondary:hover:not(:disabled) { background-color: var(--secondary-hover); }
+
+        .btn-danger { background-color: var(--error-color); color: white; }
+        
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+        }
+
+        #status-message {
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+            margin-bottom: 1.5rem;
+            border: 1px solid transparent;
+        }
+        #status-message.error { background-color: color-mix(in srgb, var(--error-color) 15%, transparent); border-color: var(--error-color); color: var(--error-color); }
+        #status-message.success { background-color: color-mix(in srgb, var(--success-color) 15%, transparent); border-color: var(--success-color); color: var(--success-color); }
+
+        #question-display {
+            background-color: var(--input-bg);
+            padding: 1rem;
+            border-radius: 6px;
+            min-height: 50px;
+            border: 1px dashed var(--border-color);
+            font-style: italic;
+            transition: opacity 0.3s;
+        }
+        
+        #question-display.loading {
+             display: flex;
+             align-items: center;
+             justify-content: center;
+        }
+        
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        @media (max-width: 768px) {
+            .grid-2, .form-row {
+                grid-template-columns: 1fr;
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
+    </style>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Soundbyte Studio</h1>
+            <p>AI-powered content creation with SOUNDBITE STRATEGY</p>
+        </header>
+
+        <div id="status-message"></div>
+
+        <!-- CONFIGURATION CARD -->
+        <div class="card">
+            <h2>Configuration</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="api-key">Gemini API Key</label>
+                    <input type="password" id="api-key" placeholder="Enter your Gemini API Key">
+                </div>
+            </div>
+             <div class="form-row" style="margin-top: 1rem;">
+                <div class="form-group">
+                    <label for="project-selector">Active Project</label>
+                    <select id="project-selector"></select>
+                </div>
+                <button id="new-project-btn" class="btn-secondary">New Project</button>
+                <div class="form-group">
+                    <label for="soundbyte-selector">Active Soundbyte</label>
+                    <select id="soundbyte-selector"></select>
+                </div>
+                <button id="new-soundbyte-btn" class="btn-secondary">New Soundbyte</button>
+            </div>
+        </div>
+
+        <!-- SOUNDBYTE PROFILE CARD -->
+        <div class="card" id="soundbyte-card" style="display: none;">
+            <h2>Soundbyte Profile</h2>
+            <div class="form-row">
+                 <div class="form-group">
+                    <label for="soundbyte-name">Profile Name</label>
+                    <input type="text" id="soundbyte-name" placeholder="e.g., Job Seeker Frustration">
+                </div>
+                 <div class="form-group">
+                    <label for="soundbyte-level">Level</label>
+                    <select id="soundbyte-level">
+                        <option value="corporate">Corporate</option>
+                        <option value="product">Product</option>
+                        <option value="campaign">Campaign</option>
+                        <option value="audience">Audience</option>
+                        <option value="personal">Personal</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top: 1.5rem;">
+                <fieldset>
+                    <legend><strong>PPR (Problem–Person–Result)</strong></legend>
+                    <div class="form-group" style="margin-top: 0.5rem;">
+                        <label for="ppr-problem">Problem</label>
+                        <textarea id="ppr-problem"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label for="ppr-person">Person</label>
+                        <textarea id="ppr-person"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label for="ppr-result">Result</label>
+                        <textarea id="ppr-result"></textarea>
+                    </div>
+                </fieldset>
+                <fieldset>
+                    <legend><strong>PEACE Framework</strong></legend>
+                    <div class="form-group" style="margin-top: 0.5rem;">
+                        <label for="peace-problem">Problem</label><textarea id="peace-problem"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label for="peace-emotion">Emotion</label><textarea id="peace-emotion"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label for="peace-action">Action</label><textarea id="peace-action"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label for="peace-change">Change</label><textarea id="peace-change"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label for="peace-evidence">Evidence</label><textarea id="peace-evidence"></textarea>
+                    </div>
+                </fieldset>
+            </div>
+            
+             <div class="form-group" style="margin-top: 1.5rem;">
+                <label for="hole-we-own">Hole We Own</label>
+                <input type="text" id="hole-we-own" placeholder="The one thing we can say that no one else can">
+            </div>
+            <div class="form-group" style="margin-top: 1rem;">
+                <label for="core-soundbyte">Core Soundbyte</label>
+                <input type="text" id="core-soundbyte" placeholder="The memorable, repeatable phrase">
+            </div>
+            <div class="form-group" style="margin-top: 1rem;">
+                <label for="soundbyte-notes">Notes</label>
+                <textarea id="soundbyte-notes"></textarea>
+            </div>
+            
+            <div class="button-group">
+                <button id="save-soundbyte-btn" class="btn-primary">Save Soundbyte</button>
+                <button id="duplicate-soundbyte-btn" class="btn-secondary">Duplicate Soundbyte</button>
+                <button id="delete-soundbyte-btn" class="btn-danger">Delete Soundbyte</button>
+            </div>
+        </div>
+        
+        <!-- PROJECT CARD -->
+        <div class="card" id="project-card" style="display: none;">
+            <h2>Content Project</h2>
+             <div class="form-row">
+                 <div class="form-group" style="flex-grow: 2;">
+                    <label for="project-title">Working Title</label>
+                    <input type="text" id="project-title">
+                </div>
+                 <div class="form-group">
+                    <label for="project-type">Project Type</label>
+                    <select id="project-type">
+                        <option value="book">Book</option>
+                        <option value="blog">Blog</option>
+                        <option value="landing_page">Landing Page</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 1rem;">
+                <label for="project-subtitle">Subtitle (Optional)</label>
+                <input type="text" id="project-subtitle">
+            </div>
+            <div class="form-group" style="margin-top: 1rem;">
+                <label for="project-audience">Target Audience</label>
+                <textarea id="project-audience"></textarea>
+            </div>
+            <div class="button-group">
+                <button id="save-project-btn" class="btn-primary">Save Project</button>
+                 <button id="delete-project-btn" class="btn-danger">Delete Project</button>
+            </div>
+        </div>
+
+        <!-- INTERVIEW CARD -->
+        <div class="card" id="interview-card" style="display: none;">
+            <h2>AI Interview</h2>
+             <div class="form-row">
+                <button id="toggle-interview-btn" class="btn-primary" style="padding: 1rem 2rem;">Start Interview</button>
+            </div>
+            <div style="margin-top: 1.5rem;">
+                <label><strong>Interviewer's Question</strong></label>
+                <div id="question-display" style="margin-top: 0.5rem;">Click "Start Interview" to begin.</div>
+            </div>
+             <div class="form-group" style="margin-top: 1.5rem;">
+                <label for="answer-textarea"><strong>Your Answer</strong></label>
+                <textarea id="answer-textarea" placeholder="Type your answer here..."></textarea>
+            </div>
+            <div class="button-group">
+                <button id="submit-answer-btn" class="btn-primary">Submit Answer & Get Next Question</button>
+                <button id="repeat-question-btn" class="btn-secondary">Repeat Question</button>
+            </div>
+        </div>
+
+        <!-- EXPORT CARD -->
+        <div class="card" id="export-card" style="display: none;">
+            <h2>Export</h2>
+            <div class="button-group">
+                <button id="export-md-btn" class="btn-secondary">Export Project as Markdown</button>
+                <button id="copy-clipboard-btn" class="btn-secondary">Copy Markdown to Clipboard</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- CONFIGURATION & CONSTANTS ---
+    const LOCAL_STORAGE_KEY = 'SOUNDBYTE_STUDIO_STATE';
+    const GEMINI_MODEL = 'gemini-1.5-flash-latest';
+
+    // --- DOM ELEMENT SELECTORS ---
+    const apiKeyInput = document.getElementById('api-key');
+    const projectSelector = document.getElementById('project-selector');
+    const soundbyteSelector = document.getElementById('soundbyte-selector');
+    const newProjectBtn = document.getElementById('new-project-btn');
+    const newSoundbyteBtn = document.getElementById('new-soundbyte-btn');
+    const statusMessage = document.getElementById('status-message');
+
+    // Soundbyte Card
+    const soundbyteCard = document.getElementById('soundbyte-card');
+    const soundbyteNameInput = document.getElementById('soundbyte-name');
+    const soundbyteLevelSelect = document.getElementById('soundbyte-level');
+    const pprProblemInput = document.getElementById('ppr-problem');
+    const pprPersonInput = document.getElementById('ppr-person');
+    const pprResultInput = document.getElementById('ppr-result');
+    const peaceProblemInput = document.getElementById('peace-problem');
+    const peaceEmotionInput = document.getElementById('peace-emotion');
+    const peaceActionInput = document.getElementById('peace-action');
+    const peaceChangeInput = document.getElementById('peace-change');
+    const peaceEvidenceInput = document.getElementById('peace-evidence');
+    const holeWeOwnInput = document.getElementById('hole-we-own');
+    const coreSoundbyteInput = document.getElementById('core-soundbyte');
+    const soundbyteNotesInput = document.getElementById('soundbyte-notes');
+    const saveSoundbyteBtn = document.getElementById('save-soundbyte-btn');
+    const duplicateSoundbyteBtn = document.getElementById('duplicate-soundbyte-btn');
+    const deleteSoundbyteBtn = document.getElementById('delete-soundbyte-btn');
+
+    // Project Card
+    const projectCard = document.getElementById('project-card');
+    const projectTitleInput = document.getElementById('project-title');
+    const projectTypeSelect = document.getElementById('project-type');
+    const projectSubtitleInput = document.getElementById('project-subtitle');
+    const projectAudienceInput = document.getElementById('project-audience');
+    const saveProjectBtn = document.getElementById('save-project-btn');
+    const deleteProjectBtn = document.getElementById('delete-project-btn');
+
+    // Interview Card
+    const interviewCard = document.getElementById('interview-card');
+    const toggleInterviewBtn = document.getElementById('toggle-interview-btn');
+    const questionDisplay = document.getElementById('question-display');
+    const answerTextarea = document.getElementById('answer-textarea');
+    const submitAnswerBtn = document.getElementById('submit-answer-btn');
+    const repeatQuestionBtn = document.getElementById('repeat-question-btn');
+    
+    // Export Card
+    const exportCard = document.getElementById('export-card');
+    const exportMdBtn = document.getElementById('export-md-btn');
+    const copyClipboardBtn = document.getElementById('copy-clipboard-btn');
+
+    // --- APPLICATION STATE ---
+    let state = { soundbyteProfiles: [], projects: [] };
+    let activeProjectId = null;
+    let activeSoundbyteId = null;
+    let isInterviewActive = false;
+    let currentQuestion = '';
+    let isLoading = false;
+
+    // --- INITIALIZATION ---
+    function init() {
+        loadState();
+        setupEventListeners();
+        render();
+    }
+
+    // --- STATE MANAGEMENT ---
+    function generateUUID() {
+        return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+        );
+    }
+
+    function loadState() {
+        const savedState = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (savedState) {
+            try {
+                const parsed = JSON.parse(savedState);
+                state = parsed.state || { soundbyteProfiles: [], projects: [] };
+                activeProjectId = parsed.activeProjectId;
+                activeSoundbyteId = parsed.activeSoundbyteId;
+                apiKeyInput.value = parsed.apiKey || '';
+
+                // Ensure data structure integrity
+                state.projects.forEach(p => {
+                    if (!p.interviewHistory) p.interviewHistory = [];
+                });
+            } catch (e) {
+                console.error("Failed to load state from localStorage", e);
+                state = { soundbyteProfiles: [], projects: [] };
+            }
+        }
+    }
+
+    function saveState() {
+        const dataToSave = {
+            state,
+            activeProjectId,
+            activeSoundbyteId,
+            apiKey: apiKeyInput.value,
+        };
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
+    }
+
+    // --- RENDER FUNCTIONS ---
+    function render() {
+        renderSelectors();
+        renderSoundbyteForm();
+        renderProjectForm();
+        renderInterviewUI();
+        saveState();
+    }
+
+    function renderSelectors() {
+        // Project Selector
+        projectSelector.innerHTML = '<option value="">-- Select a Project --</option>';
+        state.projects.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.id;
+            option.textContent = p.title || 'Untitled Project';
+            if (p.id === activeProjectId) option.selected = true;
+            projectSelector.appendChild(option);
+        });
+
+        // Soundbyte Selector
+        soundbyteSelector.innerHTML = '<option value="">-- Select a Soundbyte --</option>';
+        state.soundbyteProfiles.forEach(s => {
+            const option = document.createElement('option');
+            option.value = s.id;
+            option.textContent = s.name || 'Untitled Soundbyte';
+            if (s.id === activeSoundbyteId) option.selected = true;
+            soundbyteSelector.appendChild(option);
+        });
+        
+        // Show/hide cards
+        soundbyteCard.style.display = activeSoundbyteId ? 'block' : 'none';
+        projectCard.style.display = activeProjectId ? 'block' : 'none';
+        interviewCard.style.display = activeProjectId && activeSoundbyteId ? 'block' : 'none';
+        exportCard.style.display = activeProjectId && activeSoundbyteId ? 'block' : 'none';
+    }
+
+    function renderSoundbyteForm() {
+        if (!activeSoundbyteId) return;
+        const profile = state.soundbyteProfiles.find(s => s.id === activeSoundbyteId);
+        if (!profile) return;
+        
+        soundbyteNameInput.value = profile.name;
+        soundbyteLevelSelect.value = profile.level;
+        pprProblemInput.value = profile.ppr.problem;
+        pprPersonInput.value = profile.ppr.person;
+        pprResultInput.value = profile.ppr.result;
+        peaceProblemInput.value = profile.peace.problem;
+        peaceEmotionInput.value = profile.peace.emotion;
+        peaceActionInput.value = profile.peace.action;
+        peaceChangeInput.value = profile.peace.change;
+        peaceEvidenceInput.value = profile.peace.evidence;
+        holeWeOwnInput.value = profile.holeWeOwn;
+        coreSoundbyteInput.value = profile.coreSoundbyte;
+        soundbyteNotesInput.value = profile.notes;
+    }
+    
+    function renderProjectForm() {
+        if (!activeProjectId) return;
+        const project = state.projects.find(p => p.id === activeProjectId);
+        if (!project) return;
+        
+        projectTitleInput.value = project.title;
+        projectTypeSelect.value = project.projectType;
+        projectSubtitleInput.value = project.subtitle;
+        projectAudienceInput.value = project.targetAudience;
+    }
+
+    function renderInterviewUI() {
+        if (!activeProjectId) return;
+        const project = state.projects.find(p => p.id === activeProjectId);
+        if (!project) return;
+
+        const lastEntry = project.interviewHistory[project.interviewHistory.length - 1];
+        currentQuestion = lastEntry ? lastEntry.question : '';
+
+        if (isLoading) {
+            questionDisplay.innerHTML = '<div class="loader"></div>';
+            questionDisplay.classList.add('loading');
+        } else {
+            questionDisplay.innerHTML = currentQuestion ? currentQuestion.replace(/\n/g, '<br>') : 'Click "Start Interview" to begin.';
+            questionDisplay.classList.remove('loading');
+        }
+
+        toggleInterviewBtn.textContent = isInterviewActive ? 'Pause Interview' : 'Start Interview';
+        
+        const hasKey = !!apiKeyInput.value.trim();
+        const hasAnswer = !!answerTextarea.value.trim();
+
+        submitAnswerBtn.disabled = isLoading || !isInterviewActive || !hasAnswer || !currentQuestion;
+        repeatQuestionBtn.disabled = isLoading || !currentQuestion;
+        answerTextarea.disabled = isLoading || !isInterviewActive;
+    }
+
+    // --- EVENT HANDLERS ---
+    function setupEventListeners() {
+        apiKeyInput.addEventListener('change', saveState);
+
+        // Selectors
+        projectSelector.addEventListener('change', (e) => {
+            activeProjectId = e.target.value;
+            isInterviewActive = false; // Pause interview on project switch
+            answerTextarea.value = '';
+            render();
+        });
+        soundbyteSelector.addEventListener('change', (e) => {
+            activeSoundbyteId = e.target.value;
+            // Update the project's linked soundbyte ID
+            if (activeProjectId) {
+                const project = state.projects.find(p => p.id === activeProjectId);
+                if (project) project.soundbyteProfileId = activeSoundbyteId;
+            }
+            render();
+        });
+
+        // New Item Buttons
+        newProjectBtn.addEventListener('click', handleNewProject);
+        newSoundbyteBtn.addEventListener('click', handleNewSoundbyte);
+
+        // Soundbyte Actions
+        saveSoundbyteBtn.addEventListener('click', handleSaveSoundbyte);
+        duplicateSoundbyteBtn.addEventListener('click', handleDuplicateSoundbyte);
+        deleteSoundbyteBtn.addEventListener('click', handleDeleteSoundbyte);
+
+        // Project Actions
+        saveProjectBtn.addEventListener('click', handleSaveProject);
+        deleteProjectBtn.addEventListener('click', handleDeleteProject);
+
+        // Interview Actions
+        toggleInterviewBtn.addEventListener('click', handleToggleInterview);
+        submitAnswerBtn.addEventListener('click', handleSubmitAnswer);
+        repeatQuestionBtn.addEventListener('click', () => renderInterviewUI());
+        
+        // Export Actions
+        exportMdBtn.addEventListener('click', () => handleExport('download'));
+        copyClipboardBtn.addEventListener('click', () => handleExport('copy'));
+    }
+    
+    function handleNewProject() {
+        const newProject = {
+            id: generateUUID(),
+            title: 'Untitled Project',
+            subtitle: '',
+            projectType: 'blog',
+            targetAudience: '',
+            soundbyteProfileId: activeSoundbyteId || null,
+            interviewHistory: []
+        };
+        state.projects.push(newProject);
+        activeProjectId = newProject.id;
+        render();
+    }
+
+    function handleNewSoundbyte() {
+        const newProfile = {
+            id: generateUUID(),
+            name: 'Untitled Soundbyte',
+            level: 'audience',
+            ppr: { problem: '', person: '', result: '' },
+            peace: { problem: '', emotion: '', action: '', change: '', evidence: '' },
+            holeWeOwn: '',
+            coreSoundbyte: '',
+            notes: ''
+        };
+        state.soundbyteProfiles.push(newProfile);
+        activeSoundbyteId = newProfile.id;
+        render();
+    }
+
+    function handleSaveSoundbyte() {
+        if (!activeSoundbyteId) return;
+        const profile = state.soundbyteProfiles.find(s => s.id === activeSoundbyteId);
+        if (!profile) return;
+        
+        profile.name = soundbyteNameInput.value;
+        profile.level = soundbyteLevelSelect.value;
+        profile.ppr = {
+            problem: pprProblemInput.value,
+            person: pprPersonInput.value,
+            result: pprResultInput.value,
+        };
+        profile.peace = {
+            problem: peaceProblemInput.value,
+            emotion: peaceEmotionInput.value,
+            action: peaceActionInput.value,
+            change: peaceChangeInput.value,
+            evidence: peaceEvidenceInput.value,
+        };
+        profile.holeWeOwn = holeWeOwnInput.value;
+        profile.coreSoundbyte = coreSoundbyteInput.value;
+        profile.notes = soundbyteNotesInput.value;
+        
+        displayMessage('Soundbyte profile saved!', 'success');
+        render(); // To update selectors if name changed
+    }
+    
+    function handleDuplicateSoundbyte() {
+        if (!activeSoundbyteId) return;
+        const original = state.soundbyteProfiles.find(s => s.id === activeSoundbyteId);
+        if (!original) return;
+        
+        const newProfile = JSON.parse(JSON.stringify(original)); // Deep copy
+        newProfile.id = generateUUID();
+        newProfile.name = `${original.name} (Copy)`;
+        state.soundbyteProfiles.push(newProfile);
+        activeSoundbyteId = newProfile.id;
+        render();
+        displayMessage('Soundbyte duplicated.', 'success');
+    }
+
+    function handleDeleteSoundbyte() {
+        if (!activeSoundbyteId) return;
+        if (!confirm('Are you sure you want to delete this soundbyte profile? This cannot be undone.')) return;
+        
+        state.soundbyteProfiles = state.soundbyteProfiles.filter(s => s.id !== activeSoundbyteId);
+        activeSoundbyteId = null;
+        render();
+        displayMessage('Soundbyte deleted.', 'success');
+    }
+
+    function handleSaveProject() {
+        if (!activeProjectId) return;
+        const project = state.projects.find(p => p.id === activeProjectId);
+        if (!project) return;
+        
+        project.title = projectTitleInput.value;
+        project.projectType = projectTypeSelect.value;
+        project.subtitle = projectSubtitleInput.value;
+        project.targetAudience = projectAudienceInput.value;
+        project.soundbyteProfileId = activeSoundbyteId;
+        
+        displayMessage('Project saved!', 'success');
+        render();
+    }
+    
+    function handleDeleteProject() {
+        if (!activeProjectId) return;
+        if (!confirm('Are you sure you want to delete this project and its interview history? This cannot be undone.')) return;
+        
+        state.projects = state.projects.filter(p => p.id !== activeProjectId);
+        activeProjectId = null;
+        isInterviewActive = false;
+        render();
+        displayMessage('Project deleted.', 'success');
+    }
+
+    async function handleToggleInterview() {
+        if (isLoading) return;
+        
+        if (!isInterviewActive) { // Starting
+            const apiKey = apiKeyInput.value.trim();
+            if (!apiKey || !activeProjectId || !activeSoundbyteId) {
+                displayMessage('API Key, active project, and active soundbyte are required to start.', 'error');
+                return;
+            }
+            isInterviewActive = true;
+            const project = state.projects.find(p => p.id === activeProjectId);
+            if (project.interviewHistory.length === 0) {
+                await getAiResponse({ isFirstQuestion: true });
+            }
+        } else { // Pausing
+            isInterviewActive = false;
+        }
+        renderInterviewUI();
+    }
+    
+    async function handleSubmitAnswer() {
+        if (isLoading || !isInterviewActive) return;
+        const answer = answerTextarea.value.trim();
+        if (!answer) {
+            displayMessage('Please provide an answer.', 'error');
+            return;
+        }
+        
+        // Save the current Q&A
+        const project = state.projects.find(p => p.id === activeProjectId);
+        if (project) {
+            const lastEntry = project.interviewHistory[project.interviewHistory.length - 1];
+            if (lastEntry) {
+                 lastEntry.answer = answer;
+                 lastEntry.timestamp = new Date().toISOString();
+            }
+        }
+        
+        await getAiResponse();
+    }
+
+    // --- GEMINI API LOGIC ---
+    async function getAiResponse({ isFirstQuestion = false } = {}) {
+        const apiKey = apiKeyInput.value.trim();
+        const project = state.projects.find(p => p.id === activeProjectId);
+        const soundbyte = state.soundbyteProfiles.find(s => s.id === activeSoundbyteId);
+
+        if (!apiKey || !project || !soundbyte) {
+            displayMessage('Missing API key, project or soundbyte data.', 'error');
+            return;
+        }
+
+        setLoadingState(true);
+
+        const systemInstruction = `You are an expert interviewer and content strategy coach. Your goal is to help an author develop content for a '${project.projectType}' titled "${project.title}".
+The target audience is: ${project.targetAudience}.
+
+The core strategy is based on this Soundbyte Profile:
+- PPR (Problem-Person-Result): The problem is '${soundbyte.ppr.problem}' affecting '${soundbyte.ppr.person}', leading to the result of '${soundbyte.ppr.result}'.
+- PEACE Framework: Problem('${soundbyte.peace.problem}'), Emotion('${soundbyte.peace.emotion}'), Action('${soundbyte.peace.action}'), Change('${soundbyte.peace.change}'), Evidence('${soundbyte.peace.evidence}').
+- The "Hole We Own": ${soundbyte.holeWeOwn}
+- The Core Soundbyte: ${soundbyte.coreSoundbyte}
+
+YOUR RULES:
+1. Ask only ONE probing, insightful question at a time.
+2. Base every new question on the author's previous answer and the Soundbyte Strategy.
+3. For a 'book', ask 8-12 questions per topic area. For a 'blog' or 'landing_page', aim for 5-7 questions total to get the core message.
+4. Dig for stories, examples, beliefs, and evidence.
+5. NEVER write the content or summarize. Your ONLY role is to ask the next best question.
+6. Begin with a powerful opening question based on the project type and soundbyte.`;
+        
+        const contents = [];
+        project.interviewHistory.forEach(item => {
+            contents.push({ role: 'model', parts: [{ text: item.question }] });
+            if (item.answer) {
+                 contents.push({ role: 'user', parts: [{ text: item.answer }] });
+            }
+        });
+
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents,
+                    systemInstruction: { parts: { text: systemInstruction } }
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const newQuestion = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (newQuestion) {
+                project.interviewHistory.push({
+                    sequence: project.interviewHistory.length + 1,
+                    role: 'ai',
+                    question: newQuestion,
+                    answer: '', // Awaiting user's answer
+                    timestamp: new Date().toISOString()
+                });
+                answerTextarea.value = '';
+            } else {
+                throw new Error("Received an empty response from the AI.");
+            }
+
+        } catch (error) {
+            console.error("Gemini API Error:", error);
+            displayMessage(`AI Error: ${error.message}`, 'error');
+            isInterviewActive = false; // Pause on error
+        } finally {
+            setLoadingState(false);
+        }
+    }
+    
+    // --- EXPORT FUNCTIONALITY ---
+    function generateMarkdown() {
+        const project = state.projects.find(p => p.id === activeProjectId);
+        const soundbyte = state.soundbyteProfiles.find(s => s.id === project?.soundbyteProfileId);
+
+        if (!project || !soundbyte) {
+            displayMessage('Active project and linked soundbyte are required for export.', 'error');
+            return null;
+        }
+
+        let md = `# Project: ${project.title}\n`;
+        if(project.subtitle) md += `## ${project.subtitle}\n\n`;
+        md += `**Project Type:** ${project.projectType}\n`;
+        md += `**Target Audience:** ${project.targetAudience}\n\n`;
+
+        md += `## Soundbyte Strategy: ${soundbyte.name}\n\n`;
+        md += `### PPR (Problem-Person-Result)\n`;
+        md += `*   **Problem:** ${soundbyte.ppr.problem}\n`;
+        md += `*   **Person:** ${soundbyte.ppr.person}\n`;
+        md += `*   **Result:** ${soundbyte.ppr.result}\n\n`;
+
+        md += `### PEACE Framework\n`;
+        md += `*   **Problem:** ${soundbyte.peace.problem}\n`;
+        md += `*   **Emotion:** ${soundbyte.peace.emotion}\n`;
+        md += `*   **Action:** ${soundbyte.peace.action}\n`;
+        md += `*   **Change:** ${soundbyte.peace.change}\n`;
+        md += `*   **Evidence:** ${soundbyte.peace.evidence}\n\n`;
+        
+        md += `**Hole We Own:** ${soundbyte.holeWeOwn}\n`;
+        md += `**Core Soundbyte:** ${soundbyte.coreSoundbyte}\n\n`;
+        
+        md += `---\n\n`;
+        md += `## AI Interview Transcript\n\n`;
+        
+        project.interviewHistory.forEach((item, index) => {
+            if (item.question) md += `**Q${index + 1}:** ${item.question}\n`;
+            if (item.answer) md += `**A${index + 1}:**\n${item.answer}\n\n`;
+        });
+
+        return md;
+    }
+    
+    function handleExport(type) {
+        const markdown = generateMarkdown();
+        if (!markdown) return;
+
+        if (type === 'download') {
+            const blob = new Blob([markdown], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const safeTitle = (state.projects.find(p => p.id === activeProjectId)?.title || 'project').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            a.href = url;
+            a.download = `soundbyte-studio-${safeTitle}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            displayMessage('Markdown file downloaded.', 'success');
+        } else if (type === 'copy') {
+            navigator.clipboard.writeText(markdown).then(() => {
+                displayMessage('Copied to clipboard!', 'success');
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                displayMessage('Failed to copy to clipboard.', 'error');
+            });
+        }
+    }
+
+
+    // --- UTILITY FUNCTIONS ---
+    function displayMessage(message, type = 'error', duration = 4000) {
+        statusMessage.textContent = message;
+        statusMessage.className = type;
+        statusMessage.style.display = 'block';
+
+        setTimeout(() => {
+            statusMessage.style.display = 'none';
+        }, duration);
+    }
+    
+    function setLoadingState(loading) {
+        isLoading = loading;
+        renderInterviewUI(); // This will handle disabling buttons
+    }
+
+    // --- START THE APP ---
+    init();
+});
+</script>
+
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>

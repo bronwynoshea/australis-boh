@@ -1,0 +1,304 @@
+project_id = "gsidwiptqkyciexqdbyw"
+
+# Pattern B functions - have in-code JWT validation, disable legacy verification
+[functions.boh-accept-invite]
+verify_jwt = false
+
+[functions.boh-access-snapshot]
+verify_jwt = false
+
+[functions.boh-create-invite]
+verify_jwt = false
+
+[functions.boh-manual-accept-invite]
+verify_jwt = false
+
+[functions.boh-resend-invite]
+verify_jwt = false
+
+[functions.boh-save-access]
+verify_jwt = false
+
+[functions.cellar_create_boh_embed_handoff]
+verify_jwt = false
+
+[functions.content-exchange-add]
+verify_jwt = false
+
+[functions.content-exchange-delete]
+verify_jwt = false
+
+[functions.content-project-compile-draft]
+verify_jwt = false
+
+[functions.content-project-upsert]
+verify_jwt = false
+
+[functions.content-section-build-raw]
+verify_jwt = false
+
+[functions.content-section-generate-draft]
+verify_jwt = false
+
+[functions.content-sections-sync]
+verify_jwt = false
+
+[functions.counter-ticket-notify]
+verify_jwt = false
+
+[functions.get-campaign-bonus-tiers]
+verify_jwt = false
+
+[functions.get-hero-campaign]
+verify_jwt = false
+
+[functions.harper-live-turn]
+verify_jwt = false
+
+[functions.patron-sync]
+verify_jwt = false
+
+[functions.boh-patron-upsert]
+verify_jwt = false
+
+[functions.sadie-create-ticket]
+verify_jwt = false
+
+[functions.sadie-session]
+verify_jwt = false
+
+[functions.sadie-transcribe]
+verify_jwt = false
+
+# Newly migrated functions - now have Pattern B authentication
+[functions.setup-user-credits-from-offer]
+verify_jwt = false
+
+[functions.storyboard-save-draft]
+verify_jwt = false
+
+[functions.storyboard-save-exchange]
+verify_jwt = false
+
+# Menu Product Release Reports functions
+[functions.menu-product-release-report]
+verify_jwt = false
+
+[functions.menu-initiative-report-detail]
+verify_jwt = false
+
+[functions.menu-minor-release-report]
+verify_jwt = false
+
+[functions.menu-executive-release-summary]
+verify_jwt = false
+
+# Forge Reporting functions - Pattern B authentication
+[functions.forge-overview-report]
+verify_jwt = false
+
+[functions.forge-release-report-detail]
+verify_jwt = false
+
+[functions.forge-walkthrough-run]
+verify_jwt = false
+
+[functions.forge-walkthrough-status]
+verify_jwt = false
+
+[functions.forge-walkthrough-worker]
+verify_jwt = false
+
+# Keep (Supabase Storage backed) functions - Pattern B authentication
+[functions.keep-folders]
+verify_jwt = false
+
+[functions.keep-files]
+verify_jwt = false
+
+[functions.keep-upload-file]
+verify_jwt = false
+
+[functions.keep-create-folder]
+verify_jwt = false
+
+[functions.keep-folder-by-id]
+verify_jwt = false
+
+[functions.keep-file-download]
+verify_jwt = false
+
+[functions.keep-file-versions]
+verify_jwt = false
+
+[functions.keep-file-approval]
+verify_jwt = false
+
+[functions.keep-quick-link-admin]
+verify_jwt = false
+
+[functions.keep-delete-file]
+verify_jwt = false
+
+[functions.keep-delete-folder]
+verify_jwt = false
+
+[functions.keep-submit-to-gold]
+verify_jwt = false
+
+[functions.keep-move-file]
+verify_jwt = false
+
+[functions.keep-search]
+verify_jwt = false
+
+# Downloaded BOH production functions - Pattern B authentication
+[functions.approve-waitlist-entry]
+verify_jwt = false
+
+[functions.calendar-sync]
+verify_jwt = false
+
+[functions.career-generate-plan]
+verify_jwt = false
+
+[functions.central-agent-chat]
+verify_jwt = false
+
+[functions.central-agent-create]
+verify_jwt = false
+
+[functions.central-agent-delete]
+verify_jwt = false
+
+[functions.central-agent-list]
+verify_jwt = false
+
+[functions.central-agent-list-db]
+verify_jwt = false
+
+[functions.central-agent-request-approve]
+verify_jwt = false
+
+[functions.central-agent-request-create]
+verify_jwt = false
+
+[functions.central-agent-request-list]
+verify_jwt = false
+
+[functions.central-agent-spawn]
+verify_jwt = false
+
+[functions.central-agent-update]
+verify_jwt = false
+
+[functions.central-agent-vps-sync]
+verify_jwt = false
+
+[functions.central-chat]
+verify_jwt = false
+
+[functions.central-health-check]
+verify_jwt = false
+
+[functions.central-model-list]
+verify_jwt = false
+
+[functions.central-model-router]
+verify_jwt = false
+
+[functions.central-model-update]
+verify_jwt = false
+
+[functions.central-provider-credential-status]
+verify_jwt = false
+
+[functions.central-provider-credential-update]
+verify_jwt = false
+
+[functions.central-section-list]
+verify_jwt = false
+
+[functions.central-session-create]
+verify_jwt = false
+
+[functions.central-session-ensure]
+verify_jwt = false
+
+[functions.central-session-history]
+verify_jwt = false
+
+[functions.central-session-send]
+verify_jwt = false
+
+[functions.central-table-create]
+verify_jwt = false
+
+[functions.central-table-list]
+verify_jwt = false
+
+[functions.central-task-create]
+verify_jwt = false
+
+[functions.central-task-dispatch]
+verify_jwt = false
+
+[functions.central-task-list]
+verify_jwt = false
+
+[functions.central-task-update]
+verify_jwt = false
+
+[functions.central-token-usage]
+verify_jwt = false
+
+[functions.create-outlook-event]
+verify_jwt = false
+
+[functions.get-or-create-personal-room]
+verify_jwt = false
+
+[functions.get-personal-room-by-slug]
+verify_jwt = false
+
+[functions.get-personal-room-waitlist]
+verify_jwt = false
+
+[functions.join-personal-room-by-slug]
+verify_jwt = false
+
+[functions.lessons-learned]
+verify_jwt = false
+
+[functions.loft-join-token]
+verify_jwt = false
+
+[functions.outlook-webhook]
+verify_jwt = false
+
+[functions.patron-recruiter-intake]
+verify_jwt = false
+
+[functions.reject-waitlist-entry]
+verify_jwt = false
+
+[functions.send-booking-confirmation]
+verify_jwt = false
+
+[functions.send-cancellation-notice]
+verify_jwt = false
+
+[functions.send-daily-guest-reminders]
+verify_jwt = false
+
+[functions.send-daily-staff-reminders]
+verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.send-rescheduling-notice]
+verify_jwt = false
+
+[functions.send-staff-notification]
+verify_jwt = false

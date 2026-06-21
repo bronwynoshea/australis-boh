@@ -7,12 +7,18 @@ interface CrewAppProps {
   isAdmin?: boolean;
 }
 
+interface CrewErrorBoundaryProps {
+  children?: React.ReactNode;
+}
+
 interface CrewErrorBoundaryState {
   hasError: boolean;
   message: string;
 }
 
-class CrewErrorBoundary extends React.Component<React.PropsWithChildren, CrewErrorBoundaryState> {
+class CrewErrorBoundary extends React.Component<CrewErrorBoundaryProps, CrewErrorBoundaryState> {
+  declare props: Readonly<CrewErrorBoundaryProps>;
+
   state: CrewErrorBoundaryState = {
     hasError: false,
     message: '',

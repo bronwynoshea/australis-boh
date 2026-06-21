@@ -111,7 +111,7 @@ export interface TicketFilterState {
 }
 
 // Re-export BohUser from parent types
-export type { BohUser } from '../../types';
+export type { BohUser } from '../../../types';
 
 export const PRIORITY_OPTIONS: Record<InternalPriority, string> = {
   [InternalPriority.Unassigned]: 'Unassigned',

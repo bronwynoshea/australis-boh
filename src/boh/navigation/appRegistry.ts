@@ -17,7 +17,7 @@ export const APP_REGISTRY: BohAppRegistration[] = [
     label: 'Chats',
     icon: 'MessageSquareText',
     appPath: '/apps/chatz',
-    component: lazy(() => import('../apps/chatz/App')),
+    component: lazy(() => import('../../apps/chatz/App')),
     category: 'Operations',
   },
 ];

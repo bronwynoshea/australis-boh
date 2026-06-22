@@ -4,7 +4,6 @@ import ThemeToggle from '../../../components/ThemeToggle';
 import type { Theme } from '../../../types';
 import { useBohAccess } from '../../../shared/hooks/useBohAccess';
 import { useCurrentTheme } from '../../../shared/hooks/useCurrentTheme';
-import { bohApps } from '../../../boh/navigation';
 
 interface DashboardPageProps {
   onRequestAccess?: (app: string) => void;
@@ -16,49 +15,6 @@ interface DashboardPageProps {
   onNavigate?: (section: string) => void;
   isSuperAdmin?: boolean;
 }
-
-const hiddenDuplicateSlugs = new Set(['central', 'central-command']);
-
-const fallbackDescriptions: Record<string, string> = {
-  cellar: 'Stock, inventory, and operational storage.',
-  chatz: 'Messaging for internal and connected app conversations.',
-  forge: 'Delivery workstreams, submitted initiatives, and build readiness.',
-  ledger: 'Finance, reporting, and internal records.',
-  loft: 'Meetings, rooms, and video collaboration.',
-  menu: 'Initiatives, user stories, and planning stages.',
-  slotz: 'Calendar scheduling and appointment slots.',
-  studio: 'Company product workspace.',
-  journey: 'Company product workspace.',
-  coach: 'Company product workspace.',
-  mentor: 'Company product workspace.',
-  tablez: 'Sections, tables, chairs, and task execution.',
-  talent: 'Company product workspace.',
-  website: 'Company website.',
-};
-
-const localBohRoutesBySlug = new Map([
-  ...bohApps
-    .filter((app) =>
-      [
-        'cellar',
-        'cookbook',
-        'counter',
-        'crew',
-        'forge',
-        'keep',
-        'ledger',
-        'loft',
-        'menu',
-        'patron',
-        'chatz',
-        'slotz',
-        'tablez',
-      ].includes(app.slug),
-    )
-    .map((app) => [app.slug, app.route] as const),
-  ['website', '/website'] as const,
-]);
-
 
 const DashboardPage: React.FC<DashboardPageProps> = ({
   onRequestAccess: onRequestAccessProp,
@@ -109,7 +65,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
     const appsBySlug = new Map<string, any>();
 
     (appsWithAccess ?? []).forEach((app) => {
-      if (app.slug && app.slug !== 'boh' && !hiddenDuplicateSlugs.has(app.slug)) {
+      if (app.slug && app.slug !== 'boh') {
         appsBySlug.set(app.slug, app);
       }
     });
@@ -158,22 +114,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       return;
     }
 
-    const localRoute = localBohRoutesBySlug.get(app.slug);
-    if (localRoute) {
-      navigate(localRoute);
-      return;
-    }
-
     if (app.route) {
       navigate(app.route);
       return;
     }
-
-    navigate(app.route || `/boh/${app.slug}`);
   };
 
   const formatDescription = (app: any) => {
-    const text = app.description || fallbackDescriptions[app.slug] || '';
+    const text = app.description || '';
     const trimmed = text.trim();
     if (!trimmed) return '';
     return trimmed.endsWith('.') ? trimmed : `${trimmed}.`;

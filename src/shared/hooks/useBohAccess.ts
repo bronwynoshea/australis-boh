@@ -62,8 +62,9 @@ const describeAccessError = (err: unknown): string => {
  * 
  * - Checks boh_user table for current auth user
  * - Checks boh_user_role for super_admin role
- * - If super_admin: returns all active apps
- * - Otherwise: returns apps from boh_user_app
+ * - Loads only apps explicitly enabled for the current tenant
+ * - If tenant-scoped super_admin: returns all apps enabled for that tenant
+ * - Otherwise: returns tenant apps with per-user grants from boh_user_app
  */
 export function useBohAccess(): BohAccess {
   const [bohUser, setBohUser] = useState<{ id: string; auth_user_id: string; tenant_id: string } | null>(null);
@@ -151,7 +152,7 @@ export function useBohAccess(): BohAccess {
           .eq('app_context', 'boh');
 
         if (rolesError) {
-          console.warn('[useBohAccess] Super admin role lookup failed; continuing with direct app grants.', rolesError);
+          console.warn('[useBohAccess] Super admin role lookup failed; continuing with tenant app access check.', rolesError);
         }
 
         const isSuperAdminCheck = !rolesError && (rolesData?.some(

@@ -166,8 +166,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               await supabase.auth.signOut();
               setErrorMessage(
                 authMode === 'create'
-                  ? 'Your Australis account was created, but no BOH workspace access has been granted yet. Contact Australis support or your workspace owner to activate access.'
-                  : 'No Australis BOH workspace access found. Please contact Australis support or your workspace owner if you expected access.',
+                  ? 'Your BOH account was created, but workspace access has not been granted yet. Contact support or your workspace owner to activate access.'
+                  : 'No BOH workspace access found. Please contact support or your workspace owner if you expected access.',
               );
               setCode('');
               setLoading(false);
@@ -210,12 +210,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const legalContent = legalPanel === 'terms'
     ? {
         title: 'Terms of Use',
-        description: 'Australis Back of House access',
+        description: 'Back of House access',
         sections: [
           {
-            heading: 'Australis workspace',
+            heading: 'Private workspace',
             body:
-              'Australis Back of House is operated by Australis, a division of JOBZCAFE®. Use is limited to authorised users and approved collaborators.',
+              'Back of House is a private workspace operated by JOBZCAFE®. Australis is a division of JOBZCAFE® and may provide this BOH workspace for Australis teams, customers, and approved collaborators.',
           },
           {
             heading: 'Account responsibility',
@@ -225,7 +225,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           {
             heading: 'Operational data',
             body:
-              'Information inside BOH is for Australis operations, delivery, product, and support work. Treat customer, candidate, staff, and business records as confidential.',
+              'Information inside BOH is for authorised operations, delivery, product, and support work, including Australis workspaces where applicable. Treat customer, candidate, staff, and business records as confidential.',
           },
           {
             heading: 'Appropriate use',
@@ -246,7 +246,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           {
             heading: 'Why it is used',
             body:
-              'This information is used to authenticate access, run BOH applications, support Australis services, maintain security, and keep operational records accurate.',
+              'This information is used to authenticate access, run BOH applications, support JOBZCAFE® and Australis services where applicable, maintain security, and keep operational records accurate.',
           },
           {
             heading: 'Access and retention',
@@ -256,7 +256,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           {
             heading: 'Support',
             body:
-              'For privacy or access questions, contact Australis support or the BOH owner responsible for your workspace access.',
+              'For privacy or access questions, contact support or the BOH owner responsible for your workspace access.',
           },
         ],
       };
@@ -269,10 +269,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <div className="login-visual-overlay" />
         </section>
 
-        <section className="login-panel" aria-label="Australis Back of House access">
+        <section className="login-panel" aria-label="Back of House access">
           <div className="login-box">
-            <div className="logo-main">Australis</div>
-            <h1>{authMode === 'create' ? 'Create your Australis account' : 'Sign in to Australis Back of House'}</h1>
+            <div className="login-brand" aria-label="Australis">
+              <img src="/Assets/australis-favicon.svg" alt="" aria-hidden="true" />
+              <span className="logo-main">Australis</span>
+            </div>
+            <h1>{authMode === 'create' ? 'Create your BOH account' : 'Sign in to Back of House'}</h1>
 
             {step === 'email' ? (
               <form className="login-form" onSubmit={handleEmailSubmit}>
@@ -301,8 +304,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
                 <p className="helper-text">
                   {authMode === 'create'
-                    ? 'Create an Australis account with your email. Workspace access is activated by your Australis workspace owner.'
-                    : 'Use your Australis workspace email to receive a secure sign-in code.'}
+                    ? 'Create a BOH account with your email. Workspace access is activated by your workspace owner.'
+                    : 'Use your workspace email to receive a secure sign-in code.'}
                 </p>
 
                 <button
@@ -317,7 +320,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 >
                   {authMode === 'create'
                     ? 'Already have an account? Sign in'
-                    : 'New to Australis? Create account'}
+                    : 'Create account'}
                 </button>
               </form>
             ) : (

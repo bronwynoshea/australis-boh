@@ -1594,12 +1594,24 @@ input:checked + .slider:before { transform: translateX(20px); }
     margin-bottom: 0;
     letter-spacing: 0;
 }
+.login-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 1rem;
+}
+.login-brand img {
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 14px 30px rgba(99, 92, 205, 0.22);
+}
 .login-box .logo-main {
     font-size: 0.78rem;
     font-weight: 800;
     color: var(--boh-purple);
     letter-spacing: 0.12em;
-    margin-bottom: 1rem;
+    text-transform: uppercase;
 }
 
 .dark .login-box .logo-main {

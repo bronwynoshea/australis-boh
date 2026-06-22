@@ -210,12 +210,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const legalContent = legalPanel === 'terms'
     ? {
         title: 'Terms of Use',
-        description: 'Back of House access',
+        description: 'JOBZCAFE® Back of House access',
         sections: [
           {
-            heading: 'Private workspace',
+            heading: 'Invitation-only workspace',
             body:
-              'Back of House is a private workspace operated by JOBZCAFE®. Australis is a division of JOBZCAFE® and may provide this BOH workspace for Australis teams, customers, and approved collaborators.',
+              'Back of House is a private JOBZCAFE® workspace. Australis is a division of JOBZCAFE® and may provide this BOH workspace for Australis teams, customers, and approved collaborators. Use is limited to invited team members and approved collaborators.',
           },
           {
             heading: 'Account responsibility',
@@ -225,7 +225,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           {
             heading: 'Operational data',
             body:
-              'Information inside BOH is for authorised operations, delivery, product, and support work, including Australis workspaces where applicable. Treat customer, candidate, staff, and business records as confidential.',
+              'Information inside BOH is for JOBZCAFE® operations, Australis operations where applicable, delivery, product, and support work. Treat customer, candidate, staff, and business records as confidential.',
           },
           {
             heading: 'Appropriate use',
@@ -246,7 +246,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           {
             heading: 'Why it is used',
             body:
-              'This information is used to authenticate access, run BOH applications, support JOBZCAFE® and Australis services where applicable, maintain security, and keep operational records accurate.',
+              'This information is used to authenticate access, run BOH applications, support JOBZCAFE® services and Australis services where applicable, maintain security, and keep operational records accurate.',
           },
           {
             heading: 'Access and retention',
@@ -256,7 +256,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           {
             heading: 'Support',
             body:
-              'For privacy or access questions, contact support or the BOH owner responsible for your workspace access.',
+              'For privacy or access questions, contact your JOBZCAFE® admin, Australis support where applicable, or the BOH owner responsible for your workspace access.',
           },
         ],
       };
@@ -272,7 +272,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <section className="login-panel" aria-label="Back of House access">
           <div className="login-box">
             <div className="login-brand" aria-label="Australis">
-              <img src="/Assets/australis-favicon.svg" alt="" aria-hidden="true" />
+              <img src="/Assets/australis-logo-mark.png" alt="" aria-hidden="true" />
               <span className="logo-main">Australis</span>
             </div>
             <h1>{authMode === 'create' ? 'Create your BOH account' : 'Sign in to Back of House'}</h1>

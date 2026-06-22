@@ -17,50 +17,23 @@ interface DashboardPageProps {
   isSuperAdmin?: boolean;
 }
 
-const customerSlugs = new Set(['studio', 'talent', 'dna', 'website']);
-const hybridSlugs = new Set(['chatz', 'slotz']);
-const hiddenDuplicateSlugs = new Set(['cafe', 'coach', 'journey', 'mentor']);
-const customerSortPriority: Record<string, number> = {
-  studio: 0,
-  talent: 1,
-};
-const comingSoonSlugs = new Set(['central-command']);
-const comingSoonNames = new Set(['Central Command']);
-
-const getExternalAppUrl = (prodUrl: string, devUrl: string) => {
-  const hostname = window.location.hostname;
-  const isDev =
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === 'dev-boh.jobzcafe.com' ||
-    hostname === 'dev-boh.australis.cloud' ||
-    hostname === 'boh.australis.cloud';
-
-  return isDev ? devUrl : prodUrl;
-};
-
-const externalUrlBySlug: Record<string, string> = {
-  studio: getExternalAppUrl('https://app.jobzcafe.com', 'https://dev-app.jobzcafe.com'),
-  talent: getExternalAppUrl('https://talent.jobzcafe.com', 'https://dev-talent.jobzcafe.com'),
-};
+const hiddenDuplicateSlugs = new Set(['central', 'central-command']);
 
 const fallbackDescriptions: Record<string, string> = {
   cellar: 'Stock, inventory, and operational storage.',
-  central: 'AI command workspace and assisted execution.',
-  'central-command': 'AI command workspace and assisted execution.',
   chatz: 'Messaging for internal and connected app conversations.',
   forge: 'Delivery workstreams, submitted initiatives, and build readiness.',
   ledger: 'Finance, reporting, and internal records.',
   loft: 'Meetings, rooms, and video collaboration.',
   menu: 'Initiatives, user stories, and planning stages.',
   slotz: 'Calendar scheduling and appointment slots.',
-  studio: 'Career Studio customer workspace.',
-  journey: 'Job seeker journey workspace.',
-  coach: 'Guided coaching and next-step support.',
-  mentor: 'Mentor matching and support workflows.',
+  studio: 'Company product workspace.',
+  journey: 'Company product workspace.',
+  coach: 'Company product workspace.',
+  mentor: 'Company product workspace.',
   tablez: 'Sections, tables, chairs, and task execution.',
-  talent: 'Talent marketplace and recruiter workflows.',
-  website: 'Public Australis website.',
+  talent: 'Company product workspace.',
+  website: 'Company website.',
 };
 
 const localBohRoutesBySlug = new Map([
@@ -68,7 +41,6 @@ const localBohRoutesBySlug = new Map([
     .filter((app) =>
       [
         'cellar',
-        'central',
         'cookbook',
         'counter',
         'crew',
@@ -87,18 +59,6 @@ const localBohRoutesBySlug = new Map([
   ['website', '/website'] as const,
 ]);
 
-const normalizeStaticApp = (app: (typeof bohApps)[number]) => ({
-  id: app.id,
-  name: app.name,
-  slug: app.slug,
-  description: fallbackDescriptions[app.slug] ?? '',
-  route: app.route,
-  external_url: app.externalUrl ?? '',
-  type: app.isExternal ? 'external_app' : 'internal_tool',
-  is_active: true,
-  boh_user_app: [{ permission_level: 'admin' as const }],
-  is_static_fallback: true,
-});
 
 const DashboardPage: React.FC<DashboardPageProps> = ({
   onRequestAccess: onRequestAccessProp,
@@ -132,7 +92,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   };
 
   const onRequestAccess = onRequestAccessProp ?? (() => {});
-  const isComingSoon = (app: any) => comingSoonSlugs.has(app.slug) || comingSoonNames.has(app.name);
+  const isComingSoon = (app: any) => app.tenant_app_status === 'coming_soon';
   const getAppGrant = (app: any) => app.boh_user_app?.[0] ?? null;
 
   const userHasAccess = (app: any): boolean => {
@@ -154,16 +114,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       }
     });
 
-    if (isSuperAdmin) {
-      bohApps.forEach((app) => {
-        if (app.slug !== 'boh' && !appsBySlug.has(app.slug)) {
-          appsBySlug.set(app.slug, normalizeStaticApp(app));
-        }
-      });
-    }
-
     return Array.from(appsBySlug.values());
-  }, [appsWithAccess, isSuperAdmin]);
+  }, [appsWithAccess]);
 
   const accessibleApps = useMemo(
     () => visibleApps.filter(userHasAccess).sort((a, b) => a.name.localeCompare(b.name)),
@@ -174,27 +126,20 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
 
   const groupedDashboardApps = useMemo(() => {
     const groups = {
-      internal: [] as any[],
-      hybrid: [] as any[],
-      customer: [] as any[],
+      suite: [] as any[],
+      links: [] as any[],
     };
 
     dashboardApps.forEach((app) => {
-      if (customerSlugs.has(app.slug)) {
-        groups.customer.push(app);
-      } else if (hybridSlugs.has(app.slug)) {
-        groups.hybrid.push(app);
+      if (app.app_kind === 'external' || app.type === 'external_app') {
+        groups.links.push(app);
       } else {
-        groups.internal.push(app);
+        groups.suite.push(app);
       }
     });
 
-    groups.customer.sort((a, b) => {
-      const aPriority = customerSortPriority[a.slug] ?? 10;
-      const bPriority = customerSortPriority[b.slug] ?? 10;
-      if (aPriority !== bPriority) return aPriority - bPriority;
-      return a.name.localeCompare(b.name);
-    });
+    groups.suite.sort((a, b) => a.name.localeCompare(b.name));
+    groups.links.sort((a, b) => a.name.localeCompare(b.name));
 
     return groups;
   }, [dashboardApps]);
@@ -207,20 +152,20 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       return;
     }
 
+    const externalUrl = app.external_url;
+    if (externalUrl) {
+      window.open(externalUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     const localRoute = localBohRoutesBySlug.get(app.slug);
     if (localRoute) {
       navigate(localRoute);
       return;
     }
 
-    if (app.route && !app.external_url) {
+    if (app.route) {
       navigate(app.route);
-      return;
-    }
-
-    const externalUrl = externalUrlBySlug[app.slug] || app.external_url;
-    if (externalUrl) {
-      window.open(externalUrl, '_blank', 'noopener,noreferrer');
       return;
     }
 
@@ -296,9 +241,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
           ) : (
             <>
               <div className="boh-workspace-columns">
-                {renderGroup('Internal Apps', 'Employee-facing BOH tools.', groupedDashboardApps.internal)}
-                {renderGroup('Customer Apps', 'Top-level customer platforms.', groupedDashboardApps.customer)}
-                {renderGroup('Hybrid Apps', 'Mixed internal and customer platforms.', groupedDashboardApps.hybrid)}
+                {renderGroup('BOH Suite', 'Internal company workspace apps enabled for this tenant.', groupedDashboardApps.suite)}
+                {renderGroup('Workspace Links', 'Company-owned products, websites, and connected external apps for this tenant.', groupedDashboardApps.links)}
               </div>
               {dashboardApps.length === 0 && (
                 <div className="boh-workspace-empty">

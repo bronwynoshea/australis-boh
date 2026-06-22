@@ -19,7 +19,6 @@ export {
   chatzNavConfig,
   studioNavConfig,
   talentNavConfig,
-  centralNavConfig,
   keepNavConfig,
   loftNavConfig,
   cellarNavConfig,

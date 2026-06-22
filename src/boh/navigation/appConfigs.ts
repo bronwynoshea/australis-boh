@@ -201,18 +201,6 @@ export const talentNavConfig: AppNavConfig = {
   ],
 };
 
-// Central App Navigation Config
-export const centralNavConfig: AppNavConfig = {
-  appId: 'central',
-  appLabel: 'Central',
-  appIcon: DefaultIcons.Central,
-  baseRoute: '/central',
-  defaultRoute: '/central',
-  sidebarItems: [
-    { key: 'overview', label: 'Agent Engagement', to: '/central' },
-  ],
-};
-
 // Slotz App Navigation Config
 export const slotzNavConfig: AppNavConfig = {
   appId: 'slotz',
@@ -304,17 +292,7 @@ export const bohApps: BohAppDefinition[] = [
     navConfig: cellarNavConfig,
     category: 'internal',
   },
-  {
-    id: 'central',
-    slug: 'central',
-    name: 'Central',
-    route: '/central',
-    icon: DefaultIcons.Central,
-    navConfig: centralNavConfig,
-    isExternal: true,
-    externalUrl: 'https://central.jobz.cafe',
-    category: 'internal',
-  },
+
   {
     id: 'chatz',
     slug: 'chatz',

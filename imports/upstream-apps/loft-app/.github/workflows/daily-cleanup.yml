@@ -1,0 +1,19 @@
+name: Daily Loft Room Cleanup
+
+on:
+  schedule:
+    # Runs every day at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Cleanup Loft Rooms
+      run: |
+        curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/cleanup-ended-rooms" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{}'

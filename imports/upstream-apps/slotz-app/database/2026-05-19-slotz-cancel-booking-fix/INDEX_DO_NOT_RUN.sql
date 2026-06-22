@@ -1,0 +1,5 @@
+-- Run order for SLOTZ cancel booking fix.
+-- Do not run this index file.
+--
+-- 01_ADD_BOOKING_CANCELLATION_REASON.sql
+-- 02_VERIFY_BOOKING_CANCELLATION_REASON.sql

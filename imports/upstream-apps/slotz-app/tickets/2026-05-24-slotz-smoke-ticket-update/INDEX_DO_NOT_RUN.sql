@@ -1,0 +1,13 @@
+-- SLOTZ smoke testing ticket update SQL prepared on 2026-05-24.
+-- Do not run this index file.
+--
+-- Live BOH Counter latest ticket check returned T-0309 through T-0300.
+-- Existing live SLOTZ tickets found:
+-- T-0300 OAuth callback URLs and dev/prod auth isolation
+-- T-0301 Outlook and Google calendar sync smoke tests
+-- T-0302 Reminder queue worker delivery
+-- T-0297 Enterprise polish pass
+--
+-- Run order:
+-- 1. 01_COMMENT_SLOTZ_SMOKE_PROGRESS.sql
+-- 2. 02_VERIFY_SLOTZ_SMOKE_PROGRESS.sql

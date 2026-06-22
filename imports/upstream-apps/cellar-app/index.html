@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CELLAR | Investor Access</title>
+    <script>
+      (function () {
+        try {
+          var params = new URLSearchParams(window.location.search);
+          var queryTheme = params.get('theme');
+          var storedTheme = window.localStorage.getItem('cellar_theme_mode');
+          var theme =
+            queryTheme === 'light' || queryTheme === 'dark'
+              ? queryTheme
+              : storedTheme === 'light'
+                ? 'light'
+                : 'dark';
+          document.documentElement.dataset.cellarTheme = theme;
+          document.documentElement.style.colorScheme = theme;
+        } catch (error) {
+          document.documentElement.dataset.cellarTheme = 'dark';
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

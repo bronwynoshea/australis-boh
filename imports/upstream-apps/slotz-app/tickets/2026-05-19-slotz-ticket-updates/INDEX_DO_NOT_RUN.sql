@@ -1,0 +1,12 @@
+-- SLOTZ ticket update SQL prepared on 2026-05-19.
+--
+-- Live BOH Counter latest ticket confirmed before writing:
+-- T-0298
+--
+-- Run order:
+-- 1. 01_COMMENT_SLOTZ_PROGRESS.sql
+-- 2. 02_VERIFY_SLOTZ_TICKET_UPDATES.sql
+--
+-- Notes:
+-- 01 adds idempotent comments to T-0297, T-0285, and T-0293.
+-- 02 verifies the 2026-05-19 comments exist.

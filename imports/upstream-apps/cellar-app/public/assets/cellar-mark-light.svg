@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="21 10 62 74" role="img" aria-label="CELLAR Slide Chamber mark" fill="none">
+  <defs>
+    <linearGradient id="cellar-frame-light" x1="20" y1="14" x2="78" y2="84" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2B1328"/>
+      <stop offset="0.45" stop-color="#59405A"/>
+      <stop offset="1" stop-color="#A989A0"/>
+    </linearGradient>
+    <linearGradient id="cellar-chamber-light" x1="50" y1="20" x2="79" y2="77" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7A67D8"/>
+      <stop offset="1" stop-color="#2B1328"/>
+    </linearGradient>
+    <linearGradient id="cellar-floor-light" x1="35" y1="74" x2="67" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4A243B"/>
+      <stop offset="1" stop-color="#7C5B75"/>
+    </linearGradient>
+  </defs>
+  <path d="M24 22C24 15.925 28.925 11 35 11H71C75.971 11 80 15.029 80 20V82H69V27C69 24.239 66.761 22 64 22H37C34.239 22 32 24.239 32 27V62C32 64.761 34.239 67 37 67H52V78H35C28.925 78 24 73.075 24 67V22Z" fill="url(#cellar-frame-light)"/>
+  <path d="M53 43.5C53 41.71 53.949 40.055 55.494 39.151L69 31.25V82L55.494 74.099C53.949 73.195 53 71.54 53 69.75V43.5Z" fill="url(#cellar-chamber-light)"/>
+  <path d="M37 67H52V78L37 67Z" fill="url(#cellar-floor-light)"/>
+  <path d="M36 26H63C64.105 26 65 26.895 65 28V33.6L53.474 40.343C50.709 41.961 49 44.923 49 48.127V63H37C36.448 63 36 62.552 36 62V27C36 26.448 36.448 26 37 26Z" fill="#F7F3F6" opacity="0.94"/>
+</svg>

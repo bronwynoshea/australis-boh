@@ -49,6 +49,9 @@ verify_jwt = false
 [functions.get-campaign-bonus-tiers]
 verify_jwt = false
 
+[functions.daily-join-hook]
+verify_jwt = false
+
 [functions.get-hero-campaign]
 verify_jwt = false
 
@@ -301,4 +304,91 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-staff-notification]
+verify_jwt = false
+
+[functions.check-guest-waitlist-status]
+verify_jwt = false
+
+[functions.clear-room-waitlist]
+verify_jwt = false
+
+[functions.update-guest-leave-status]
+verify_jwt = false
+
+[functions.loft-current-profile]
+verify_jwt = false
+
+[functions.loft-leave-room]
+verify_jwt = false
+
+[functions.loft-end-room]
+verify_jwt = false
+
+[functions.loft-public-join-token]
+verify_jwt = false
+
+[functions.toggle-recording]
+verify_jwt = false
+
+[functions.loft-admin-list-personal-tables]
+verify_jwt = false
+
+[functions.loft-admin-manage-personal-table]
+verify_jwt = false
+
+[functions.review-host-application]
+verify_jwt = false
+
+[functions.request-personal-room-access]
+verify_jwt = false
+
+[functions.cleanup-ended-rooms]
+verify_jwt = false
+
+[functions.gemini-model-healthcheck]
+verify_jwt = false
+
+[functions.get-personal-room-access]
+verify_jwt = false
+
+[functions.get_loft_room_summary]
+verify_jwt = false
+
+[functions.loft-create-room]
+verify_jwt = false
+
+[functions.loft-delete-room]
+verify_jwt = false
+
+[functions.loft-get-room-roles]
+verify_jwt = false
+
+[functions.loft-list-hand-raises]
+verify_jwt = false
+
+[functions.loft-list-rooms]
+verify_jwt = false
+
+[functions.loft-open-room]
+verify_jwt = false
+
+[functions.loft-raise-hand]
+verify_jwt = false
+
+[functions.loft-rsvp]
+verify_jwt = false
+
+[functions.loft-sadie-room-create]
+verify_jwt = false
+
+[functions.loft-set-member-role]
+verify_jwt = false
+
+[functions.loft-update-room]
+verify_jwt = false
+
+[functions.submit-host-application]
+verify_jwt = false
+
+[functions.update-invite-code]
 verify_jwt = false

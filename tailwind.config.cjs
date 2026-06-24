@@ -3,6 +3,8 @@ module.exports = {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
+    "./imports/upstream-apps/slotz-app/src/**/*.{js,ts,jsx,tsx}",
+    "./imports/upstream-apps/loft-app/**/*.{js,ts,jsx,tsx}",
   ],
   darkMode: 'class',
   theme: {
@@ -37,6 +39,12 @@ module.exports = {
         'brand-careerstudio': 'var(--career-studio-purple)',
         'brand-talent': 'var(--talent-blue)',
         'brand-other': '#6B7280',
+        'primary-dark': '#5146b8',
+        'primary-light': '#f4f2ff',
+        'primary-border': '#e8e6ff',
+        'primary-text-muted': '#5a557d',
+        darkbg: '#151024',
+        darkcard: '#201936',
       },
     },
   },

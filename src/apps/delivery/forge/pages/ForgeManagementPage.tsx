@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useProductData } from '../../../../hooks/useProductData';
+import { useBohAccess } from '../../../../shared/hooks/useBohAccess';
 import { supabase } from '../../../../lib/supabase';
 import Toast from '../../../../components/Toast';
 import MenuFilterDropdown from '../../shared/components/FilterDropdown';
@@ -42,6 +43,8 @@ const getCurrentReleaseYear = () => new Date().getFullYear();
 
 const ForgeManagement: React.FC = () => {
   const navigate = useNavigate();
+  const access = useBohAccess();
+  const tenantId = access.bohUser?.tenant_id ?? null;
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<'overview' | 'workstreams' | 'internal-releases' | 'external-releases'>('overview');
   const [selectedYear, setSelectedYear] = useState<number>(2026);
@@ -254,6 +257,10 @@ const ForgeManagement: React.FC = () => {
   }, [currentReleaseContext, releaseScopeFilter]);
 
   const loadWorkstreams = async () => {
+    if (!tenantId) {
+      console.warn('[loadWorkstreams] Missing BOH tenant; skipping load.');
+      return;
+    }
     setIsLoadingWorkstreams(true);
     try {
       const { data, error } = await supabase
@@ -288,6 +295,7 @@ const ForgeManagement: React.FC = () => {
             review_notes
           )
         `)
+        .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -357,6 +365,7 @@ const ForgeManagement: React.FC = () => {
           counter_ticket(count)
         `)
         .eq('id', workstream.id)
+        .eq('tenant_id', tenantId)
         .single();
 
       if (error) {
@@ -376,7 +385,7 @@ const ForgeManagement: React.FC = () => {
   // Load workstreams when quarter/year changes
   useEffect(() => {
     loadWorkstreams();
-  }, [selectedQuarter, selectedYear]);
+  }, [selectedQuarter, selectedYear, tenantId]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -388,7 +397,8 @@ const ForgeManagement: React.FC = () => {
       const { error } = await supabase
         .from('boh_release_version')
         .update({ status: newStatus })
-        .eq('id', releaseId);
+        .eq('id', releaseId)
+        .eq('tenant_id', tenantId);
 
       if (error) {
         console.error('[ForgeManagement] Error updating release status:', error);
@@ -483,6 +493,7 @@ const ForgeManagement: React.FC = () => {
     const { data: tasks, error: tasksError } = await supabase
       .from('boh_task')
       .select('user_story_id, status')
+      .eq('tenant_id', tenantId)
       .in('user_story_id', storyIds)
       .limit(10000);
 
@@ -509,6 +520,7 @@ const ForgeManagement: React.FC = () => {
       const { data, error } = await supabase
         .from('boh_initiative')
         .select(`id, title, description, status, target_quarter, target_year, progress, major_release_id, app_id, owner:boh_user!owner_user_id(id, full_name, email), app:boh_app(id, name), created_at, updated_at`)
+        .eq('tenant_id', tenantId)
         .in('major_release_id', majorReleaseIds)
         .limit(10000);
 
@@ -542,12 +554,17 @@ const ForgeManagement: React.FC = () => {
   };
 
   const loadReleases = async () => {
+    if (!tenantId) {
+      console.warn('[loadReleases] Missing BOH tenant; skipping load.');
+      return;
+    }
     setIsLoadingReleases(true);
     try {
       // Fetch releases grouped by tier/environment so numbers are always accurate
       const { data, error } = await supabase
         .from('boh_release_version')
         .select('*')
+        .eq('tenant_id', tenantId)
         .eq('is_active', true)
         .order('sort_date', { ascending: false });
 
@@ -587,6 +604,10 @@ const ForgeManagement: React.FC = () => {
   };
 
   const loadTickets = async () => {
+    if (!tenantId) {
+      console.warn('[loadTickets] Missing BOH tenant; skipping load.');
+      return;
+    }
     if (!selectedReleaseId) {
       setTickets([]);
       return;
@@ -613,6 +634,7 @@ const ForgeManagement: React.FC = () => {
           status:counter_ticket_status!counter_ticket_status_id_fkey(key, label),
           priority:counter_ticket_priority!counter_ticket_priority_id_fkey(key, label, weight)
         `)
+        .eq('tenant_id', tenantId)
         .eq('release_version_id', selectedReleaseId)
         .order('updated_at', { ascending: false });
 

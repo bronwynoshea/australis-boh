@@ -165,28 +165,38 @@ export async function fetchBohApps(): Promise<BohApp[]> {
  * Get current BOH user ID from auth
  */
 export async function getCurrentBohUserId(): Promise<string | null> {
+  const context = await getCurrentBohUserContext();
+  return context?.id ?? null;
+}
+
+export async function getCurrentBohUserContext(): Promise<{ id: string; tenant_id: string } | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
   const { data, error } = await supabase
     .from('boh_user')
-    .select('id')
+    .select('id, tenant_id')
     .eq('auth_user_id', user.id)
     .eq('app_context', 'boh')
     .single();
 
   if (error) {
-    console.error('Error looking up boh_user:', error);
+    console.error('Error looking up boh_user context:', error);
     return null;
   }
 
-  return data?.id ?? null;
+  return data?.id && data?.tenant_id ? { id: data.id, tenant_id: data.tenant_id } : null;
 }
 
 /**
  * Create a new BOH invite
  */
 export async function createBohInvite(invite: BohInviteCreate): Promise<{ id: string }> {
+  const currentUser = await getCurrentBohUserContext();
+  if (!currentUser) {
+    throw new Error('No BOH tenant context found for current user.');
+  }
+
   // Generate a secure token
   const token = crypto.randomUUID();
 
@@ -195,6 +205,8 @@ export async function createBohInvite(invite: BohInviteCreate): Promise<{ id: st
     .insert({
       email: invite.email.trim().toLowerCase(),
       invited_by: invite.invited_by,
+      tenant_id: currentUser.tenant_id,
+      app_context: 'boh',
       apps: invite.apps,
       status: invite.status || 'pending',
       token: token,
@@ -238,23 +250,22 @@ export async function hasAppAccess(appSlug: string): Promise<boolean> {
 
   const { data: bohUser } = await supabase
     .from('boh_user')
-    .select('id')
+    .select('id, tenant_id')
     .eq('auth_user_id', user.id)
     .eq('app_context', 'boh')
     .single();
 
-  if (!bohUser) return false;
+  if (!bohUser?.tenant_id) return false;
 
-  // Check if super admin
+  // Check if super admin for the current tenant only.
   const { data: roles } = await supabase
     .from('boh_user_role')
     .select('role:boh_role(code)')
-    .eq('user_id', bohUser.id);
+    .eq('user_id', bohUser.id)
+    .eq('tenant_id', bohUser.tenant_id)
+    .eq('app_context', 'boh');
 
-  const isSuperAdmin = roles?.some((r: any) => r.role?.code === 'super_admin') ?? false;
-  if (isSuperAdmin) return true;
-
-  // Check boh_user_app
+  // Check app registry + tenant enablement.
   const { data: app } = await supabase
     .from('boh_app')
     .select('id')
@@ -264,11 +275,26 @@ export async function hasAppAccess(appSlug: string): Promise<boolean> {
 
   if (!app) return false;
 
+  const { data: tenantApp } = await supabase
+    .from('boh_tenant_app')
+    .select('app_id')
+    .eq('tenant_id', bohUser.tenant_id)
+    .eq('app_id', app.id)
+    .in('status', ['enabled', 'coming_soon'])
+    .maybeSingle();
+
+  if (!tenantApp) return false;
+
+  const isSuperAdmin = roles?.some((r: any) => r.role?.code === 'super_admin') ?? false;
+  if (isSuperAdmin) return true;
+
+  // Check boh_user_app inside the current tenant.
   const { data: userApp } = await supabase
     .from('boh_user_app')
     .select('app_id')
     .eq('user_id', bohUser.id)
     .eq('app_id', app.id)
+    .eq('tenant_id', bohUser.tenant_id)
     .eq('app_context', 'boh')
     .single();
 
@@ -286,6 +312,9 @@ export async function fetchBohUsers(): Promise<Array<{
   last_active_at: string | null;
   roles: Array<{ code: string }>;
 }>> {
+  const currentUser = await getCurrentBohUserContext();
+  if (!currentUser) return [];
+
   const { data, error } = await supabase
     .from('boh_user')
     .select(`
@@ -304,6 +333,7 @@ export async function fetchBohUsers(): Promise<Array<{
       )
     `)
     .eq('app_context', 'boh')
+    .eq('tenant_id', currentUser.tenant_id)
     .eq('status', 'active')
     .order('created_at', { ascending: true });
 
@@ -343,6 +373,9 @@ export async function fetchBohInvites(): Promise<Array<{
     full_name: string | null;
   } | null;
 }>> {
+  const currentUser = await getCurrentBohUserContext();
+  if (!currentUser) return [];
+
   const { data, error } = await supabase
     .from('boh_invite')
     .select(`
@@ -357,6 +390,7 @@ export async function fetchBohInvites(): Promise<Array<{
         full_name
       )
     `)
+    .eq('tenant_id', currentUser.tenant_id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -393,11 +427,17 @@ export async function fetchTeamMembersWithAccess(): Promise<{
   rolesByUserId: Record<string, Array<{ code: string; label: string }>>;
   appsByUserId: Record<string, Array<{ name: string; slug: string }>>;
 }> {
+  const currentUser = await getCurrentBohUserContext();
+  if (!currentUser) {
+    return { users: [], rolesByUserId: {}, appsByUserId: {} };
+  }
+
   // Fetch users
   const { data: users, error: usersError } = await supabase
     .from('boh_user')
     .select('id, email, full_name, status, primary_role_hint, app_context, created_at')
     .eq('app_context', 'boh')
+    .eq('tenant_id', currentUser.tenant_id)
     .order('created_at', { ascending: true });
 
   if (usersError) {
@@ -414,7 +454,8 @@ export async function fetchTeamMembersWithAccess(): Promise<{
   const { data: userRoles, error: rolesError } = await supabase
     .from('boh_user_role')
     .select('user_id, role:boh_role(code, label)')
-    .eq('app_context', 'boh');
+    .eq('app_context', 'boh')
+    .eq('tenant_id', currentUser.tenant_id);
 
   if (rolesError) {
     console.error('Error fetching user roles:', {
@@ -430,7 +471,8 @@ export async function fetchTeamMembersWithAccess(): Promise<{
   const { data: userApps, error: userAppsError } = await supabase
     .from('boh_user_app')
     .select('user_id, app:boh_app(name, slug)')
-    .eq('app_context', 'boh');
+    .eq('app_context', 'boh')
+    .eq('tenant_id', currentUser.tenant_id);
 
   if (userAppsError) {
     console.error('Error fetching user apps:', {
@@ -493,10 +535,14 @@ export async function fetchPendingInvites(): Promise<Array<{
   resend_count: number | null;
   created_at: string;
 }>> {
+  const currentUser = await getCurrentBohUserContext();
+  if (!currentUser) return [];
+
   const { data, error } = await supabase
     .from('boh_invite')
     .select('id, email, role_hint, apps, status, last_sent_at, resend_count, created_at')
     .eq('app_context', 'boh')
+    .eq('tenant_id', currentUser.tenant_id)
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
 
@@ -566,11 +612,17 @@ export async function createInvite(data: {
  * without creating a duplicate invite record.
  */
 export async function resendInvite(inviteId: string): Promise<void> {
+  const currentUser = await getCurrentBohUserContext();
+  if (!currentUser) {
+    throw new Error('No BOH tenant context found for current user.');
+  }
+
   // Get the existing invite with its token
   const { data: invite, error: fetchError } = await supabase
     .from('boh_invite')
     .select('email, token, role_hint, apps, invited_by, first_name, last_name')
     .eq('id', inviteId)
+    .eq('tenant_id', currentUser.tenant_id)
     .single();
 
   if (fetchError || !invite) {
@@ -584,7 +636,8 @@ export async function resendInvite(inviteId: string): Promise<void> {
     .update({ 
       last_sent_at: new Date().toISOString()
     })
-    .eq('id', inviteId);
+    .eq('id', inviteId)
+    .eq('tenant_id', currentUser.tenant_id);
 
   if (updateError) {
     console.error('Error updating invite resend info:', updateError);

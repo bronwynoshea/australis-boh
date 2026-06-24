@@ -1,4 +1,5 @@
 import { supabase } from "../../../../lib/supabase";
+import { getCurrentBohUserContext } from "../../../../boh/api/bohApi";
 import type {
   SoundbyteProfile,
   SoundbyteAudience,
@@ -6,15 +7,28 @@ import type {
   AIKnowledgePack,
 } from "../types/pantry";
 
+async function getCurrentTenantId(): Promise<string | null> {
+  const context = await getCurrentBohUserContext();
+  if (!context?.tenant_id) {
+    console.error("[Pantry] Unable to determine BOH tenant context");
+    return null;
+  }
+  return context.tenant_id;
+}
+
 /**
  * Soundbytes
  */
 export const listSoundbytes = async (): Promise<SoundbyteProfile[]> => {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return [];
+
   const { data, error } = await supabase
     .from("soundbyte_profiles")
     .select(
       "id, name, level, ppr_problem, ppr_person, ppr_result, hole_we_own, core_soundbyte, created_at, updated_at",
     )
+    .eq("tenant_id", tenantId)
     .eq("app_context", "boh")
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: true });
@@ -43,11 +57,15 @@ export const listSoundbytes = async (): Promise<SoundbyteProfile[]> => {
  * (simple list from DB; you can extend this later)
  */
 export const listSoundbyteAudiences = async (): Promise<SoundbyteAudience[]> => {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return [];
+
   const { data, error } = await supabase
     .from("soundbyte_profile_audiences")
     .select(
       "id, soundbyte_id, label, persona_description, key_pain_points, key_desired_results, created_at, updated_at",
     )
+    .eq("tenant_id", tenantId)
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -71,9 +89,13 @@ export const listSoundbyteAudiences = async (): Promise<SoundbyteAudience[]> => 
  * AI Personas
  */
 export const listAIPersonas = async (): Promise<AIPersona[]> => {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return [];
+
   const { data, error } = await supabase
     .from("ai_personas")
     .select("id, name, role_label, description, default_model, created_at, updated_at")
+    .eq("tenant_id", tenantId)
     .eq("app_context", "boh")
     .order("created_at", { ascending: true });
 
@@ -97,9 +119,13 @@ export const listAIPersonas = async (): Promise<AIPersona[]> => {
  * Knowledge packs
  */
 export const listKnowledgePacks = async (): Promise<AIKnowledgePack[]> => {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return [];
+
   const { data, error } = await supabase
     .from("ai_knowledge_packs")
     .select("id, name, description, created_at, updated_at")
+    .eq("tenant_id", tenantId)
     .eq("app_context", "boh")
     .order("created_at", { ascending: true });
 

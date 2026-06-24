@@ -1,3 +1,4 @@
+import { getCurrentBohUserContext } from '../../../boh/api/bohApi';
 import { supabase } from '../../supabase';
 import type {
   UserStory,
@@ -29,6 +30,48 @@ const handleResponse = async <T>(promise: Promise<any>): Promise<ApiResponse<T>>
   }
 };
 
+const getCurrentTenantId = async (): Promise<string | null> => {
+  const context = await getCurrentBohUserContext();
+  return context?.tenant_id ?? null;
+};
+
+const missingTenantResponse = <T>(): ApiResponse<T> => ({
+  data: null as any,
+  error: 'No BOH tenant matched the current session.',
+});
+
+const validateInitiativeInTenant = async (initiativeId: string, tenantId: string): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from('boh_initiative')
+    .select('id')
+    .eq('id', initiativeId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  if (error) return error.message;
+  if (!data) return 'Selected initiative is not part of the current BOH tenant.';
+  return null;
+};
+
+const validateBohUserInTenant = async (
+  userId: string | null | undefined,
+  tenantId: string,
+  label = 'Selected user'
+): Promise<string | null> => {
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from('boh_user')
+    .select('id')
+    .eq('id', userId)
+    .eq('tenant_id', tenantId)
+    .eq('app_context', 'boh')
+    .maybeSingle();
+
+  if (error) return error.message;
+  if (!data) return `${label} is not part of the current BOH tenant.`;
+  return null;
+};
+
 /**
  * Fetch all stories for a specific initiative
  * @param initiativeId - The UUID of the initiative
@@ -36,6 +79,8 @@ const handleResponse = async <T>(promise: Promise<any>): Promise<ApiResponse<T>>
  */
 export const fetchStories = async (initiativeId: string): Promise<ApiResponse<UserStory[]>> => {
   console.log('[StoriesAPI] Fetching stories for initiative:', initiativeId);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<UserStory[]>();
   
   const { data, error } = await supabase
     .from('boh_user_story')
@@ -66,6 +111,7 @@ export const fetchStories = async (initiativeId: string): Promise<ApiResponse<Us
         sort_order
       )
     `)
+    .eq('tenant_id', tenantId)
     .eq('initiative_id', initiativeId)
     .eq('is_archived', false)
     .order('sort_order', { ascending: true })
@@ -99,6 +145,8 @@ export const fetchStories = async (initiativeId: string): Promise<ApiResponse<Us
  */
 export const fetchStoryById = async (id: string): Promise<ApiResponse<UserStory>> => {
   console.log('[StoriesAPI] Fetching story by ID:', id);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<UserStory>();
   
   const { data, error } = await supabase
     .from('boh_user_story')
@@ -134,6 +182,7 @@ export const fetchStoryById = async (id: string): Promise<ApiResponse<UserStory>
       )
     `)
     .eq('id', id)
+    .eq('tenant_id', tenantId)
     .single();
 
   if (error) {
@@ -162,6 +211,8 @@ export const fetchStoryById = async (id: string): Promise<ApiResponse<UserStory>
  */
 export const createStory = async (data: CreateUserStoryInput): Promise<ApiResponse<UserStory>> => {
   console.log('[StoriesAPI] Creating story:', data.title);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<UserStory>();
   
   // Validate input
   if (!data.title || data.title.trim().length === 0) {
@@ -175,6 +226,12 @@ export const createStory = async (data: CreateUserStoryInput): Promise<ApiRespon
   if (!data.initiative_id) {
     return { data: null as any, error: 'Initiative ID is required' };
   }
+
+  const initiativeError = await validateInitiativeInTenant(data.initiative_id, tenantId);
+  if (initiativeError) return { data: null as any, error: initiativeError };
+
+  const ownerError = await validateBohUserInTenant(data.owner_user_id, tenantId, 'Selected owner');
+  if (ownerError) return { data: null as any, error: ownerError };
 
   // Validate status if provided
   const validStatuses = ['not_started', 'in_progress', 'blocked', 'review', 'done', 'cancelled'];
@@ -194,6 +251,7 @@ export const createStory = async (data: CreateUserStoryInput): Promise<ApiRespon
 
   const storyData = {
     ...data,
+    tenant_id: tenantId,
     title: data.title.trim(),
     sort_order: data.sort_order || 0,
     status: data.status || 'not_started',
@@ -245,6 +303,8 @@ export const createStory = async (data: CreateUserStoryInput): Promise<ApiRespon
  */
 export const updateStory = async (id: string, data: UpdateUserStoryInput): Promise<ApiResponse<UserStory>> => {
   console.log('[StoriesAPI] Updating story:', id);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<UserStory>();
   
   // Validate title if provided
   if (data.title !== undefined) {
@@ -278,6 +338,9 @@ export const updateStory = async (id: string, data: UpdateUserStoryInput): Promi
     return { data: null as any, error: 'Progress must be between 0 and 100' };
   }
 
+  const ownerError = await validateBohUserInTenant(data.owner_user_id, tenantId, 'Selected owner');
+  if (ownerError) return { data: null as any, error: ownerError };
+
   // Clean up the data
   const updateData = {
     ...data,
@@ -289,6 +352,7 @@ export const updateStory = async (id: string, data: UpdateUserStoryInput): Promi
     .from('boh_user_story')
     .update(updateData)
     .eq('id', id)
+    .eq('tenant_id', tenantId)
     .select(`
       *,
       priority:counter_ticket_priority(
@@ -329,6 +393,8 @@ export const updateStory = async (id: string, data: UpdateUserStoryInput): Promi
  */
 export const deleteStory = async (id: string): Promise<ApiResponse<void>> => {
   console.log('[StoriesAPI] Deleting story:', id);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<void>();
   
   const result = await supabase
     .from('boh_user_story')
@@ -336,7 +402,8 @@ export const deleteStory = async (id: string): Promise<ApiResponse<void>> => {
       is_archived: true,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', id);
+    .eq('id', id)
+    .eq('tenant_id', tenantId);
 
   if (result.error) {
     console.error('[StoriesAPI] Error deleting story:', result.error);
@@ -354,10 +421,13 @@ export const deleteStory = async (id: string): Promise<ApiResponse<void>> => {
  */
 export const getMaxSortOrder = async (initiativeId: string): Promise<ApiResponse<number>> => {
   console.log('[StoriesAPI] Getting max sort order for initiative:', initiativeId);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<number>();
   
   const { data, error } = await supabase
     .from('boh_user_story')
     .select('sort_order')
+    .eq('tenant_id', tenantId)
     .eq('initiative_id', initiativeId)
     .eq('is_archived', false)
     .order('sort_order', { ascending: false })

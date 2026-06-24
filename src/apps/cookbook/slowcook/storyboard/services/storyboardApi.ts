@@ -1,5 +1,5 @@
 import { supabase } from "../../../../../lib/supabase";
-import { getCurrentBohUserId } from "../../../../../boh/api/bohApi";
+import { getCurrentBohUserContext } from "../../../../../boh/api/bohApi";
 import type { ContentExchange, ContentProject, ContentSection } from "../../../types/content";
 import type { ContentBlueprint, ContentDraft, HarperConversationState, SoundbyteStrategyOption } from "../types/storyboard";
 import { DEFAULT_INTERVIEWER_PROMPT } from "../pages/storyboardConfig";
@@ -11,10 +11,25 @@ type ContentSectionSingleResponse = { section: ContentSection };
 type ContentProjectCompileResponse = { project: ContentProject; compiled_draft_md: string };
 type ResetExchangesResponse = { deleted_count?: number };
 
+async function getCurrentBohContext(): Promise<{ id: string; tenant_id: string } | null> {
+  const context = await getCurrentBohUserContext();
+  if (!context?.id || !context?.tenant_id) {
+    console.error("[Content] Unable to determine BOH tenant context");
+    return null;
+  }
+  return context;
+}
+
 export async function fetchContentProjects(): Promise<ContentProject[]> {
+  const context = await getCurrentBohContext();
+  if (!context) return [];
+
   const { data, error } = await supabase
     .from("content_projects")
     .select("id, title, subtitle, content_type, status, created_at, updated_at, reference_md")
+    .eq("tenant_id", context.tenant_id)
+    .eq("owner_user_id", context.id)
+    .eq("app_context", "boh")
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -28,12 +43,18 @@ export async function fetchContentProjects(): Promise<ContentProject[]> {
 export const fetchContentBlueprints = fetchContentProjects;
 
 export async function fetchBookProject(projectId: string): Promise<ContentProject | null> {
+  const context = await getCurrentBohContext();
+  if (!context) return null;
+
   const { data, error } = await supabase
     .from("content_projects")
     .select(
       "id, title, subtitle, content_type, status, created_at, updated_at, reference_md, soundbyte_id, outline, interviewer_prompt",
     )
     .eq("id", projectId)
+    .eq("tenant_id", context.tenant_id)
+    .eq("owner_user_id", context.id)
+    .eq("app_context", "boh")
     .maybeSingle();
 
   if (error) {
@@ -47,9 +68,8 @@ export async function fetchBookProject(projectId: string): Promise<ContentProjec
 }
 
 export async function fetchLatestBookProject(): Promise<ContentProject | null> {
-  const ownerId = await getCurrentBohUserId();
-  if (!ownerId) {
-    console.error("[Content] Unable to determine BOH user for latest book project");
+  const context = await getCurrentBohContext();
+  if (!context) {
     return null;
   }
 
@@ -58,7 +78,8 @@ export async function fetchLatestBookProject(): Promise<ContentProject | null> {
     .select(
       "id, title, subtitle, content_type, status, created_at, updated_at, reference_md, soundbyte_id, audience_variant_id, interviewer_prompt",
     )
-    .eq("owner_user_id", ownerId)
+    .eq("tenant_id", context.tenant_id)
+    .eq("owner_user_id", context.id)
     .eq("app_context", "boh")
     .eq("content_type", "book")
     .order("updated_at", { ascending: false })
@@ -201,9 +222,13 @@ export async function syncOutlineSections(projectId: string, sections: OutlineSe
 }
 
 export async function fetchSoundbyteStrategies(): Promise<SoundbyteStrategyOption[]> {
+  const context = await getCurrentBohContext();
+  if (!context) return [];
+
   const { data, error } = await supabase
     .from("soundbyte_profiles")
     .select("id, name, core_soundbyte, is_default")
+    .eq("tenant_id", context.tenant_id)
     .eq("app_context", "boh")
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: true });
@@ -230,10 +255,14 @@ export interface SoundbyteProfileSummary {
 }
 
 export async function fetchSoundbyteProfile(soundbyteId: string): Promise<SoundbyteProfileSummary | null> {
+  const context = await getCurrentBohContext();
+  if (!context) return null;
+
   const { data, error } = await supabase
     .from("soundbyte_profiles")
     .select("id, name, core_soundbyte, hole_we_own, ppr_result")
     .eq("id", soundbyteId)
+    .eq("tenant_id", context.tenant_id)
     .eq("app_context", "boh")
     .maybeSingle();
 
@@ -248,11 +277,17 @@ export async function fetchSoundbyteProfile(soundbyteId: string): Promise<Soundb
 }
 
 async function ensureInterviewSection(projectId: string): Promise<ContentSection> {
+  const context = await getCurrentBohContext();
+  if (!context) {
+    throw new Error("No BOH tenant matched the current session.");
+  }
+
   const { data: existing, error: existingError } = await supabase
     .from("content_sections")
     .select(
       "id, project_id, section_index, label, section_type, notes, status, raw_md, draft_md, final_md, created_at, updated_at",
     )
+    .eq("tenant_id", context.tenant_id)
     .eq("project_id", projectId)
     .eq("label", "Harper Interview")
     .maybeSingle();
@@ -268,6 +303,7 @@ async function ensureInterviewSection(projectId: string): Promise<ContentSection
         .from("content_sections")
         .update({ section_index: 0 })
         .eq("id", section.id)
+        .eq("tenant_id", context.tenant_id)
         .select(
           "id, project_id, section_index, label, section_type, notes, status, raw_md, draft_md, final_md, created_at, updated_at",
         )
@@ -288,6 +324,7 @@ async function ensureInterviewSection(projectId: string): Promise<ContentSection
   const { data, error } = await supabase
     .from("content_sections")
     .insert({
+      tenant_id: context.tenant_id,
       project_id: projectId,
       label: "Harper Interview",
       section_index: 0,
@@ -418,6 +455,22 @@ export async function submitLiveVoiceTurn(params: SubmitLiveVoiceParams): Promis
 }
 
 export async function deleteExchange(exchangeId: string): Promise<void> {
+  const context = await getCurrentBohContext();
+  if (!context) {
+    throw new Error("No BOH tenant matched the current session.");
+  }
+
+  const { data: existing, error: loadError } = await supabase
+    .from("content_exchanges")
+    .select("id")
+    .eq("id", exchangeId)
+    .eq("tenant_id", context.tenant_id)
+    .maybeSingle();
+
+  if (loadError || !existing) {
+    throw loadError ?? new Error("Content exchange not found for current tenant.");
+  }
+
   const { error } = await supabase.rpc("delete_content_exchange", {
     p_exchange_id: exchangeId,
   });
@@ -435,9 +488,13 @@ export async function fetchChapterExchanges(
   sectionId: string,
   limit = 20,
 ): Promise<ContentExchange[]> {
+  const context = await getCurrentBohContext();
+  if (!context) return [];
+
   const { data, error } = await supabase
     .from("content_exchanges")
     .select("id, project_id, section_id, sequence, role, question_text, answer_text, created_at")
+    .eq("tenant_id", context.tenant_id)
     .eq("project_id", projectId)
     .eq("section_id", sectionId)
     .eq("is_hidden", false)
@@ -459,11 +516,17 @@ export async function ensureHarperKickoffQuestion(args: {
   chapterLabel?: string | null;
   interviewerPrompt?: string | null;
 }): Promise<string> {
+  const context = await getCurrentBohContext();
+  if (!context) {
+    throw new Error("No BOH tenant matched the current session.");
+  }
+
   const { projectId, sectionId, firstQuestionText, chapterLabel, interviewerPrompt } = args;
 
   const { data: existing, error: existingError } = await supabase
     .from("content_exchanges")
     .select("question_text")
+    .eq("tenant_id", context.tenant_id)
     .eq("project_id", projectId)
     .eq("section_id", sectionId)
     .eq("is_hidden", false)
@@ -490,6 +553,7 @@ export async function ensureHarperKickoffQuestion(args: {
     const { data: systemRow, error: systemError } = await supabase
       .from("content_exchanges")
       .select("id")
+      .eq("tenant_id", context.tenant_id)
       .eq("project_id", projectId)
       .eq("section_id", sectionId)
       .eq("is_hidden", false)
@@ -498,6 +562,7 @@ export async function ensureHarperKickoffQuestion(args: {
 
     if (!systemRow) {
       const { error: insertSystemError } = await supabase.from("content_exchanges").insert({
+        tenant_id: context.tenant_id,
         project_id: projectId,
         section_id: sectionId,
         sequence: 0,
@@ -516,6 +581,7 @@ export async function ensureHarperKickoffQuestion(args: {
   const { data: inserted, error: insertError } = await supabase
     .from("content_exchanges")
     .insert({
+      tenant_id: context.tenant_id,
       project_id: projectId,
       section_id: sectionId,
       sequence: 1,
@@ -534,6 +600,22 @@ export async function ensureHarperKickoffQuestion(args: {
 }
 
 export async function resetChapterInterview(projectId: string, sectionId: string): Promise<number> {
+  const context = await getCurrentBohContext();
+  if (!context) {
+    throw new Error("No BOH tenant matched the current session.");
+  }
+
+  const { data: project, error: projectError } = await supabase
+    .from("content_projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("tenant_id", context.tenant_id)
+    .maybeSingle();
+
+  if (projectError || !project) {
+    throw projectError ?? new Error("Content project not found for current tenant.");
+  }
+
   const { data, error } = await supabase.rpc("reset_content_exchanges", {
     project_id: projectId,
     section_id: sectionId,
@@ -548,6 +630,22 @@ export async function resetChapterInterview(projectId: string, sectionId: string
 }
 
 export async function resetProjectInterview(projectId: string): Promise<number> {
+  const context = await getCurrentBohContext();
+  if (!context) {
+    throw new Error("No BOH tenant matched the current session.");
+  }
+
+  const { data: project, error: projectError } = await supabase
+    .from("content_projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("tenant_id", context.tenant_id)
+    .maybeSingle();
+
+  if (projectError || !project) {
+    throw projectError ?? new Error("Content project not found for current tenant.");
+  }
+
   const { data, error } = await supabase.rpc("reset_content_exchanges", {
     project_id: projectId,
     section_id: null,
@@ -602,11 +700,15 @@ export async function compileBookDraft(projectId: string): Promise<{ project: Co
 }
 
 export async function getContentSections(projectId: string): Promise<ContentSection[]> {
+  const context = await getCurrentBohContext();
+  if (!context) return [];
+
   const { data, error } = await supabase
     .from("content_sections")
     .select(
       "id, project_id, section_index, label, section_type, notes, status, raw_md, draft_md, final_md, created_at, updated_at",
     )
+    .eq("tenant_id", context.tenant_id)
     .eq("project_id", projectId)
     .order("section_index", { ascending: true });
 
@@ -628,7 +730,11 @@ export async function generateChapterQuestions(projectId: string): Promise<Conte
     return existingSections;
   }
 
+  const context = await getCurrentBohContext();
+  if (!context) return [];
+
   const inserts = baseTitles.map((title, index) => ({
+    tenant_id: context.tenant_id,
     project_id: projectId,
     label: title,
     section_index: index + 1,
@@ -703,11 +809,15 @@ function mapDraftRow(row: any): ContentDraft {
 }
 
 export async function getLatestDraftForBlueprint(blueprintId: string): Promise<ContentDraft | null> {
+	const context = await getCurrentBohContext();
+	if (!context) return null;
+
 	const { data, error } = await supabase
 		.from("content_draft")
 		.select(
 			"id, blueprint_id, section_id, version, status, source, title, content_md, is_current, created_at",
 		)
+		.eq("tenant_id", context.tenant_id)
 		.eq("blueprint_id", blueprintId)
 		.eq("is_current", true)
 		.is("section_id", null)
@@ -732,6 +842,11 @@ interface SaveChapterDraftParams {
 }
 
 export async function saveChapterDraft(params: SaveChapterDraftParams): Promise<ContentDraft> {
+	const context = await getCurrentBohContext();
+	if (!context) {
+		throw new Error("No BOH tenant matched the current session.");
+	}
+
 	const {
 		blueprintId,
 		title,
@@ -744,6 +859,7 @@ export async function saveChapterDraft(params: SaveChapterDraftParams): Promise<
 	const { data: existingVersions, error: versionError } = await supabase
 		.from("content_draft")
 		.select("version")
+		.eq("tenant_id", context.tenant_id)
 		.eq("blueprint_id", blueprintId)
 		.eq("section_id", sectionId)
 		.order("version", { ascending: false })
@@ -762,6 +878,7 @@ export async function saveChapterDraft(params: SaveChapterDraftParams): Promise<
 	const { error: clearError } = await supabase
 		.from("content_draft")
 		.update({ is_current: false })
+		.eq("tenant_id", context.tenant_id)
 		.eq("blueprint_id", blueprintId)
 		.eq("section_id", sectionId);
 
@@ -774,6 +891,7 @@ export async function saveChapterDraft(params: SaveChapterDraftParams): Promise<
 	const { data: insertData, error: insertError } = await supabase
 		.from("content_draft")
 		.insert({
+			tenant_id: context.tenant_id,
 			blueprint_id: blueprintId,
 			section_id: sectionId,
 			version: nextVersion,

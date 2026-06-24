@@ -29,18 +29,18 @@ export default function KeepSidebar({
   const isReviewQueue = location.pathname.includes('/review-queue');
 
   // Load root folders for workspace
-  const { folders: workspaceFolders, loading: workspaceLoading } = useSupabaseFolders({
+  const { folders: workspaceFolders, loading: workspaceLoading, error: workspaceError } = useSupabaseFolders({
     area: 'workspace',
     systemFolderName: 'Workspace',
   });
 
   // Load root folders for gold_library
-  const { folders: goldLibraryFolders, loading: goldLibraryLoading } = useSupabaseFolders({
+  const { folders: goldLibraryFolders, loading: goldLibraryLoading, error: goldLibraryError } = useSupabaseFolders({
     area: 'gold_library',
     systemFolderName: '00-GOLD-LIBRARY',
   });
 
-  const renderFolderList = (folders: KeepFolder[], area: 'workspace' | 'gold_library', loading: boolean) => {
+  const renderFolderList = (folders: KeepFolder[], area: 'workspace' | 'gold_library', loading: boolean, error?: string | null) => {
     if (loading) {
       return (
         <div className="space-y-1">
@@ -51,6 +51,14 @@ export default function KeepSidebar({
             />
           ))}
         </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <p className="text-xs text-red-600 dark:text-red-400 px-3 py-2">
+          {error}
+        </p>
       );
     }
 
@@ -140,7 +148,7 @@ export default function KeepSidebar({
             <span className="font-medium">Workspace</span>
           </button>
           <div className="pl-4 border-l-2 border-boh-border-light dark:border-boh-border ml-4">
-            {renderFolderList(workspaceFolders, 'workspace', workspaceLoading)}
+            {renderFolderList(workspaceFolders, 'workspace', workspaceLoading, workspaceError)}
           </div>
         </div>
 
@@ -163,7 +171,7 @@ export default function KeepSidebar({
             <span className="font-medium">Gold Library</span>
           </button>
           <div className="pl-4 border-l-2 border-boh-border-light dark:border-boh-border ml-4 mb-2">
-            {renderFolderList(goldLibraryFolders, 'gold_library', goldLibraryLoading)}
+            {renderFolderList(goldLibraryFolders, 'gold_library', goldLibraryLoading, goldLibraryError)}
           </div>
           <button
             onClick={() => navigate('/keep/review-queue')}

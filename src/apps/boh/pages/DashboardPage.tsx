@@ -30,6 +30,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   const isLoadingApps = isLoadingAppsProp ?? hookData.isLoading;
   const isSuperAdmin = isSuperAdminProp ?? hookData.isSuperAdmin;
   const accessError = hookData.error;
+  const workspaceName = hookData.bohUser?.tenant?.name?.trim() || 'Back of House';
   const detectedTheme = useCurrentTheme();
   const theme = themeProp ?? detectedTheme;
 
@@ -108,7 +109,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       return;
     }
 
-    const externalUrl = app.external_url;
+    const externalUrl = app.app_kind === 'external' || app.type === 'external_app'
+      ? app.external_url
+      : '';
     if (externalUrl) {
       window.open(externalUrl, '_blank', 'noopener,noreferrer');
       return;
@@ -166,7 +169,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
         <div className="boh-workspace-app-grid">{apps.map(renderAppCard)}</div>
       ) : (
         <div className="boh-workspace-empty compact">
-          <p>No apps in this group for this view.</p>
+          <p>No apps are currently available in this group.</p>
         </div>
       )}
     </section>
@@ -175,8 +178,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   return (
     <section id="dashboard-section" className="main-section active">
       <header className="main-header">
-        <h1>Welcome to Australis Back of House</h1>
-        <p>Your command center for Australis operations.</p>
+        <h1>Welcome to {workspaceName} Back of House</h1>
+        <p>Your command center for {workspaceName} operations.</p>
         <ThemeToggle theme={theme} onToggle={handleThemeToggle} />
       </header>
 
@@ -189,8 +192,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
           ) : (
             <>
               <div className="boh-workspace-columns">
-                {renderGroup('BOH Suite', 'Internal company workspace apps enabled for this tenant.', groupedDashboardApps.suite)}
-                {renderGroup('Workspace Links', 'Company-owned products, websites, and connected external apps for this tenant.', groupedDashboardApps.links)}
+                {renderGroup('Back of House Suite', 'BOH applications enabled for this workspace.', groupedDashboardApps.suite)}
+                {renderGroup('Workspace Links', 'Non-BOH applications, websites, and external apps.', groupedDashboardApps.links)}
               </div>
               {dashboardApps.length === 0 && (
                 <div className="boh-workspace-empty">
@@ -198,7 +201,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
                   <p>
                     {accessError
                       ? `Access check: ${accessError}`
-                      : 'Access check returned no app rows for the current BOH session.'}
+                      : 'No apps are available for the current workspace.'}
                   </p>
                 </div>
               )}

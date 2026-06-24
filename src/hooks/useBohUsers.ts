@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { getCurrentBohUserContext } from '../boh/api/bohApi';
 
 export interface BohUser {
   id: string;
@@ -17,9 +18,18 @@ export function useBohUsers() {
     const fetchUsers = async () => {
       try {
         setIsLoading(true);
+        const context = await getCurrentBohUserContext();
+        if (!context?.tenant_id) {
+          setUsers([]);
+          setError('No BOH tenant matched the current session.');
+          return;
+        }
+
         const { data, error } = await supabase
           .from('boh_user')
           .select('id, full_name, email, status')
+          .eq('tenant_id', context.tenant_id)
+          .eq('app_context', 'boh')
           .eq('status', 'active')
           .order('full_name');
 

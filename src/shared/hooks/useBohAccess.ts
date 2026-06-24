@@ -21,7 +21,7 @@ export interface AppWithAccess {
 }
 
 export interface BohAccess {
-  bohUser: { id: string; auth_user_id: string; tenant_id: string } | null;
+  bohUser: { id: string; auth_user_id: string; tenant_id: string; tenant?: { slug: string; name: string | null } | null } | null;
   userApps: BohUserApp[];
   appsWithAccess: AppWithAccess[];
   internalApps: AppWithAccess[];
@@ -57,6 +57,27 @@ const describeAccessError = (err: unknown): string => {
   return 'Unable to load BOH access.';
 };
 
+const HIDDEN_AUSTRALIS_WORKSPACE_LINK_SLUGS = new Set(['studio', 'talent']);
+
+const shouldShowTenantApp = (
+  tenantSlug: string | null | undefined,
+  app: { slug?: string | null; app_kind?: string | null; type?: string | null },
+): boolean => {
+  const normalizedTenantSlug = tenantSlug?.trim().toLowerCase();
+  const normalizedAppSlug = app.slug?.trim().toLowerCase();
+
+  if (
+    normalizedTenantSlug === 'australis' &&
+    normalizedAppSlug &&
+    HIDDEN_AUSTRALIS_WORKSPACE_LINK_SLUGS.has(normalizedAppSlug) &&
+    (app.app_kind === 'external' || app.type === 'external_app')
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
 /**
  * Hook to load current user's BOH access.
  * 
@@ -67,7 +88,7 @@ const describeAccessError = (err: unknown): string => {
  * - Otherwise: returns tenant apps with per-user grants from boh_user_app
  */
 export function useBohAccess(): BohAccess {
-  const [bohUser, setBohUser] = useState<{ id: string; auth_user_id: string; tenant_id: string } | null>(null);
+  const [bohUser, setBohUser] = useState<{ id: string; auth_user_id: string; tenant_id: string; tenant?: { slug: string; name: string | null } | null } | null>(null);
   const [userApps, setUserApps] = useState<BohUserApp[]>([]);
   const [appsWithAccess, setAppsWithAccess] = useState<AppWithAccess[]>([]);
   const [internalApps, setInternalApps] = useState<AppWithAccess[]>([]);
@@ -102,7 +123,7 @@ export function useBohAccess(): BohAccess {
         // mismatched auth links should be fixed in BOH user data, not hidden here.
         const { data: bohUserData, error: bohUserError } = await supabase
           .from('boh_user')
-          .select('id, auth_user_id, tenant_id')
+          .select('id, auth_user_id, tenant_id, tenant:boh_tenant!boh_user_tenant_id_fkey(slug, name)')
           .eq('auth_user_id', session.user.id)
           .eq('app_context', 'boh')
           .maybeSingle();
@@ -141,7 +162,14 @@ export function useBohAccess(): BohAccess {
           return;
         }
 
-        setBohUser(bohUserData);
+        const normalizedBohUser = {
+          ...bohUserData,
+          tenant: Array.isArray((bohUserData as any).tenant)
+            ? (bohUserData as any).tenant[0] ?? null
+            : (bohUserData as any).tenant ?? null,
+        };
+
+        setBohUser(normalizedBohUser);
 
         // Check for super_admin role
         const { data: rolesData, error: rolesError } = await supabase
@@ -213,8 +241,8 @@ export function useBohAccess(): BohAccess {
               name: tenantApp.display_name || app.name,
               description: app.description || '',
               route: tenantApp.launch_route || app.route || '',
-              external_url: tenantApp.external_url || app.external_url || '',
-              type: tenantApp.app_kind === 'external' ? 'external_app' : (app.type || 'internal_tool'),
+              external_url: tenantApp.app_kind === 'external' ? (tenantApp.external_url || app.external_url || '') : '',
+              type: tenantApp.app_kind === 'external' ? 'external_app' : 'internal_tool',
               app_kind: tenantApp.app_kind || 'boh',
               tenant_app_status: tenantApp.status,
               is_active: app.is_active !== false,
@@ -222,11 +250,15 @@ export function useBohAccess(): BohAccess {
           })
           .filter(Boolean) as Array<Omit<AppWithAccess, 'boh_user_app'>>;
 
-        tenantWorkspaceApps.sort((a, b) => a.name.localeCompare(b.name));
+        const visibleTenantWorkspaceApps = tenantWorkspaceApps.filter((app) =>
+          shouldShowTenantApp(normalizedBohUser.tenant?.slug, app),
+        );
+
+        visibleTenantWorkspaceApps.sort((a, b) => a.name.localeCompare(b.name));
 
         if (isSuperAdminCheck) {
           // Tenant super admin gets access to all apps enabled for this tenant.
-          const userAppsData = tenantWorkspaceApps.map((app) => ({
+          const userAppsData = visibleTenantWorkspaceApps.map((app) => ({
             app_id: app.id,
             permission_level: 'admin' as const,
           }));
@@ -234,7 +266,7 @@ export function useBohAccess(): BohAccess {
           if (mounted) {
             setUserApps(userAppsData);
             
-            const appsWithAccess = tenantWorkspaceApps.map((app) => ({
+            const appsWithAccess = visibleTenantWorkspaceApps.map((app) => ({
               ...app,
               boh_user_app: [{ permission_level: 'admin' as const }],
             }));
@@ -259,7 +291,7 @@ export function useBohAccess(): BohAccess {
             setUserApps(userAppsData || []);
 
             const assignedApps = userAppsData || [];
-            const appsWithAccess = tenantWorkspaceApps.map(app => {
+            const appsWithAccess = visibleTenantWorkspaceApps.map(app => {
               const userApp = assignedApps.find(ua => ua.app_id === app.id);
               return {
                 ...app,

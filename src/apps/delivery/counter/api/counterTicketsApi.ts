@@ -1,5 +1,5 @@
 import { supabase } from '../../../../lib/supabase';
-import { getCurrentBohUserId } from '../../../../boh/api/bohApi';
+import { getCurrentBohUserContext } from '../../../../boh/api/bohApi';
 import type { Ticket, CounterTicketStatus, CounterTicketPriority, Activity, ReleaseVersion, CounterAppOption } from '../types';
 
 /**
@@ -18,10 +18,14 @@ export interface TicketLookups {
  * @throws {Error} If data fetching fails
  */
 export async function fetchTicketLookups(): Promise<TicketLookups> {
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) return { statuses: [], priorities: [], apps: [] };
+
   // Fetch statuses
   const { data: statusesData, error: statusesError } = await supabase
     .from('counter_ticket_status')
     .select('*')
+    .eq('tenant_id', bohContext.tenant_id)
     .order('sort_order', { ascending: true, nullsFirst: false });
 
   if (statusesError) {
@@ -33,6 +37,7 @@ export async function fetchTicketLookups(): Promise<TicketLookups> {
   const { data: prioritiesData, error: prioritiesError } = await supabase
     .from('counter_ticket_priority')
     .select('*')
+    .eq('tenant_id', bohContext.tenant_id)
     .order('weight', { ascending: false, nullsFirst: false });
 
   if (prioritiesError) {
@@ -53,9 +58,27 @@ export async function fetchTicketLookups(): Promise<TicketLookups> {
  * Fetches app lookup rows from BOH app registry for Counter filters and ticket app context.
  */
 export async function fetchCounterApps(): Promise<CounterAppOption[]> {
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) return [];
+
+  const { data: tenantApps, error: tenantAppsError } = await supabase
+    .from('boh_tenant_app')
+    .select('app_id')
+    .eq('tenant_id', bohContext.tenant_id)
+    .in('status', ['enabled', 'coming_soon']);
+
+  if (tenantAppsError) {
+    console.error('Error fetching tenant BOH app enablement:', tenantAppsError);
+    return [];
+  }
+
+  const appIds = (tenantApps || []).map((row) => row.app_id).filter(Boolean) as string[];
+  if (appIds.length === 0) return [];
+
   const { data, error } = await supabase
     .from('boh_app')
     .select('id, slug, name, app_context, type, surface, primary_color, sort_order')
+    .in('id', appIds)
     .eq('is_active', true)
     .order('sort_order', { ascending: true, nullsFirst: false })
     .order('name', { ascending: true });
@@ -72,6 +95,9 @@ export async function fetchCounterApps(): Promise<CounterAppOption[]> {
  * Fetches active release versions for ticket assignment.
  */
 export async function fetchReleaseVersions(): Promise<ReleaseVersion[]> {
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) return [];
+
   try {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData?.session) {
@@ -86,6 +112,7 @@ export async function fetchReleaseVersions(): Promise<ReleaseVersion[]> {
     .select(
       'id, environment, version_label, version_number, release_year, release_cycle, release_tier, release_date, sort_date, status, is_active, notes, parent_major_release_id, created_at',
     )
+    .eq('tenant_id', bohContext.tenant_id)
     .eq('release_tier', 'minor')
     .order('sort_date', { ascending: true, nullsFirst: false })
     .order('release_date', { ascending: true, nullsFirst: false })
@@ -103,9 +130,13 @@ export async function fetchReleaseVersions(): Promise<ReleaseVersion[]> {
  * Creates a new release version.
  */
 export async function createReleaseVersion(versionLabel: string, versionNumber?: string, releaseDate?: string): Promise<ReleaseVersion> {
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) throw new Error('Unable to find current BOH tenant. Please re-authenticate.');
+
   const { data, error } = await supabase
     .from('boh_release_version')
     .insert({
+      tenant_id: bohContext.tenant_id,
       version_label: versionLabel,
       version_number: versionNumber || null,
       release_date: releaseDate || null,
@@ -127,6 +158,9 @@ export async function createReleaseVersion(versionLabel: string, versionNumber?:
  * Updates a release version.
  */
 export async function updateReleaseVersion(id: string, patch: Partial<ReleaseVersion>): Promise<ReleaseVersion> {
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) throw new Error('Unable to find current BOH tenant. Please re-authenticate.');
+
   const dbPatch: any = {};
   if (patch.version_label !== undefined) dbPatch.version_label = patch.version_label;
   if (patch.version_number !== undefined) dbPatch.version_number = patch.version_number;
@@ -139,6 +173,7 @@ export async function updateReleaseVersion(id: string, patch: Partial<ReleaseVer
     .from('boh_release_version')
     .update(dbPatch)
     .eq('id', id)
+    .eq('tenant_id', bohContext.tenant_id)
     .select('id, version_label, version_number, release_date, status, is_active, notes')
     .single();
 
@@ -189,13 +224,74 @@ export interface ManualTicketPayload {
   release_version_id?: string | null;
 }
 
+async function assertCounterLookupInTenant(table: 'counter_ticket_status' | 'counter_ticket_priority', id: string | null | undefined, tenantId: string, label: string): Promise<void> {
+  if (!id) return;
+  const { data, error } = await supabase
+    .from(table)
+    .select('id')
+    .eq('id', id)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error(`${label} is not part of the current BOH tenant.`);
+}
+
+async function assertCounterReleaseInTenant(releaseVersionId: string | null | undefined, tenantId: string): Promise<void> {
+  if (!releaseVersionId) return;
+  const { data, error } = await supabase
+    .from('boh_release_version')
+    .select('id')
+    .eq('id', releaseVersionId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error('Selected release is not part of the current BOH tenant.');
+}
+
+async function assertCounterAppInTenant(appId: string | null | undefined, tenantId: string): Promise<void> {
+  if (!appId) return;
+  const { data, error } = await supabase
+    .from('boh_tenant_app')
+    .select('app_id')
+    .eq('app_id', appId)
+    .eq('tenant_id', tenantId)
+    .in('status', ['enabled', 'coming_soon'])
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error('Selected app is not enabled for the current BOH tenant.');
+}
+
+async function assertCounterTicketInTenant(ticketId: string, tenantId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('counter_ticket')
+    .select('id')
+    .eq('id', ticketId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error('Ticket was not found in the current BOH tenant.');
+}
+
 export async function createManualTicket(payload: ManualTicketPayload) {
-  const bohUserId = await getCurrentBohUserId();
-  if (!bohUserId) {
+  const bohContext = await getCurrentBohUserContext();
+  const bohUserId = bohContext?.id;
+  if (!bohUserId || !bohContext?.tenant_id) {
     throw new Error('Unable to find current BOH user. Please re-authenticate.');
   }
 
+  await Promise.all([
+    assertCounterLookupInTenant('counter_ticket_status', payload.status_id, bohContext.tenant_id, 'Selected status'),
+    assertCounterLookupInTenant('counter_ticket_priority', payload.priority_id, bohContext.tenant_id, 'Selected priority'),
+    assertCounterReleaseInTenant(payload.release_version_id, bohContext.tenant_id),
+    assertCounterAppInTenant(payload.app_id, bohContext.tenant_id),
+  ]);
+
   const insertPayload = {
+    tenant_id: bohContext.tenant_id,
     subject: payload.subject.trim(),
     description: payload.description.trim(),
     category: payload.category,
@@ -240,6 +336,9 @@ export async function fetchTicketsForView(
   view: 'inbox' | 'my' | 'all',
   params?: FetchTicketsParams
 ): Promise<FetchTicketsResult> {
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) return { tickets: [], totalCount: 0 };
+
   // Query base table with explicit joins to boh_user using constraint names
   let query = supabase
     .from('counter_ticket')
@@ -251,7 +350,8 @@ export async function fetchTicketsForView(
       app_record:boh_app!counter_ticket_app_id_fkey(id, slug, name, app_context, type),
       created_by_user:boh_user!counter_tickets_created_by_fkey(id, full_name, email),
       assigned_to_user:boh_user!counter_tickets_assigned_to_fkey(id, full_name, email)
-    `, { count: 'exact', head: false });
+    `, { count: 'exact', head: false })
+    .eq('tenant_id', bohContext.tenant_id);
 
   const rawSearch = params?.search?.trim();
   const hasSearch = Boolean(rawSearch);
@@ -434,6 +534,9 @@ export async function fetchTicketsForView(
  * @throws {Error} If data fetching fails
  */
 export async function fetchTicketById(id: string): Promise<Ticket | null> {
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) return null;
+
   // Query base table with explicit joins to boh_user using constraint names
   const { data, error } = await supabase
     .from('counter_ticket')
@@ -447,6 +550,7 @@ export async function fetchTicketById(id: string): Promise<Ticket | null> {
       assigned_to_user:boh_user!counter_tickets_assigned_to_fkey(id, full_name, email)
     `)
     .eq('id', id)
+    .eq('tenant_id', bohContext.tenant_id)
     .single();
 
   if (error) {
@@ -507,6 +611,22 @@ export async function fetchTicketById(id: string): Promise<Ticket | null> {
  * Returns the updated Ticket with joins and mappings applied.
  */
 export async function assignTicket(id: string, bohUserId: string | null): Promise<Ticket> {
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) throw new Error('Unable to find current BOH tenant. Please re-authenticate.');
+
+  if (bohUserId) {
+    const { data: agent, error: agentError } = await supabase
+      .from('boh_user')
+      .select('id')
+      .eq('id', bohUserId)
+      .eq('tenant_id', bohContext.tenant_id)
+      .eq('app_context', 'boh')
+      .maybeSingle();
+
+    if (agentError) throw agentError;
+    if (!agent) throw new Error('Selected agent is not part of the current BOH tenant.');
+  }
+
   const { data, error } = await supabase
     .from('counter_ticket')
     .update({
@@ -514,6 +634,7 @@ export async function assignTicket(id: string, bohUserId: string | null): Promis
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
+    .eq('tenant_id', bohContext.tenant_id)
     .select(`
       *,
       status:counter_ticket_status!counter_ticket_status_id_fkey(id, key, label, sort_order, color_token),
@@ -578,6 +699,19 @@ export async function updateTicketComment(commentId: string, body: string): Prom
   const trimmed = body.trim();
   if (!trimmed) return;
 
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) throw new Error('Unable to find current BOH tenant. Please re-authenticate.');
+
+  const { data: comment, error: commentError } = await supabase
+    .from('counter_ticket_comment')
+    .select('ticket_id')
+    .eq('id', commentId)
+    .maybeSingle();
+
+  if (commentError) throw commentError;
+  if (!comment?.ticket_id) throw new Error('Ticket comment was not found.');
+  await assertCounterTicketInTenant(comment.ticket_id, bohContext.tenant_id);
+
   const { error } = await supabase
     .from('counter_ticket_comment')
     .update({ body: trimmed })
@@ -627,6 +761,16 @@ export async function createTicket(payload: {
  * @returns {Promise<Ticket>} The updated ticket
  */
 export async function updateTicket(id: string, patch: Partial<Ticket>): Promise<Ticket> {
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) throw new Error('Unable to find current BOH tenant. Please re-authenticate.');
+
+  await Promise.all([
+    assertCounterLookupInTenant('counter_ticket_status', patch.statusId, bohContext.tenant_id, 'Selected status'),
+    assertCounterLookupInTenant('counter_ticket_priority', patch.priorityId, bohContext.tenant_id, 'Selected priority'),
+    assertCounterReleaseInTenant((patch as any).release_version_id, bohContext.tenant_id),
+    assertCounterAppInTenant((patch as any).app_id, bohContext.tenant_id),
+  ]);
+
   // Map the Partial<Ticket> to the counter_ticket table columns.
   const dbPatch: any = {};
 
@@ -681,6 +825,7 @@ export async function updateTicket(id: string, patch: Partial<Ticket>): Promise<
     .from('counter_ticket')
     .update(dbPatch)
     .eq('id', id)
+    .eq('tenant_id', bohContext.tenant_id)
     .select(`
       *,
       status:counter_ticket_status!counter_ticket_status_id_fkey(id, key, label, sort_order, color_token),
@@ -742,8 +887,23 @@ export async function updateTicket(id: string, patch: Partial<Ticket>): Promise<
  * Assigns several tickets to a minor release, or clears the release assignment.
  */
 export async function assignTicketsToRelease(ticketIds: string[], releaseVersionId: string | null): Promise<void> {
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) throw new Error('Unable to find current BOH tenant. Please re-authenticate.');
+
   const uniqueIds = Array.from(new Set(ticketIds.filter(Boolean)));
   if (uniqueIds.length === 0) return;
+
+  if (releaseVersionId) {
+    const { data: release, error: releaseError } = await supabase
+      .from('boh_release_version')
+      .select('id')
+      .eq('id', releaseVersionId)
+      .eq('tenant_id', bohContext.tenant_id)
+      .maybeSingle();
+
+    if (releaseError) throw releaseError;
+    if (!release) throw new Error('Selected release is not part of the current BOH tenant.');
+  }
 
   const { error } = await supabase
     .from('counter_ticket')
@@ -751,6 +911,7 @@ export async function assignTicketsToRelease(ticketIds: string[], releaseVersion
       release_version_id: releaseVersionId,
       updated_at: new Date().toISOString(),
     })
+    .eq('tenant_id', bohContext.tenant_id)
     .in('id', uniqueIds);
 
   if (error) {
@@ -763,8 +924,24 @@ export async function assignTicketsToRelease(ticketIds: string[], releaseVersion
  * Assigns several tickets to a BOH user, or clears assignment.
  */
 export async function assignTicketsToUser(ticketIds: string[], bohUserId: string | null): Promise<void> {
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) throw new Error('Unable to find current BOH tenant. Please re-authenticate.');
+
   const uniqueIds = Array.from(new Set(ticketIds.filter(Boolean)));
   if (uniqueIds.length === 0) return;
+
+  if (bohUserId) {
+    const { data: agent, error: agentError } = await supabase
+      .from('boh_user')
+      .select('id')
+      .eq('id', bohUserId)
+      .eq('tenant_id', bohContext.tenant_id)
+      .eq('app_context', 'boh')
+      .maybeSingle();
+
+    if (agentError) throw agentError;
+    if (!agent) throw new Error('Selected agent is not part of the current BOH tenant.');
+  }
 
   const { error } = await supabase
     .from('counter_ticket')
@@ -772,6 +949,7 @@ export async function assignTicketsToUser(ticketIds: string[], bohUserId: string
       assigned_to: bohUserId ?? null,
       updated_at: new Date().toISOString(),
     })
+    .eq('tenant_id', bohContext.tenant_id)
     .in('id', uniqueIds);
 
   if (error) {
@@ -823,6 +1001,10 @@ interface TicketCommentRow {
  * used by the TicketDetailPage UI.
  */
 export async function fetchTicketComments(ticketId: string): Promise<Activity[]> {
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) return [];
+  await assertCounterTicketInTenant(ticketId, bohContext.tenant_id);
+
   const { data, error } = await supabase
     .from('counter_ticket_comment')
     .select('*')
@@ -846,6 +1028,8 @@ export async function fetchTicketComments(ticketId: string): Promise<Activity[]>
     const { data: users, error: usersError } = await supabase
       .from('boh_user')
       .select('id, full_name')
+      .eq('tenant_id', bohContext.tenant_id)
+      .eq('app_context', 'boh')
       .in('id', authorIds);
 
     if (usersError) {
@@ -904,6 +1088,23 @@ export async function addTicketComment(
   options?: { isVisibleToRequester?: boolean; shouldNotifyRequester?: boolean; authorId?: string | null },
 ): Promise<void> {
   const { isVisibleToRequester = false, shouldNotifyRequester = false, authorId = null } = options || {};
+
+  const bohContext = await getCurrentBohUserContext();
+  if (!bohContext?.tenant_id) throw new Error('Unable to find current BOH tenant. Please re-authenticate.');
+  await assertCounterTicketInTenant(ticketId, bohContext.tenant_id);
+
+  if (authorId) {
+    const { data: author, error: authorError } = await supabase
+      .from('boh_user')
+      .select('id')
+      .eq('id', authorId)
+      .eq('tenant_id', bohContext.tenant_id)
+      .eq('app_context', 'boh')
+      .maybeSingle();
+
+    if (authorError) throw authorError;
+    if (!author) throw new Error('Comment author is not part of the current BOH tenant.');
+  }
 
   const payload = {
     ticket_id: ticketId,

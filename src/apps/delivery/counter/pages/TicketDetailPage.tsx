@@ -5,6 +5,7 @@ import { CAREER_MODULE_LABELS, SEVERITY_OPTIONS } from '../constants';
 import { StatusBadge, AppBadge, PriorityBadge, SeverityBadge } from '../components/Badges';
 import { ArrowLeftIcon } from '../components/Icons';
 import { supabase } from '../../../../lib/supabase';
+import { getCurrentBohUserContext } from '../../../../boh/api/bohApi';
 import BohSelect, { type BohSelectOption } from '../../../../components/boh/BohSelect';
 import { 
   fetchTicketComments, 
@@ -96,17 +97,9 @@ const TicketDetailPage: React.FC<TicketDetailPageProps> = ({ ticket, agents, onB
   useEffect(() => {
     const loadCurrentBohUser = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data: bohUser, error } = await supabase
-          .from('boh_user')
-          .select('id')
-          .eq('auth_user_id', user.id)
-          .maybeSingle();
-
-        if (!error && bohUser?.id) {
-          setCurrentBohUserId(bohUser.id);
+        const bohContext = await getCurrentBohUserContext();
+        if (bohContext?.id) {
+          setCurrentBohUserId(bohContext.id);
         }
       } catch (err) {
         console.error('Error loading current boh_user for TicketDetailPage:', err);
@@ -150,10 +143,17 @@ const TicketDetailPage: React.FC<TicketDetailPageProps> = ({ ticket, agents, onB
     const fetchData = async () => {
       setIsLoadingAreas(true);
       try {
+        const bohContext = await getCurrentBohUserContext();
+        if (!bohContext?.tenant_id) {
+          setAppAreas([]);
+          return;
+        }
+
         const [areasResponse, lookups, releases] = await Promise.all([
           supabase
             .from('counter_app_area')
             .select('*')
+            .eq('tenant_id', bohContext.tenant_id)
             .eq('is_active', true)
             .order('sort_order', { ascending: true }),
           fetchTicketLookups(),

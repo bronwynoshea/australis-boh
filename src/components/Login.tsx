@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { getCurrentBohUserId } from '../boh/api/bohApi';
 import BohSlideOver from './boh/BohSlideOver';
 
 interface LoginProps {
@@ -44,6 +43,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             return;
           }
         }
+      }
+
+      const { data: existingSessionData } = await supabase.auth.getSession();
+      const existingEmail = existingSessionData.session?.user?.email?.trim().toLowerCase();
+
+      if (existingEmail && existingEmail !== normalizedEmail) {
+        await supabase.auth.signOut();
       }
 
       const { error } = await supabase.auth.signInWithOtp({
@@ -147,9 +153,39 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       if (data.session) {
         try {
-          const bohUserId = await getCurrentBohUserId();
+          const verifiedAuthEmail = data.session.user.email?.trim().toLowerCase();
 
-          if (!bohUserId) {
+          if (verifiedAuthEmail !== normalizedEmail) {
+            await supabase.auth.signOut();
+            setErrorMessage('This code belongs to a different email address. Please request a new code.');
+            setCode('');
+            setLoading(false);
+            codeInputRefs.current[0]?.focus();
+            return;
+          }
+
+          const { data: linkedBohUser, error: linkedBohUserError } = await supabase
+            .from('boh_user')
+            .select('id, email')
+            .eq('auth_user_id', data.session.user.id)
+            .eq('app_context', 'boh')
+            .maybeSingle();
+
+          if (linkedBohUserError) {
+            throw linkedBohUserError;
+          }
+
+          if (linkedBohUser) {
+            const linkedEmail = linkedBohUser.email?.trim().toLowerCase();
+            if (linkedEmail !== normalizedEmail) {
+              await supabase.auth.signOut();
+              setErrorMessage('This browser was signed in to a different BOH user. Please request a new code.');
+              setCode('');
+              setLoading(false);
+              codeInputRefs.current[0]?.focus();
+              return;
+            }
+          } else {
             const { data: emailUser, error: emailError } = await supabase
               .from('boh_user')
               .select('id, auth_user_id')

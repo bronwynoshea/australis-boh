@@ -1,11 +1,21 @@
 import { supabase } from '../../../lib/supabase';
+import { getCurrentBohUserContext } from '../../../boh/api/bohApi';
 import type { PatronPipelineStage, PatronPerson, PatronOrganisation, PatronActivity } from '../types';
+
+async function getCurrentPatronTenantId(): Promise<string | null> {
+  const context = await getCurrentBohUserContext();
+  return context?.tenant_id ?? null;
+}
 
 // Pipeline Stages
 export async function fetchPatronStages(): Promise<PatronPipelineStage[]> {
+  const tenantId = await getCurrentPatronTenantId();
+  if (!tenantId) return [];
+
   const { data, error } = await supabase
     .from('patron_pipeline_stage')
     .select('*')
+    .eq('tenant_id', tenantId)
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
@@ -23,9 +33,13 @@ export async function fetchPatronPeople(filters?: {
   pipelineStageId?: string;
   assignedTo?: string;
 }): Promise<PatronPerson[]> {
+  const tenantId = await getCurrentPatronTenantId();
+  if (!tenantId) return [];
+
   let query = supabase
     .from('patron_person')
-    .select('*');
+    .select('*')
+    .eq('tenant_id', tenantId);
 
   if (filters?.search) {
     const searchTerm = `%${filters.search.toLowerCase()}%`;
@@ -57,9 +71,13 @@ export async function fetchPatronOrganisations(filters?: {
   search?: string;
   pipelineStageId?: string;
 }): Promise<PatronOrganisation[]> {
+  const tenantId = await getCurrentPatronTenantId();
+  if (!tenantId) return [];
+
   let query = supabase
     .from('patron_organisation')
-    .select('*');
+    .select('*')
+    .eq('tenant_id', tenantId);
 
   if (filters?.search) {
     const searchTerm = `%${filters.search.toLowerCase()}%`;
@@ -87,9 +105,13 @@ export async function fetchPatronActivities(filters?: {
   personId?: string;
   organisationId?: string;
 }): Promise<PatronActivity[]> {
+  const tenantId = await getCurrentPatronTenantId();
+  if (!tenantId) return [];
+
   let query = supabase
     .from('patron_activity')
-    .select('*');
+    .select('*')
+    .eq('tenant_id', tenantId);
 
   if (filters?.personId) {
     query = query.eq('person_id', filters.personId);
@@ -113,10 +135,14 @@ export async function fetchPatronActivities(filters?: {
 
 // Get person by ID
 export async function fetchPatronPersonById(personId: string): Promise<PatronPerson | null> {
+  const tenantId = await getCurrentPatronTenantId();
+  if (!tenantId) return null;
+
   const { data, error } = await supabase
     .from('patron_person')
     .select('*')
     .eq('id', personId)
+    .eq('tenant_id', tenantId)
     .single();
 
   if (error) {
@@ -129,10 +155,14 @@ export async function fetchPatronPersonById(personId: string): Promise<PatronPer
 
 // Get organisation by ID
 export async function fetchPatronOrganisationById(organisationId: string): Promise<PatronOrganisation | null> {
+  const tenantId = await getCurrentPatronTenantId();
+  if (!tenantId) return null;
+
   const { data, error } = await supabase
     .from('patron_organisation')
     .select('*')
     .eq('id', organisationId)
+    .eq('tenant_id', tenantId)
     .single();
 
   if (error) {

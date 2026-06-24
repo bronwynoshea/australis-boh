@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchPatronPeople } from '../api/patronApiMock';
+import { fetchPatronPeople } from '../api/patronApi';
 import type { PatronPerson } from '../types';
 
 interface UsePatronPeopleFilters {

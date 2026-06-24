@@ -23,26 +23,28 @@ export function useQuickLinks(options: UseQuickLinksOptions = {}) {
   const [crewLinks, setCrewLinks] = useState<QuickLink[]>([]);
   const [myLinks, setMyLinks] = useState<QuickLink[]>([]);
   const [bohUserId, setBohUserId] = useState<string | null>(null);
+  const [tenantId, setTenantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Resolve boh_user.id from auth session
-  const resolveBohUserId = useCallback(async (): Promise<string | null> => {
+  // Resolve BOH user + tenant from auth session.
+  const resolveBohUserContext = useCallback(async (): Promise<{ bohUserId: string; tenantId: string } | null> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
     const { data: bohUser, error } = await supabase
       .from('boh_user')
-      .select('id')
+      .select('id, tenant_id')
       .eq('auth_user_id', user.id)
-      .single();
+      .eq('app_context', 'boh')
+      .maybeSingle();
 
-    if (error || !bohUser) {
-      console.error('[useQuickLinks] Failed to resolve boh_user.id:', error);
+    if (error || !bohUser?.tenant_id) {
+      console.error('[useQuickLinks] Failed to resolve BOH user context:', error);
       return null;
     }
 
-    return bohUser.id;
+    return { bohUserId: bohUser.id, tenantId: bohUser.tenant_id };
   }, []);
 
   const transformQuickLink = (link: QuickLinkData): QuickLink => ({
@@ -60,14 +62,20 @@ export function useQuickLinks(options: UseQuickLinksOptions = {}) {
     setError(null);
 
     try {
-      // Resolve boh_user.id first
-      const currentBohUserId = await resolveBohUserId();
-      setBohUserId(currentBohUserId);
+      // Resolve BOH user + tenant first
+      const currentContext = await resolveBohUserContext();
+      setBohUserId(currentContext?.bohUserId ?? null);
+      setTenantId(currentContext?.tenantId ?? null);
 
-      // Fetch crew links (shared across workspace)
+      if (!currentContext) {
+        throw new Error('Failed to resolve BOH tenant context');
+      }
+
+      // Fetch crew links for the current tenant.
       const { data: crewData, error: crewError } = await supabase
         .from('keep_quick_link')
         .select('id, link_scope, target_type, target_id, label, subtitle, description, sort_order')
+        .eq('tenant_id', currentContext.tenantId)
         .eq('link_scope', 'crew')
         .eq('area', area)
         .eq('is_active', true)
@@ -75,11 +83,13 @@ export function useQuickLinks(options: UseQuickLinksOptions = {}) {
 
       if (crewError) throw crewError;
 
-      // Fetch my links (user-specific) - RLS handles filtering for current user
+      // Fetch my links for the current BOH user in the current tenant.
       const { data: myData, error: myError } = await supabase
         .from('keep_quick_link')
         .select('id, link_scope, target_type, target_id, label, subtitle, description, sort_order')
+        .eq('tenant_id', currentContext.tenantId)
         .eq('link_scope', 'user')
+        .eq('user_id', currentContext.bohUserId)
         .eq('area', area)
         .eq('is_active', true)
         .order('sort_order', { ascending: true });
@@ -95,22 +105,26 @@ export function useQuickLinks(options: UseQuickLinksOptions = {}) {
     } finally {
       setLoading(false);
     }
-  }, [area, resolveBohUserId]);
+  }, [area, resolveBohUserContext]);
 
   const addMyLink = useCallback(async (link: Omit<QuickLink, 'id'>) => {
     try {
-      // Resolve boh_user.id if not cached
+      // Resolve BOH user + tenant if not cached
       let currentBohUserId = bohUserId;
-      if (!currentBohUserId) {
-        currentBohUserId = await resolveBohUserId();
-        if (!currentBohUserId) {
-          return { success: false, error: 'Failed to resolve user identity' };
+      let currentTenantId = tenantId;
+      if (!currentBohUserId || !currentTenantId) {
+        const currentContext = await resolveBohUserContext();
+        if (!currentContext) {
+          return { success: false, error: 'Failed to resolve BOH tenant context' };
         }
+        currentBohUserId = currentContext.bohUserId;
+        currentTenantId = currentContext.tenantId;
       }
 
       const { data, error } = await supabase
         .from('keep_quick_link')
         .insert({
+          tenant_id: currentTenantId,
           link_scope: 'user',
           target_type: link.targetType,
           target_id: link.targetId,
@@ -140,15 +154,17 @@ export function useQuickLinks(options: UseQuickLinksOptions = {}) {
       const message = err instanceof Error ? err.message : 'Failed to add link';
       return { success: false, error: message };
     }
-  }, [area, bohUserId, resolveBohUserId]);
+  }, [area, bohUserId, tenantId, resolveBohUserContext]);
 
   const removeMyLink = useCallback(async (linkId: string) => {
     try {
-      // RLS handles ownership check via boh_user.auth_user_id
       const { error } = await supabase
         .from('keep_quick_link')
         .delete()
-        .eq('id', linkId);
+        .eq('id', linkId)
+        .eq('tenant_id', tenantId)
+        .eq('user_id', bohUserId)
+        .eq('link_scope', 'user');
 
       if (error) throw error;
 
@@ -158,7 +174,7 @@ export function useQuickLinks(options: UseQuickLinksOptions = {}) {
       const message = err instanceof Error ? err.message : 'Failed to remove link';
       return { success: false, error: message };
     }
-  }, []);
+  }, [bohUserId, tenantId]);
 
   // Add a crew link (admin only) - uses protected edge function
   const addCrewLink = useCallback(async (link: Omit<QuickLink, 'id'>) => {

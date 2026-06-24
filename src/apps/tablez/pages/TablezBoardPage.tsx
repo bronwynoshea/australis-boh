@@ -20,6 +20,7 @@ import Alert from '../components/Alert';
 import { useActiveChair } from '../hooks/useActiveChair';
 import { fetchActiveTables, fetchChairsForTable, type BohChairWithUser, type BohTableOption } from '../api/tablezContextApi';
 import { supabase } from '../../../lib/supabase';
+import { getCurrentBohUserContext } from '../../../boh/api/bohApi';
 
 const VIEW_MODE_KEY = 'tablez_view_mode';
 
@@ -473,9 +474,14 @@ const TablezBoardPage: React.FC = () => {
     ));
 
     try {
+      const bohContext = await getCurrentBohUserContext();
+      if (!bohContext?.tenant_id) throw new Error('No BOH tenant matched the current session.');
+
       const { error } = await supabase
         .from('tablez_task')
         .update({ table_id: table.id, section_id: table.section_id, chair_id: null, updated_at: new Date().toISOString() })
+        .eq('tenant_id', bohContext.tenant_id)
+        .eq('app_context', 'tablez')
         .in('id', ids);
 
       if (error) throw error;
@@ -510,9 +516,14 @@ const TablezBoardPage: React.FC = () => {
     ));
 
     try {
+      const bohContext = await getCurrentBohUserContext();
+      if (!bohContext?.tenant_id) throw new Error('No BOH tenant matched the current session.');
+
       const { error } = await supabase
         .from('tablez_task')
         .update({ chair_id: bulkSelectedChairId, updated_at: new Date().toISOString() })
+        .eq('tenant_id', bohContext.tenant_id)
+        .eq('app_context', 'tablez')
         .in('id', ids);
       if (error) throw error;
       clearBulkSelection();
@@ -535,9 +546,14 @@ const TablezBoardPage: React.FC = () => {
     ));
 
     try {
+      const bohContext = await getCurrentBohUserContext();
+      if (!bohContext?.tenant_id) throw new Error('No BOH tenant matched the current session.');
+
       const { error } = await supabase
         .from('tablez_task')
         .update({ chair_id: null, updated_at: new Date().toISOString() })
+        .eq('tenant_id', bohContext.tenant_id)
+        .eq('app_context', 'tablez')
         .in('id', ids);
       if (error) throw error;
       clearBulkSelection();

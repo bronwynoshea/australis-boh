@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { getCurrentBohUserContext } from '../../boh/api/bohApi';
 import type {
   Initiative,
   Release,
@@ -46,10 +47,17 @@ const buildCountMap = (rows?: { initiative_id: string; count: number | string }[
   }, {} as Record<string, number>);
 };
 
+const getCurrentTenantId = async (): Promise<string | null> => {
+  const context = await getCurrentBohUserContext();
+  return context?.tenant_id ?? null;
+};
+
 // Product Overview API
 export const productApi = {
   // Get product overview dashboard data
   getOverview: async (): Promise<ApiResponse<ProductOverview>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     const currentQuarter = `Q${Math.ceil((new Date().getMonth() + 1) / 3)}`;
     const currentYear = new Date().getFullYear();
 
@@ -60,12 +68,14 @@ export const productApi = {
       supabase
         .from('boh_initiative')
         .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
         .eq('is_archived', false)
         .eq('target_quarter', currentQuarter)
         .eq('target_year', currentYear),
       supabase
         .from('boh_release_version')
         .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
         .eq('quarter', currentQuarter)
         .eq('year', currentYear),
     ]);
@@ -92,6 +102,7 @@ export const productApi = {
         created_at,
         updated_at
       `)
+      .eq('tenant_id', tenantId)
       .eq('is_archived', false)
       .order('updated_at', { ascending: false })
       .limit(5);
@@ -117,6 +128,7 @@ export const productApi = {
         updated_at,
         counter_ticket(count)
       `)
+      .eq('tenant_id', tenantId)
       .order('release_date', { ascending: false })
       .limit(10);
 
@@ -128,11 +140,13 @@ export const productApi = {
     const { count: internalCount, error: internalError } = await supabase
       .from('counter_ticket')
       .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
       .eq('app_context', 'boh');
 
     const { count: externalCount, error: externalError } = await supabase
       .from('counter_ticket')
       .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
       .neq('app_context', 'boh');
 
     const processedInitiatives = (initiativesData || []).map((initiative: any) => ({
@@ -164,6 +178,8 @@ export const productApi = {
 
   // Initiatives
   getInitiatives: async (filters?: ProductFilters): Promise<ApiResponse<Initiative[]>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     const baseSelect = `
       id,
       title,
@@ -193,7 +209,7 @@ export const productApi = {
       updated_at
     `;
 
-    let query = supabase.from('boh_initiative').select(baseSelect);
+    let query = supabase.from('boh_initiative').select(baseSelect).eq('tenant_id', tenantId);
 
     if (!filters?.include_archived) {
       query = query.eq('is_archived', false);
@@ -250,14 +266,17 @@ export const productApi = {
         supabase
           .from('boh_workstream')
           .select('initiative_id')
+          .eq('tenant_id', tenantId)
           .in('initiative_id', initiativeIds),
         supabase
           .from('boh_user_story')
           .select('initiative_id')
+          .eq('tenant_id', tenantId)
           .in('initiative_id', initiativeIds),
         supabase
           .from('boh_initiative_release')
           .select('initiative_id')
+          .eq('tenant_id', tenantId)
           .in('initiative_id', initiativeIds)
       ]);
 
@@ -348,6 +367,7 @@ export const productApi = {
       const { data: ownerRows, error: ownerError } = await supabase
         .from('boh_user')
         .select('id, full_name, email, status')
+        .eq('tenant_id', tenantId)
         .in('id', ownerIds);
       if (ownerError) {
         console.warn('[ProductAPI] Error loading owners', ownerError);
@@ -393,6 +413,7 @@ export const productApi = {
       const { data: planningRows, error: planningError } = await supabase
         .from('boh_initiative_planning_stage')
         .select('id, key, label, description, color_token, sort_order, is_active, created_at')
+        .eq('tenant_id', tenantId)
         .in('id', planningStageIds);
       if (planningError) {
         console.warn('[ProductAPI] Error loading planning stages', planningError);
@@ -408,6 +429,7 @@ export const productApi = {
       const { data: priorityRows, error: priorityError } = await supabase
         .from('counter_ticket_priority')
         .select('id, key, label, description, weight, color_token, is_active')
+        .eq('tenant_id', tenantId)
         .in('id', priorityIds);
       if (priorityError) {
         console.warn('[ProductAPI] Error loading priorities', priorityError);
@@ -423,6 +445,7 @@ export const productApi = {
       const { data: forgeStatusRows, error: forgeStatusError } = await supabase
         .from('boh_initiative_forge_status')
         .select('id, key, label, description, color_token, sort_order, is_active')
+        .eq('tenant_id', tenantId)
         .in('id', forgeStatusIds);
       if (forgeStatusError) {
         console.warn('[ProductAPI] Error loading Forge handoff statuses', forgeStatusError);
@@ -438,6 +461,7 @@ export const productApi = {
       const { data: releaseRows, error: releaseError } = await supabase
         .from('boh_release_version')
         .select('id, version_label, status, release_date')
+        .eq('tenant_id', tenantId)
         .in('id', majorReleaseIds);
       if (releaseError) {
         console.warn('[ProductAPI] Error loading major releases', releaseError);
@@ -488,6 +512,8 @@ export const productApi = {
   },
 
   getInitiative: async (id: string): Promise<ApiResponse<Initiative>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     // First get the initiative
     const { data: initiativeData, error: initiativeError } = await supabase
       .from('boh_initiative')
@@ -515,6 +541,7 @@ export const productApi = {
         )
       `)
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (initiativeError) {
@@ -525,14 +552,17 @@ export const productApi = {
       supabase
         .from('boh_workstream')
         .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
         .eq('initiative_id', id),
       supabase
         .from('boh_user_story')
         .select('id', { count: 'exact' })
+        .eq('tenant_id', tenantId)
         .eq('initiative_id', id),
       supabase
         .from('boh_initiative_release')
         .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
         .eq('initiative_id', id)
     ]);
 
@@ -547,6 +577,7 @@ export const productApi = {
       const { count: tasksCount, error: taskError } = await supabase
         .from('boh_task')
         .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
         .in('user_story_id', userStoryIds);
 
       if (taskError) {
@@ -676,9 +707,12 @@ export const productApi = {
   },
 
   getPlanningStages: async (): Promise<ApiResponse<PlanningStage[]>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     const { data, error } = await supabase
       .from('boh_initiative_planning_stage')
       .select('id, key, label, description, color_token, sort_order, is_active, created_at')
+      .eq('tenant_id', tenantId)
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 
@@ -690,9 +724,12 @@ export const productApi = {
   },
 
   getPriorityOptions: async (): Promise<ApiResponse<PriorityOption[]>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     const { data, error } = await supabase
       .from('counter_ticket_priority')
       .select('id, key, label, description, weight, color_token, is_active')
+      .eq('tenant_id', tenantId)
       .eq('is_active', true)
       .order('weight', { ascending: false })
       .order('label', { ascending: true });
@@ -719,9 +756,12 @@ export const productApi = {
   },
 
   getForgeStatuses: async (): Promise<ApiResponse<Array<{ id: string; key: string; label: string; description?: string; color_token?: string; sort_order: number; is_active: boolean }>>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     const { data, error } = await supabase
       .from('boh_initiative_forge_status')
       .select('id, key, label, description, color_token, sort_order, is_active')
+      .eq('tenant_id', tenantId)
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 
@@ -733,9 +773,12 @@ export const productApi = {
   },
 
   getQuarterCalendar: async (): Promise<ApiResponse<Array<{ id: string; year: number; quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4'; start_date: string; end_date: string; label: string; is_active: boolean }>>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     const { data, error } = await supabase
       .from('boh_quarter_calendar')
       .select('id, year, quarter, start_date, end_date, label, is_active')
+      .eq('tenant_id', tenantId)
       .eq('is_active', true)
       .order('year', { ascending: true })
       .order('quarter', { ascending: true });
@@ -748,10 +791,13 @@ export const productApi = {
   },
 
   createInitiative: async (input: CreateInitiativeInput): Promise<ApiResponse<Initiative>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     const { data, error } = await supabase
       .from('boh_initiative')
       .insert({
         ...input,
+        tenant_id: tenantId,
         progress: 0,
         is_archived: false,
       })
@@ -766,10 +812,13 @@ export const productApi = {
   },
 
   updateInitiative: async (id: string, input: UpdateInitiativeInput): Promise<ApiResponse<Initiative>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     const { data, error } = await supabase
       .from('boh_initiative')
       .update(input)
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .select()
       .single();
 
@@ -781,10 +830,13 @@ export const productApi = {
   },
 
   deleteInitiative: async (id: string): Promise<ApiResponse<void>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     const { error } = await supabase
       .from('boh_initiative')
       .update({ is_archived: true })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
 
     if (error) {
       return { data: null as any, error: error.message };
@@ -795,6 +847,8 @@ export const productApi = {
 
   // Releases
   getReleases: async (filters?: ProductFilters): Promise<ApiResponse<Release[]>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     let query = supabase
       .from('boh_release_version')
       .select(`
@@ -814,7 +868,8 @@ export const productApi = {
         created_at,
         updated_at,
         counter_ticket(count)
-      `);
+      `)
+      .eq('tenant_id', tenantId);
 
     if (filters?.quarter) {
       query = query.eq('quarter', filters.quarter);
@@ -860,6 +915,8 @@ export const productApi = {
   },
 
   createRelease: async (input: CreateReleaseInput): Promise<ApiResponse<Release>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     // Start a transaction by creating the release first
     const { data: releaseData, error: releaseError } = await supabase
       .from('boh_release_version')
@@ -873,6 +930,7 @@ export const productApi = {
         summary: input.summary,
         notes: input.notes,
         parent_major_release_id: input.parent_major_release_id,
+        tenant_id: tenantId,
         is_active: true,
       })
       .select()
@@ -887,6 +945,7 @@ export const productApi = {
       const initiativeReleaseLinks = input.initiative_ids.map(initiativeId => ({
         initiative_id: initiativeId,
         release_id: releaseData.id,
+        tenant_id: tenantId,
       }));
 
       const { error: linkError } = await supabase
@@ -898,7 +957,8 @@ export const productApi = {
         await supabase
           .from('boh_release_version')
           .delete()
-          .eq('id', releaseData.id);
+          .eq('id', releaseData.id)
+          .eq('tenant_id', tenantId);
 
         return { data: null as any, error: linkError.message };
       }
@@ -908,6 +968,8 @@ export const productApi = {
   },
 
   updateRelease: async (id: string, input: UpdateReleaseInput): Promise<ApiResponse<Release>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     // Update the release
     const { data: releaseData, error: releaseError } = await supabase
       .from('boh_release_version')
@@ -923,6 +985,7 @@ export const productApi = {
         parent_major_release_id: input.parent_major_release_id,
       })
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .select()
       .single();
 
@@ -936,13 +999,15 @@ export const productApi = {
       await supabase
         .from('boh_initiative_release')
         .delete()
-        .eq('release_id', id);
+        .eq('release_id', id)
+        .eq('tenant_id', tenantId);
 
       // Add new links if any
       if (input.initiative_ids.length > 0) {
         const initiativeReleaseLinks = input.initiative_ids.map(initiativeId => ({
           initiative_id: initiativeId,
           release_id: id,
+          tenant_id: tenantId,
         }));
 
         const { error: linkError } = await supabase
@@ -959,17 +1024,21 @@ export const productApi = {
   },
 
   deleteRelease: async (id: string): Promise<ApiResponse<void>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     // Delete initiative-release links first
     await supabase
       .from('boh_initiative_release')
       .delete()
-      .eq('release_id', id);
+      .eq('release_id', id)
+      .eq('tenant_id', tenantId);
 
     // Then delete the release
     const { error } = await supabase
       .from('boh_release_version')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
 
     if (error) {
       return { data: null as any, error: error.message };
@@ -980,6 +1049,8 @@ export const productApi = {
 
   // Quarterly Report
   getQuarterlyReport: async (quarter: string, year: number): Promise<ApiResponse<QuarterlyReportData>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     // Get metrics
     const { data: metricsData, error: metricsError } = await supabase
       .rpc('get_quarterly_metrics', { p_quarter: quarter, p_year: year });
@@ -1006,6 +1077,7 @@ export const productApi = {
         created_at,
         updated_at
       `)
+      .eq('tenant_id', tenantId)
       .eq('target_quarter', quarter)
       .eq('target_year', year)
       .eq('is_archived', false)
@@ -1034,6 +1106,7 @@ export const productApi = {
         updated_at,
         counter_ticket(count)
       `)
+      .eq('tenant_id', tenantId)
       .eq('quarter', quarter)
       .eq('year', year)
       .order('release_date', { ascending: false });
@@ -1077,11 +1150,14 @@ export const productApi = {
 
   // Link initiative to release
   linkInitiativeToRelease: async (initiativeId: string, releaseId: string): Promise<ApiResponse<void>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     const { error } = await supabase
       .from('boh_initiative_release')
       .insert({
         initiative_id: initiativeId,
         release_id: releaseId,
+        tenant_id: tenantId,
       });
 
     if (error) {
@@ -1093,11 +1169,14 @@ export const productApi = {
 
   // Unlink initiative from release
   unlinkInitiativeFromRelease: async (initiativeId: string, releaseId: string): Promise<ApiResponse<void>> => {
+    const tenantId = await getCurrentTenantId();
+    if (!tenantId) return { data: null as any, error: 'No BOH tenant matched the current session.' };
     const { error } = await supabase
       .from('boh_initiative_release')
       .delete()
       .eq('initiative_id', initiativeId)
-      .eq('release_id', releaseId);
+      .eq('release_id', releaseId)
+      .eq('tenant_id', tenantId);
 
     if (error) {
       return { data: null as any, error: error.message };

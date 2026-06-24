@@ -14,6 +14,7 @@ import SettingsPage from './pages/SettingsPage';
 import { supabase } from '../../../lib/supabase';
 import { useBohAccess } from '../../../shared/hooks/useBohAccess';
 import { fetchCounterApps, fetchTicketLookups, fetchTicketsForView, updateTicket as apiUpdateTicket } from './api/counterTicketsApi';
+import { getCurrentBohUserContext } from '../../../boh/api/bohApi';
 
 interface CounterAppProps {
   // Theme is now detected automatically from document.documentElement.classList
@@ -91,16 +92,27 @@ const CounterApp: React.FC<CounterAppProps> = () => {
   // Load agents from BOH users so assignment & agent panels work
   const loadAgents = async () => {
     try {
-      let query = await supabase
+      const bohContext = await getCurrentBohUserContext();
+      if (!bohContext?.tenant_id) {
+        console.warn('[CounterApp] Missing BOH tenant; skipping agent load.');
+        setAgents([]);
+        return;
+      }
+
+      let query: any = await supabase
         .from('boh_user')
-        .select('id, full_name, email, status, is_counter_agent');
+        .select('id, full_name, email, status, is_counter_agent')
+        .eq('tenant_id', bohContext.tenant_id)
+        .eq('app_context', 'boh');
 
       const hasCounterAgentFlag = query.error?.code !== '42703';
 
       if (query.error?.code === '42703') {
         query = await supabase
           .from('boh_user')
-          .select('id, full_name, email, status');
+          .select('id, full_name, email, status')
+          .eq('tenant_id', bohContext.tenant_id)
+          .eq('app_context', 'boh');
       }
 
       const { data, error } = query;
@@ -133,9 +145,16 @@ const CounterApp: React.FC<CounterAppProps> = () => {
 
   const loadAppAreas = async () => {
     try {
+      const bohContext = await getCurrentBohUserContext();
+      if (!bohContext?.tenant_id) {
+        setAppAreas([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('counter_app_area')
         .select('*')
+        .eq('tenant_id', bohContext.tenant_id)
         .eq('is_active', true)
         .order('sort_order', { ascending: true });
 

@@ -1,5 +1,14 @@
 import { supabase } from "../../../../lib/supabase";
+import { getCurrentBohUserContext } from "../../../../boh/api/bohApi";
 import type { BonusTierFormRow } from "../types/reservations";
+
+async function getCurrentTenantId(): Promise<string> {
+  const context = await getCurrentBohUserContext();
+  if (!context?.tenant_id) {
+    throw new Error("No BOH tenant matched the current session.");
+  }
+  return context.tenant_id;
+}
 
 export type CampaignStatus = "draft" | "active";
 
@@ -27,11 +36,13 @@ export interface CampaignScheduleFormLike {
 }
 
 export async function loadCampaigns(location: string): Promise<CampaignRow[]> {
+  const tenantId = await getCurrentTenantId();
   const { data, error } = await supabase
     .from("boh_campaign_banner")
     .select(
       "id, location, headline, body, enabled, starts_at, ends_at, status, slug, bonus_type, bonus_percent, queue_priority_label",
     )
+    .eq("tenant_id", tenantId)
     .eq("location", location)
     .order("starts_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
@@ -45,9 +56,11 @@ export async function loadCampaigns(location: string): Promise<CampaignRow[]> {
 }
 
 export async function loadBonusTiers(campaignId: string): Promise<BonusTierFormRow[]> {
+  const tenantId = await getCurrentTenantId();
   const { data, error } = await supabase
     .from("boh_campaign_bonus_tier")
     .select("id, label, tier_date, bonus_percent, tier_order, type")
+    .eq("tenant_id", tenantId)
     .eq("campaign_id", campaignId)
     .order("tier_date", { ascending: true })
     .order("tier_order", { ascending: true, nullsFirst: false });
@@ -76,6 +89,7 @@ export async function saveCampaignWithTiers(
   bonusTiers: BonusTierFormRow[],
   location: string,
 ): Promise<SaveCampaignResult> {
+  const tenantId = await getCurrentTenantId();
   const payload: Partial<CampaignRow> = {
     slug: form.slug.trim(),
     headline: form.headline.trim(),
@@ -94,6 +108,7 @@ export async function saveCampaignWithTiers(
     await supabase
       .from("boh_campaign_banner")
       .update({ status: "draft" })
+      .eq("tenant_id", tenantId)
       .eq("location", location)
       .neq("id", form.id);
   }
@@ -104,12 +119,13 @@ export async function saveCampaignWithTiers(
       .from("boh_campaign_banner")
       .update(payload)
       .eq("id", form.id)
+      .eq("tenant_id", tenantId)
       .select()
       .maybeSingle();
   } else {
     upsertResult = await supabase
       .from("boh_campaign_banner")
-      .insert(payload)
+      .insert({ ...payload, tenant_id: tenantId })
       .select()
       .maybeSingle();
   }
@@ -125,6 +141,7 @@ export async function saveCampaignWithTiers(
     const { error: deleteError } = await supabase
       .from("boh_campaign_bonus_tier")
       .delete()
+      .eq("tenant_id", tenantId)
       .eq("campaign_id", saved.id);
 
     if (deleteError) {
@@ -133,6 +150,7 @@ export async function saveCampaignWithTiers(
       const rowsToInsert = bonusTiers
         .filter((t) => t.tier_date && t.bonus_percent !== null)
         .map((t, index) => ({
+          tenant_id: tenantId,
           campaign_id: saved.id,
           tier_date: t.tier_date,
           label: t.label.trim(),
@@ -167,6 +185,7 @@ export async function updateScheduleAndTiers(
   schedule: ScheduleUpdateInput,
   bonusTiers: BonusTierFormRow[],
 ): Promise<SaveCampaignResult> {
+  const tenantId = await getCurrentTenantId();
   const { id, enabled, status, starts_at, ends_at } = schedule;
 
   // Load existing campaign so we preserve slug/headline/body/location
@@ -174,6 +193,7 @@ export async function updateScheduleAndTiers(
     .from("boh_campaign_banner")
     .select("id, location, slug, headline, body")
     .eq("id", id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (loadError || !existing) {
@@ -200,6 +220,7 @@ export async function updateScheduleAndTiers(
     await supabase
       .from("boh_campaign_banner")
       .update({ status: "draft" })
+      .eq("tenant_id", tenantId)
       .eq("location", location)
       .neq("id", id);
   }
@@ -208,6 +229,7 @@ export async function updateScheduleAndTiers(
     .from("boh_campaign_banner")
     .update(payload)
     .eq("id", id)
+    .eq("tenant_id", tenantId)
     .select()
     .maybeSingle();
 
@@ -222,6 +244,7 @@ export async function updateScheduleAndTiers(
   const { error: deleteError } = await supabase
     .from("boh_campaign_bonus_tier")
     .delete()
+    .eq("tenant_id", tenantId)
     .eq("campaign_id", id);
 
   if (deleteError) {
@@ -230,6 +253,7 @@ export async function updateScheduleAndTiers(
     const rowsToInsert = bonusTiers
       .filter((t) => t.tier_date && t.bonus_percent !== null)
       .map((t, index) => ({
+        tenant_id: tenantId,
         campaign_id: id,
         tier_date: t.tier_date,
         label: t.label.trim(),

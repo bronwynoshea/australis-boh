@@ -1,3 +1,4 @@
+import { getCurrentBohUserContext } from '../../../boh/api/bohApi';
 import { supabase } from '../../supabase';
 import type {
   Task,
@@ -32,6 +33,61 @@ const handleResponse = async <T>(promise: Promise<any>): Promise<ApiResponse<T>>
   }
 };
 
+const getCurrentTenantId = async (): Promise<string | null> => {
+  const context = await getCurrentBohUserContext();
+  return context?.tenant_id ?? null;
+};
+
+const missingTenantResponse = <T>(): ApiResponse<T> => ({
+  data: null as any,
+  error: 'No BOH tenant matched the current session.',
+});
+
+const validateStoryInTenant = async (storyId: string, tenantId: string): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from('boh_user_story')
+    .select('id')
+    .eq('id', storyId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  if (error) return error.message;
+  if (!data) return 'Selected story is not part of the current BOH tenant.';
+  return null;
+};
+
+const validateTaskInTenant = async (taskId: string, tenantId: string): Promise<string | null> => {
+  const { data, error } = await supabase
+    .from('boh_task')
+    .select('id')
+    .eq('id', taskId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  if (error) return error.message;
+  if (!data) return 'Selected task is not part of the current BOH tenant.';
+  return null;
+};
+
+const validateBohUserInTenant = async (
+  userId: string | null | undefined,
+  tenantId: string,
+  label = 'Selected user'
+): Promise<string | null> => {
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from('boh_user')
+    .select('id')
+    .eq('id', userId)
+    .eq('tenant_id', tenantId)
+    .eq('app_context', 'boh')
+    .maybeSingle();
+
+  if (error) return error.message;
+  if (!data) return `${label} is not part of the current BOH tenant.`;
+  return null;
+};
+
 /**
  * Fetch all tasks for a specific user story
  * @param storyId - The UUID of the user story
@@ -39,6 +95,8 @@ const handleResponse = async <T>(promise: Promise<any>): Promise<ApiResponse<T>>
  */
 export const fetchTasks = async (storyId: string): Promise<ApiResponse<Task[]>> => {
   console.log('[TasksAPI] Fetching tasks for story:', storyId);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<Task[]>();
   
   const { data, error } = await supabase
     .from('boh_task')
@@ -93,6 +151,7 @@ export const fetchTasks = async (storyId: string): Promise<ApiResponse<Task[]>> 
         )
       )
     `)
+    .eq('tenant_id', tenantId)
     .eq('user_story_id', storyId)
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
@@ -123,6 +182,8 @@ export const fetchTasks = async (storyId: string): Promise<ApiResponse<Task[]>> 
  */
 export const fetchTaskById = async (id: string): Promise<ApiResponse<Task>> => {
   console.log('[TasksAPI] Fetching task by ID:', id);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<Task>();
   
   const { data, error } = await supabase
     .from('boh_task')
@@ -179,6 +240,7 @@ export const fetchTaskById = async (id: string): Promise<ApiResponse<Task>> => {
       )
     `)
     .eq('id', id)
+    .eq('tenant_id', tenantId)
     .single();
 
   if (error) {
@@ -205,6 +267,8 @@ export const fetchTaskById = async (id: string): Promise<ApiResponse<Task>> => {
  */
 export const createTask = async (data: CreateTaskInput): Promise<ApiResponse<Task>> => {
   console.log('[TasksAPI] Creating task:', data.title);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<Task>();
   
   // Validate input
   if (!data.title || data.title.trim().length === 0) {
@@ -219,6 +283,15 @@ export const createTask = async (data: CreateTaskInput): Promise<ApiResponse<Tas
     return { data: null as any, error: 'User story ID is required' };
   }
 
+  const storyError = await validateStoryInTenant(data.user_story_id, tenantId);
+  if (storyError) return { data: null as any, error: storyError };
+
+  const assigneeError = await validateBohUserInTenant(data.assigned_to, tenantId, 'Selected assignee');
+  if (assigneeError) return { data: null as any, error: assigneeError };
+
+  const creatorError = await validateBohUserInTenant(data.created_by, tenantId, 'Selected creator');
+  if (creatorError) return { data: null as any, error: creatorError };
+
   // Validate status if provided
   const validStatuses = ['not_started', 'in_progress', 'blocked', 'review', 'done'];
   if (data.status && !validStatuses.includes(data.status)) {
@@ -232,6 +305,7 @@ export const createTask = async (data: CreateTaskInput): Promise<ApiResponse<Tas
 
   const taskData = {
     ...data,
+    tenant_id: tenantId,
     title: data.title.trim(),
     sort_order: data.sort_order || 0,
     status: data.status || 'not_started',
@@ -298,6 +372,8 @@ export const createTask = async (data: CreateTaskInput): Promise<ApiResponse<Tas
  */
 export const updateTask = async (id: string, data: UpdateTaskInput): Promise<ApiResponse<Task>> => {
   console.log('[TasksAPI] Updating task:', id);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<Task>();
   
   // Validate title if provided
   if (data.title !== undefined) {
@@ -326,6 +402,9 @@ export const updateTask = async (id: string, data: UpdateTaskInput): Promise<Api
     return { data: null as any, error: 'Actual hours must be a positive number' };
   }
 
+  const assigneeError = await validateBohUserInTenant(data.assigned_to, tenantId, 'Selected assignee');
+  if (assigneeError) return { data: null as any, error: assigneeError };
+
   // Clean up the data
   const updateData = {
     ...data,
@@ -337,6 +416,7 @@ export const updateTask = async (id: string, data: UpdateTaskInput): Promise<Api
     .from('boh_task')
     .update(updateData)
     .eq('id', id)
+    .eq('tenant_id', tenantId)
     .select(`
       *,
       assigned_user:boh_user!boh_task_assigned_to_fkey(
@@ -394,11 +474,14 @@ export const updateTask = async (id: string, data: UpdateTaskInput): Promise<Api
  */
 export const deleteTask = async (id: string): Promise<ApiResponse<void>> => {
   console.log('[TasksAPI] Deleting task:', id);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<void>();
   
   const result = await supabase
     .from('boh_task')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('tenant_id', tenantId);
 
   if (result.error) {
     console.error('[TasksAPI] Error deleting task:', result.error);
@@ -416,10 +499,13 @@ export const deleteTask = async (id: string): Promise<ApiResponse<void>> => {
  */
 export const getMaxTaskSortOrder = async (storyId: string): Promise<ApiResponse<number>> => {
   console.log('[TasksAPI] Getting max sort order for story:', storyId);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<number>();
   
   const { data, error } = await supabase
     .from('boh_task')
     .select('sort_order')
+    .eq('tenant_id', tenantId)
     .eq('user_story_id', storyId)
     .order('sort_order', { ascending: false })
     .limit(1)
@@ -445,6 +531,8 @@ export const getMaxTaskSortOrder = async (storyId: string): Promise<ApiResponse<
  */
 export const fetchTaskComments = async (taskId: string): Promise<ApiResponse<TaskComment[]>> => {
   console.log('[TasksAPI] Fetching comments for task:', taskId);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<TaskComment[]>();
   
   const { data, error } = await supabase
     .from('boh_task_comment')
@@ -457,6 +545,7 @@ export const fetchTaskComments = async (taskId: string): Promise<ApiResponse<Tas
         status
       )
     `)
+    .eq('tenant_id', tenantId)
     .eq('task_id', taskId)
     .order('created_at', { ascending: true });
 
@@ -476,6 +565,8 @@ export const fetchTaskComments = async (taskId: string): Promise<ApiResponse<Tas
  */
 export const createTaskComment = async (data: CreateTaskCommentInput): Promise<ApiResponse<TaskComment>> => {
   console.log('[TasksAPI] Creating comment for task:', data.task_id);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<TaskComment>();
   
   // Validate input
   if (!data.task_id) {
@@ -486,8 +577,12 @@ export const createTaskComment = async (data: CreateTaskCommentInput): Promise<A
     return { data: null as any, error: 'Comment body is required' };
   }
 
+  const taskError = await validateTaskInTenant(data.task_id, tenantId);
+  if (taskError) return { data: null as any, error: taskError };
+
   const commentData = {
     task_id: data.task_id,
+    tenant_id: tenantId,
     body: data.body.trim(),
   };
 
@@ -522,6 +617,8 @@ export const createTaskComment = async (data: CreateTaskCommentInput): Promise<A
  */
 export const updateTaskComment = async (id: string, data: UpdateTaskCommentInput): Promise<ApiResponse<TaskComment>> => {
   console.log('[TasksAPI] Updating comment:', id);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<TaskComment>();
   
   // Validate body if provided
   if (data.body !== undefined) {
@@ -541,6 +638,7 @@ export const updateTaskComment = async (id: string, data: UpdateTaskCommentInput
     .from('boh_task_comment')
     .update(updateData)
     .eq('id', id)
+    .eq('tenant_id', tenantId)
     .select(`
       *,
       author:boh_user(
@@ -568,11 +666,14 @@ export const updateTaskComment = async (id: string, data: UpdateTaskCommentInput
  */
 export const deleteTaskComment = async (id: string): Promise<ApiResponse<void>> => {
   console.log('[TasksAPI] Deleting comment:', id);
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return missingTenantResponse<void>();
   
   const result = await supabase
     .from('boh_task_comment')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('tenant_id', tenantId);
 
   if (result.error) {
     console.error('[TasksAPI] Error deleting comment:', result.error);

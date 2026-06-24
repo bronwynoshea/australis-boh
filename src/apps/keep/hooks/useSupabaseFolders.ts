@@ -39,6 +39,10 @@ export function useSupabaseFolders(options: UseSupabaseFoldersOptions = {}) {
           throw new Error(rootError.message || 'Failed to fetch root folders');
         }
 
+        if (!rootData?.success) {
+          throw new Error(rootData?.error || 'Failed to fetch root folders');
+        }
+
         const rootFolders = rootData?.folders || [];
         console.log(`[useSupabaseFolders] Area: ${area}, Looking for: "${systemFolderName}"`);
         console.log(`[useSupabaseFolders] Root folders found:`, rootFolders.map((f: KeepFolder) => ({ name: f.name, id: f.id })));
@@ -83,6 +87,10 @@ export function useSupabaseFolders(options: UseSupabaseFoldersOptions = {}) {
 
         if (childError) {
           throw new Error(childError.message || 'Failed to fetch child folders');
+        }
+
+        if (!childData?.success) {
+          throw new Error(childData?.error || 'Failed to fetch child folders');
         }
 
         console.log(`[useSupabaseFolders] Children found: ${childData?.folders?.length || 0}`, childData?.folders?.map((f: KeepFolder) => f.name));

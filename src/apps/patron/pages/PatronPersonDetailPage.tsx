@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchPatronPersonById } from '../api/patronApiMock';
+import { fetchPatronPersonById } from '../api/patronApi';
 import { usePatronStages } from '../hooks/usePatronStages';
 import { usePatronActivities } from '../hooks/usePatronActivities';
 import PatronActivityList from '../components/PatronActivityList';

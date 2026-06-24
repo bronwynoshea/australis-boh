@@ -23,7 +23,13 @@ Deno.serve(async (req) => {
     }
 
     const userId = keepAuth.bohUser.id;
+    const currentTenantId = keepAuth.bohUser.tenant_id;
     const isSuperAdmin = keepAuth.isSuperAdmin;
+
+    if (!currentTenantId) {
+      console.warn("[keep-quick-link-admin] Authenticated BOH user has no tenant_id", { bohUserId: userId });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
 
     // 2. Verify super admin access (only super admins can manage crew links)
     if (!isSuperAdmin) {
@@ -64,10 +70,30 @@ Deno.serve(async (req) => {
         return jsonResponse(req, { success: false, error: "Invalid area. Must be 'workspace' or 'gold_library'" }, 400);
       }
 
+      const targetTable = target_type === 'folder' ? 'keep_folder' : 'keep_file';
+      const { data: targetRecord, error: targetError } = await keepAuth.serviceClient
+        .from(targetTable)
+        .select('id')
+        .eq('id', target_id)
+        .eq('tenant_id', currentTenantId)
+        .eq('area', area)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (targetError) {
+        console.error("[keep-quick-link-admin] Target validation error:", targetError);
+        return jsonResponse(req, { success: false, error: "Failed to validate linked item" }, 500);
+      }
+
+      if (!targetRecord) {
+        return jsonResponse(req, { success: false, error: "Linked item not found in this tenant" }, 404);
+      }
+
       // Insert crew link
       const { data: link, error: insertError } = await keepAuth.serviceClient
         .from('keep_quick_link')
         .insert({
+          tenant_id: currentTenantId,
           link_scope: 'crew',
           target_type,
           target_id,
@@ -78,7 +104,7 @@ Deno.serve(async (req) => {
           area,
           is_active: true,
           user_id: null, // Crew links have no user_id
-          created_by: bohUser.id,
+          created_by: userId,
         })
         .select('id, link_scope, target_type, target_id, label, subtitle, description, sort_order')
         .single();
@@ -110,6 +136,7 @@ Deno.serve(async (req) => {
         .from('keep_quick_link')
         .delete()
         .eq('id', link_id)
+        .eq('tenant_id', currentTenantId)
         .eq('link_scope', 'crew');
 
       if (deleteError) {

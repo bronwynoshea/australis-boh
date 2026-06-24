@@ -2,8 +2,8 @@
 // Provides executive-level summary for leadership
 // @ts-nocheck
 
-import { createClient } from "jsr:@supabase/supabase-js@2";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { requireUser } from "../_shared/auth.ts";
 
 const formatWindow = (val: string) => {
   return val
@@ -32,28 +32,12 @@ Deno.serve(async (req) => {
     authHeaderPrefix: req.headers.get('Authorization')?.substring(0, 20) + '...'
   });
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const publishableKey = Deno.env.get('SB_PUBLISHABLE_KEY');
-  const secretKey = Deno.env.get('SB_SECRET_KEY');
-
-  // Debug: Log which environment variables are found
-  console.log('[menu-executive-release-summary] Environment variables check:', {
-    supabaseUrl: supabaseUrl ? 'found' : 'missing',
-    publishableKey: publishableKey ? 'found' : 'missing (SB_PUBLISHABLE_KEY)',
-    secretKey: secretKey ? 'found' : 'missing (SB_SECRET_KEY)',
-  });
-
-  if (!supabaseUrl || !publishableKey || !secretKey) {
-    console.error('[menu-executive-release-summary] Missing Supabase env vars');
+  const auth = await requireUser(req);
+  if (!auth.success) {
     return new Response(
-      JSON.stringify({
-        error: {
-          message: 'Server misconfiguration',
-          function_name: 'menu-executive-release-summary'
-        }
-      }),
+      JSON.stringify({ error: { message: auth.error, function_name: 'menu-executive-release-summary' } }),
       {
-        status: 500,
+        status: auth.status,
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json'
@@ -62,34 +46,14 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Create user client for auth verification
-  const supabaseUserClient = createClient(supabaseUrl, publishableKey, {
-    global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-  });
+  const supabaseAdmin = auth.serviceClient;
+  const tenantId = auth.context.bohUser?.tenant_id;
 
-  // Create admin client for database operations
-  const supabaseAdmin = createClient(supabaseUrl, secretKey);
-
-  // Verify the user is logged in
-  const { data: { user }, error: userError } = await supabaseUserClient.auth.getUser();
-
-  console.log('[menu-executive-release-summary] Auth result:', {
-    hasUser: !!user,
-    userError: userError?.message,
-    userId: user?.id
-  });
-
-  if (userError || !user) {
-    console.error('[menu-executive-release-summary] Unauthorized', userError);
+  if (!tenantId) {
     return new Response(
-      JSON.stringify({
-        error: {
-          message: 'Unauthorized - Please log in',
-          function_name: 'menu-executive-release-summary'
-        }
-      }),
+      JSON.stringify({ error: { message: 'Forbidden - Tenant context required', function_name: 'menu-executive-release-summary' } }),
       {
-        status: 401,
+        status: 403,
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json'
@@ -148,6 +112,7 @@ Deno.serve(async (req) => {
         )
       `)
       .eq('is_archived', false)
+      .eq('tenant_id', tenantId)
       .neq('status', 'cancelled');
 
     if (initiativesError) {
@@ -160,6 +125,7 @@ Deno.serve(async (req) => {
     const { data: userStories, error: storiesError } = await supabaseAdmin
       .from('boh_user_story')
       .select('id, initiative_id, status, is_archived')
+      .eq('tenant_id', tenantId)
       .in('initiative_id', initiativeIds)
       .eq('is_archived', false);
 
@@ -177,6 +143,7 @@ Deno.serve(async (req) => {
           release_tier
         )
       `)
+      .eq('tenant_id', tenantId)
       .in('initiative_id', initiativeIds);
 
     if (irError) {
@@ -202,6 +169,7 @@ Deno.serve(async (req) => {
           weight
         )
       `)
+      .eq('tenant_id', tenantId)
       .in('release_version_id', linkedReleaseIds);
 
     if (releaseTicketsError) {
@@ -222,6 +190,7 @@ Deno.serve(async (req) => {
           weight
         )
       `)
+      .eq('tenant_id', tenantId)
       .in('initiative_id', initiativeIds)
       .is('release_version_id', null); // Only get tickets NOT linked to releases
 
@@ -242,6 +211,7 @@ Deno.serve(async (req) => {
         release_date,
         status
       `)
+      .eq('tenant_id', tenantId)
       .in('status', ['planned', 'in progress'])
       .gte('release_date', windowStart)
       .lte('release_date', windowEnd);

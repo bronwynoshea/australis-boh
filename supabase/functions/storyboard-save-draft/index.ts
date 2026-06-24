@@ -6,6 +6,12 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 async function getAuthUser(req: Request) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const publishableKey = Deno.env.get("SB_PUBLISHABLE_KEY");
@@ -26,18 +32,37 @@ async function getAuthUser(req: Request) {
   return data?.user ?? null;
 }
 
+async function getBohUserContext(serviceClient: any, authUserId: string) {
+  const { data, error } = await serviceClient
+    .from("boh_user")
+    .select("id, tenant_id")
+    .eq("auth_user_id", authUserId)
+    .eq("app_context", "boh")
+    .maybeSingle();
+
+  if (error || !data?.id || !data?.tenant_id) {
+    throw error ?? new Error("Unable to resolve BOH user tenant context for auth user");
+  }
+
+  return { id: data.id as string, tenantId: data.tenant_id as string };
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
     return new Response(
       JSON.stringify({ error: "Method not allowed" }),
-      { status: 405, headers: { "Content-Type": "application/json" } },
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
@@ -63,7 +88,7 @@ Deno.serve(async (req: Request) => {
     if (!blueprint_id || !content_md) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: blueprint_id, content_md" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -74,13 +99,40 @@ Deno.serve(async (req: Request) => {
       console.error("[storyboard-save-draft] Missing SUPABASE_URL or SB_SECRET_KEY");
       return new Response(
         JSON.stringify({ error: "Server not configured" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     const supabase = createClient(supabaseUrl, secretKey, {
       auth: { persistSession: false },
     });
+    const bohContext = await getBohUserContext(supabase, user.id);
+    const currentTenantId = bohContext.tenantId;
+
+    const { data: project, error: projectError } = await supabase
+      .from("content_projects")
+      .select("id, tenant_id")
+      .eq("id", blueprint_id)
+      .eq("tenant_id", currentTenantId)
+      .maybeSingle();
+
+    if (projectError || !project) {
+      return json({ error: "Project not found" }, 404);
+    }
+
+    if (section_id) {
+      const { data: section, error: sectionError } = await supabase
+        .from("content_sections")
+        .select("id, project_id, tenant_id")
+        .eq("id", section_id)
+        .eq("project_id", blueprint_id)
+        .eq("tenant_id", currentTenantId)
+        .maybeSingle();
+
+      if (sectionError || !section) {
+        return json({ error: "Section not found" }, 404);
+      }
+    }
 
     // 1. Determine next version for this blueprint + section
     const { data: versionRows, error: versionError } = await supabase
@@ -88,6 +140,7 @@ Deno.serve(async (req: Request) => {
       .select("version")
       .eq("blueprint_id", blueprint_id)
       .eq("section_id", section_id)
+      .eq("tenant_id", currentTenantId)
       .order("version", { ascending: false })
       .limit(1);
 
@@ -95,7 +148,7 @@ Deno.serve(async (req: Request) => {
       console.error("[storyboard-save-draft] Version lookup error", versionError);
       return new Response(
         JSON.stringify({ error: "Failed to determine draft version" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -109,13 +162,14 @@ Deno.serve(async (req: Request) => {
       .from("content_draft")
       .update({ is_current: false })
       .eq("blueprint_id", blueprint_id)
-      .eq("section_id", section_id);
+      .eq("section_id", section_id)
+      .eq("tenant_id", currentTenantId);
 
     if (clearError) {
       console.error("[storyboard-save-draft] Failed to clear existing drafts", clearError);
       return new Response(
         JSON.stringify({ error: "Failed to update existing drafts" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -123,6 +177,7 @@ Deno.serve(async (req: Request) => {
     const { data, error: insertError } = await supabase
       .from("content_draft")
       .insert({
+        tenant_id: currentTenantId,
         blueprint_id,
         section_id,
         version: nextVersion,
@@ -139,7 +194,7 @@ Deno.serve(async (req: Request) => {
       console.error("[storyboard-save-draft] Insert error", insertError);
       return new Response(
         JSON.stringify({ error: "Failed to save draft" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -148,6 +203,7 @@ Deno.serve(async (req: Request) => {
         .from("content_blueprint")
         .select("id, meta")
         .eq("id", blueprint_id)
+        .eq("tenant_id", currentTenantId)
         .maybeSingle();
 
       if (blueprintError) {
@@ -166,7 +222,8 @@ Deno.serve(async (req: Request) => {
         const { error: updateError } = await supabase
           .from("content_blueprint")
           .update(updatePayload)
-          .eq("id", blueprint_id);
+          .eq("id", blueprint_id)
+          .eq("tenant_id", currentTenantId);
 
         if (updateError) {
           console.error("[storyboard-save-draft] Failed to update content_blueprint", updateError);
@@ -176,13 +233,13 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ draft: data }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
     console.error("[storyboard-save-draft] Unexpected error", err);
     return new Response(
       JSON.stringify({ error: "Unexpected server error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

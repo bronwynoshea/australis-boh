@@ -25,6 +25,12 @@ Deno.serve(async (req) => {
       return jsonResponse(req, { success: false, error: "Unauthorized" }, 401);
     }
 
+    const currentTenantId = keepAuth.bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-delete-folder] Authenticated BOH user has no tenant_id", { bohUserId: keepAuth.bohUser.id });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
+
     let body;
     try {
       body = await req.json();
@@ -43,8 +49,9 @@ Deno.serve(async (req) => {
 
     const { data: folder, error: folderError } = await keepAuth.serviceClient
       .from("keep_folder")
-      .select("id, parent_id, name, path, area, is_system_folder, is_active")
+      .select("id, parent_id, tenant_id, name, path, area, is_system_folder, is_active")
       .eq("id", folderId)
+      .eq("tenant_id", currentTenantId)
       .maybeSingle();
 
     if (folderError) {
@@ -67,6 +74,7 @@ Deno.serve(async (req) => {
     const { data: descendantFolders, error: descendantsError } = await keepAuth.serviceClient
       .from("keep_folder")
       .select("id")
+      .eq("tenant_id", currentTenantId)
       .eq("area", "workspace")
       .eq("is_active", true)
       .like("path", `${folder.path}/%`);
@@ -82,6 +90,7 @@ Deno.serve(async (req) => {
       .from("keep_file")
       .select("id, uploaded_by")
       .in("folder_id", folderIds)
+      .eq("tenant_id", currentTenantId)
       .eq("area", "workspace")
       .eq("is_active", true)
       .eq("is_current", true);
@@ -110,6 +119,7 @@ Deno.serve(async (req) => {
         updated_at: now,
       })
       .in("folder_id", folderIds)
+      .eq("tenant_id", currentTenantId)
       .eq("area", "workspace")
       .eq("is_active", true);
 
@@ -123,7 +133,8 @@ Deno.serve(async (req) => {
       .update({
         is_active: false,
       })
-      .in("id", folderIds);
+      .in("id", folderIds)
+      .eq("tenant_id", currentTenantId);
 
     if (folderUpdateError) {
       console.error("[keep-delete-folder] Failed to mark folders deleted:", folderUpdateError);

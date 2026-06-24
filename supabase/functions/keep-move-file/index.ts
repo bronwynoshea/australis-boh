@@ -27,6 +27,12 @@ Deno.serve(async (req) => {
       return jsonResponse(req, { success: false, error: "Unauthorized" }, 401);
     }
 
+    const currentTenantId = keepAuth.bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-move-file] Authenticated BOH user has no tenant_id", { bohUserId: keepAuth.bohUser.id });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
+
     let body;
     try {
       body = await req.json();
@@ -47,8 +53,9 @@ Deno.serve(async (req) => {
 
     const { data: fileRecord, error: fileError } = await keepAuth.serviceClient
       .from("keep_file")
-      .select("id, folder_id, file_name, file_ext, storage_bucket, storage_path, area, lifecycle_status, uploaded_by, is_current, is_active")
+      .select("id, folder_id, tenant_id, file_name, file_ext, storage_bucket, storage_path, area, lifecycle_status, uploaded_by, is_current, is_active")
       .eq("id", fileId)
+      .eq("tenant_id", currentTenantId)
       .eq("is_current", true)
       .eq("is_active", true)
       .single();
@@ -67,8 +74,9 @@ Deno.serve(async (req) => {
 
     const { data: destinationFolder, error: folderError } = await keepAuth.serviceClient
       .from("keep_folder")
-      .select("id, path, area, is_active")
+      .select("id, tenant_id, path, area, is_active")
       .eq("id", destinationFolderId)
+      .eq("tenant_id", currentTenantId)
       .eq("area", "gold_library")
       .eq("is_active", true)
       .single();
@@ -85,6 +93,7 @@ Deno.serve(async (req) => {
       .from("keep_file")
       .select("id")
       .eq("folder_id", destinationFolder.id)
+      .eq("tenant_id", currentTenantId)
       .eq("file_name", fileRecord.file_name)
       .eq("file_ext", fileRecord.file_ext)
       .eq("area", "gold_library")
@@ -126,6 +135,7 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", fileRecord.id)
+      .eq("tenant_id", currentTenantId)
       .select("id, folder_id, storage_bucket, storage_path")
       .single();
 

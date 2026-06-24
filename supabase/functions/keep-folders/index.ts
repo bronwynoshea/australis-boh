@@ -53,11 +53,18 @@ Deno.serve(async (req) => {
     }
 
     // 3. Build query
+    const currentTenantId = keepAuth.bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-folders] Authenticated BOH user has no tenant_id", { bohUserId: keepAuth.bohUser.id });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
+
     let query = keepAuth.serviceClient
       .from("keep_folder")
       .select(`
         id,
         parent_id,
+        tenant_id,
         name,
         slug,
         area,
@@ -70,6 +77,8 @@ Deno.serve(async (req) => {
       `);
 
     // Apply filters
+    query = query.eq("tenant_id", currentTenantId);
+
     if (area) {
       query = query.eq("area", area);
     }
@@ -120,6 +129,7 @@ Deno.serve(async (req) => {
         const { data: areaFolders, error: areaFoldersError } = await keepAuth.serviceClient
           .from("keep_folder")
           .select("id, parent_id")
+          .eq("tenant_id", currentTenantId)
           .eq("area", area)
           .eq("is_active", true);
 
@@ -165,6 +175,7 @@ Deno.serve(async (req) => {
           const { data: areaFiles, error: areaFilesError } = await keepAuth.serviceClient
             .from("keep_file")
             .select("id, folder_id")
+            .eq("tenant_id", currentTenantId)
             .eq("area", area)
             .eq("is_active", true)
             .eq("is_current", true)
@@ -182,6 +193,7 @@ Deno.serve(async (req) => {
               const { data: goldCopies, error: goldCopiesError } = await keepAuth.serviceClient
                 .from("keep_file")
                 .select("id, source_file_id, lifecycle_status")
+                .eq("tenant_id", currentTenantId)
                 .eq("area", "gold_library")
                 .eq("is_active", true)
                 .in("source_file_id", workspaceFileIds);

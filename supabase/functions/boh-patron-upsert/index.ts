@@ -59,6 +59,24 @@ function createServiceClient() {
   });
 }
 
+async function getTargetTenantId(supabase: any): Promise<string> {
+  const explicitTenantId = Deno.env.get("BOH_TENANT_ID")?.trim();
+  if (explicitTenantId) return explicitTenantId;
+
+  const tenantSlug = Deno.env.get("BOH_TENANT_SLUG")?.trim() || "australis";
+  const { data, error } = await supabase
+    .from("boh_tenant")
+    .select("id")
+    .eq("slug", tenantSlug)
+    .single();
+
+  if (error || !data?.id) {
+    throw new Error(`Unable to resolve BOH tenant for Patron upsert: ${tenantSlug}`);
+  }
+
+  return data.id;
+}
+
 function validatePayload(body: UpsertPayload) {
   const source = normalizeText(body.source) || "talent_demo_request";
   const fullName = normalizeText(body.full_name);
@@ -90,10 +108,11 @@ function validatePayload(body: UpsertPayload) {
   };
 }
 
-async function getRecruiterPipelineStageId(supabase: any) {
+async function getRecruiterPipelineStageId(supabase: any, tenantId: string) {
   const { data, error } = await supabase
     .from("patron_pipeline_stage")
     .select("id")
+    .eq("tenant_id", tenantId)
     .eq("key", "new_recruiter_intake")
     .eq("is_active", true)
     .maybeSingle();
@@ -105,13 +124,14 @@ async function getRecruiterPipelineStageId(supabase: any) {
   return data?.id ?? null;
 }
 
-async function upsertPerson(supabase: any, payload: ReturnType<typeof validatePayload>) {
+async function upsertPerson(supabase: any, tenantId: string, payload: ReturnType<typeof validatePayload>) {
   const { firstName, lastName } = splitName(payload.fullName);
-  const pipelineStageId = await getRecruiterPipelineStageId(supabase);
+  const pipelineStageId = await getRecruiterPipelineStageId(supabase, tenantId);
 
   const { data: existing, error: lookupError } = await supabase
     .from("patron_person")
     .select("*")
+    .eq("tenant_id", tenantId)
     .eq("email", payload.workEmail)
     .maybeSingle();
 
@@ -135,6 +155,7 @@ async function upsertPerson(supabase: any, payload: ReturnType<typeof validatePa
       .from("patron_person")
       .update(updates)
       .eq("id", existing.id)
+      .eq("tenant_id", tenantId)
       .select("*")
       .single();
 
@@ -148,6 +169,7 @@ async function upsertPerson(supabase: any, payload: ReturnType<typeof validatePa
   const { data: created, error: createError } = await supabase
     .from("patron_person")
     .insert({
+      tenant_id: tenantId,
       first_name: firstName || null,
       last_name: lastName || null,
       email: payload.workEmail,
@@ -167,10 +189,11 @@ async function upsertPerson(supabase: any, payload: ReturnType<typeof validatePa
   return { person: created, createdOrUpdated: "created" };
 }
 
-async function upsertOrganisation(supabase: any, companyName: string, personId: string) {
+async function upsertOrganisation(supabase: any, tenantId: string, companyName: string, personId: string) {
   const { data: existingOrg, error: lookupError } = await supabase
     .from("patron_organisation")
     .select("*")
+    .eq("tenant_id", tenantId)
     .ilike("name", companyName)
     .maybeSingle();
 
@@ -184,6 +207,7 @@ async function upsertOrganisation(supabase: any, companyName: string, personId: 
     const { data: createdOrg, error: createError } = await supabase
       .from("patron_organisation")
       .insert({
+        tenant_id: tenantId,
         name: companyName,
         app_context: "patron",
       })
@@ -200,6 +224,7 @@ async function upsertOrganisation(supabase: any, companyName: string, personId: 
   const { data: existingLink, error: linkLookupError } = await supabase
     .from("patron_person_organisation")
     .select("person_id")
+    .eq("tenant_id", tenantId)
     .eq("person_id", personId)
     .eq("organisation_id", organisation.id)
     .maybeSingle();
@@ -212,6 +237,7 @@ async function upsertOrganisation(supabase: any, companyName: string, personId: 
     const { error: linkError } = await supabase
       .from("patron_person_organisation")
       .insert({
+        tenant_id: tenantId,
         person_id: personId,
         organisation_id: organisation.id,
       });
@@ -226,6 +252,7 @@ async function upsertOrganisation(supabase: any, companyName: string, personId: 
 
 async function recordActivity(
   supabase: any,
+  tenantId: string,
   personId: string,
   organisationId: string | null,
   payload: ReturnType<typeof validatePayload>,
@@ -244,6 +271,7 @@ async function recordActivity(
   const { error } = await supabase
     .from("patron_activity")
     .insert({
+      tenant_id: tenantId,
       person_id: personId,
       organisation_id: organisationId,
       type: "note",
@@ -271,9 +299,10 @@ serve(async (req: Request) => {
   try {
     const payload = validatePayload(await req.json().catch(() => ({})));
     const supabase = createServiceClient();
-    const { person, createdOrUpdated } = await upsertPerson(supabase, payload);
-    const organisation = await upsertOrganisation(supabase, payload.companyName, person.id);
-    await recordActivity(supabase, person.id, organisation?.id ?? null, payload);
+    const tenantId = await getTargetTenantId(supabase);
+    const { person, createdOrUpdated } = await upsertPerson(supabase, tenantId, payload);
+    const organisation = await upsertOrganisation(supabase, tenantId, payload.companyName, person.id);
+    await recordActivity(supabase, tenantId, person.id, organisation?.id ?? null, payload);
 
     return jsonResponse(req, {
       success: true,

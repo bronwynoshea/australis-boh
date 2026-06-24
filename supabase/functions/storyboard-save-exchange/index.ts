@@ -6,6 +6,12 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 async function getAuthUser(req: Request) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const publishableKey = Deno.env.get("SB_PUBLISHABLE_KEY");
@@ -26,18 +32,37 @@ async function getAuthUser(req: Request) {
   return data?.user ?? null;
 }
 
+async function getBohUserContext(serviceClient: any, authUserId: string) {
+  const { data, error } = await serviceClient
+    .from("boh_user")
+    .select("id, tenant_id")
+    .eq("auth_user_id", authUserId)
+    .eq("app_context", "boh")
+    .maybeSingle();
+
+  if (error || !data?.id || !data?.tenant_id) {
+    throw error ?? new Error("Unable to resolve BOH user tenant context for auth user");
+  }
+
+  return { id: data.id as string, tenantId: data.tenant_id as string };
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
     return new Response(
       JSON.stringify({ error: "Method not allowed" }),
-      { status: 405, headers: { "Content-Type": "application/json" } },
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
@@ -64,7 +89,7 @@ Deno.serve(async (req: Request) => {
     if (!project_id || typeof sequence !== "number" || !role) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: project_id, sequence, role" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -75,17 +100,45 @@ Deno.serve(async (req: Request) => {
       console.error("[storyboard-save-exchange] Missing SUPABASE_URL or SB_SECRET_KEY");
       return new Response(
         JSON.stringify({ error: "Server not configured" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     const supabase = createClient(supabaseUrl, secretKey, {
       auth: { persistSession: false },
     });
+    const bohContext = await getBohUserContext(supabase, user.id);
+    const currentTenantId = bohContext.tenantId;
+
+    const { data: project, error: projectError } = await supabase
+      .from("content_projects")
+      .select("id, tenant_id")
+      .eq("id", project_id)
+      .eq("tenant_id", currentTenantId)
+      .maybeSingle();
+
+    if (projectError || !project) {
+      return json({ error: "Project not found" }, 404);
+    }
+
+    if (section_id) {
+      const { data: section, error: sectionError } = await supabase
+        .from("content_sections")
+        .select("id, project_id, tenant_id")
+        .eq("id", section_id)
+        .eq("project_id", project_id)
+        .eq("tenant_id", currentTenantId)
+        .maybeSingle();
+
+      if (sectionError || !section) {
+        return json({ error: "Section not found" }, 404);
+      }
+    }
 
     const { data, error } = await supabase
       .from("content_exchanges")
       .insert({
+        tenant_id: currentTenantId,
         project_id,
         section_id,
         sequence,
@@ -100,7 +153,7 @@ Deno.serve(async (req: Request) => {
       console.error("[storyboard-save-exchange] Insert error", error);
       return new Response(
         JSON.stringify({ error: "Failed to save exchange" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -109,6 +162,7 @@ Deno.serve(async (req: Request) => {
         .from("content_blueprint")
         .select("id, meta")
         .eq("id", project_id)
+        .eq("tenant_id", currentTenantId)
         .maybeSingle();
 
       if (blueprintError) {
@@ -127,7 +181,8 @@ Deno.serve(async (req: Request) => {
         const { error: updateError } = await supabase
           .from("content_blueprint")
           .update(updatePayload)
-          .eq("id", project_id);
+          .eq("id", project_id)
+          .eq("tenant_id", currentTenantId);
 
         if (updateError) {
           console.error("[storyboard-save-exchange] Failed to update content_blueprint", updateError);
@@ -137,13 +192,13 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ exchange: data }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
     console.error("[storyboard-save-exchange] Unexpected error", err);
     return new Response(
       JSON.stringify({ error: "Unexpected server error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

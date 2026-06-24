@@ -3,8 +3,8 @@
 // Handles the real relationships: counter_ticket.release_version_id, boh_initiative_release, boh_user_story.target_release_id
 // @ts-nocheck
 
-import { createClient } from "jsr:@supabase/supabase-js@2";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { requireUser } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
@@ -20,44 +20,21 @@ Deno.serve(async (req) => {
     });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const publishableKey = Deno.env.get('SB_PUBLISHABLE_KEY');
-  const secretKey = Deno.env.get('SB_SECRET_KEY');
-
-  if (!supabaseUrl || !publishableKey || !secretKey) {
-    console.error('[forge-release-report-detail] Missing Supabase env vars');
+  const auth = await requireUser(req);
+  if (!auth.success) {
     return new Response(
-      JSON.stringify({
-        error: {
-          message: 'Server misconfiguration',
-          function_name: 'forge-release-report-detail'
-        }
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: { message: auth.error, function_name: 'forge-release-report-detail' } }),
+      { status: auth.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 
-  // Pattern B auth: verify user token
-  const supabaseUserClient = createClient(supabaseUrl, publishableKey, {
-    auth: { persistSession: false },
-    global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-  });
+  const supabaseAdmin = auth.serviceClient;
+  const tenantId = auth.context.bohUser?.tenant_id;
 
-  const supabaseAdmin = createClient(supabaseUrl, secretKey, {
-    auth: { persistSession: false },
-  });
-
-  const { data: { user }, error: userError } = await supabaseUserClient.auth.getUser();
-
-  if (userError || !user) {
+  if (!tenantId) {
     return new Response(
-      JSON.stringify({
-        error: {
-          message: 'Unauthorized - Please log in',
-          function_name: 'forge-release-report-detail'
-        }
-      }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: { message: 'Forbidden - Tenant context required', function_name: 'forge-release-report-detail' } }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 
@@ -88,6 +65,7 @@ Deno.serve(async (req) => {
         created_at,
         updated_at
       `)
+      .eq('tenant_id', tenantId)
       .eq('is_active', true);
 
     // Apply filters
@@ -132,6 +110,7 @@ Deno.serve(async (req) => {
       const { data: parentMajors } = await supabaseAdmin
         .from('boh_release_version')
         .select('id, version_label, version_number')
+        .eq('tenant_id', tenantId)
         .in('id', parentMajorIds);
       parentMajorsById = Object.fromEntries((parentMajors || []).map((p: any) => [p.id, p]));
     }
@@ -177,6 +156,7 @@ Deno.serve(async (req) => {
           status:counter_ticket_status(key, label),
           priority:counter_ticket_priority(key, label, weight)
         `)
+        .eq('tenant_id', tenantId)
         .in('release_version_id', releaseIds);
 
       if (ticketsError) {
@@ -203,6 +183,7 @@ Deno.serve(async (req) => {
           app:boh_app!inner(id, name, slug)
         )
       `)
+      .eq('tenant_id', tenantId)
       .in('release_id', releaseIds);
 
     if (irError) {
@@ -235,6 +216,7 @@ Deno.serve(async (req) => {
         workstream_id,
         boh_initiative!inner(id, title)
       `)
+      .eq('tenant_id', tenantId)
       .in('target_release_id', releaseIds)
       .eq('is_archived', false);
 

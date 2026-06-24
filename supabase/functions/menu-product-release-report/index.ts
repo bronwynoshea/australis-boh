@@ -2,8 +2,8 @@
 // Provides overview report data for Product Release Reports
 // @ts-nocheck
 
-import { createClient } from "jsr:@supabase/supabase-js@2";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { requireUser } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
@@ -26,21 +26,12 @@ Deno.serve(async (req) => {
     authHeaderPrefix: req.headers.get('Authorization')?.substring(0, 20) + '...'
   });
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const publishableKey = Deno.env.get('SB_PUBLISHABLE_KEY');
-  const secretKey = Deno.env.get('SB_SECRET_KEY');
-
-  if (!supabaseUrl || !publishableKey || !secretKey) {
-    console.error('[menu-product-release-report] Missing Supabase env vars');
+  const auth = await requireUser(req);
+  if (!auth.success) {
     return new Response(
-      JSON.stringify({
-        error: {
-          message: 'Server misconfiguration',
-          function_name: 'menu-product-release-report'
-        }
-      }),
+      JSON.stringify({ error: { message: auth.error, function_name: 'menu-product-release-report' } }),
       {
-        status: 500,
+        status: auth.status,
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json'
@@ -49,37 +40,14 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Create user client for auth verification
-  const supabaseUserClient = createClient(supabaseUrl, publishableKey, {
-    auth: { persistSession: false },
-    global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-  });
+  const supabaseAdmin = auth.serviceClient;
+  const tenantId = auth.context.bohUser?.tenant_id;
 
-  // Create supabaseAdmin client for database operations
-  const supabaseAdmin = createClient(supabaseUrl, secretKey, {
-    auth: { persistSession: false },
-  });
-
-  // Verify the user is logged in
-  const { data: { user }, error: userError } = await supabaseUserClient.auth.getUser();
-
-  console.log('[menu-product-release-report] Auth result:', {
-    hasUser: !!user,
-    userError: userError?.message,
-    userId: user?.id
-  });
-
-  if (userError || !user) {
-    console.error('[menu-product-release-report] Unauthorized', userError);
+  if (!tenantId) {
     return new Response(
-      JSON.stringify({
-        error: {
-          message: 'Unauthorized - Please log in',
-          function_name: 'menu-product-release-report'
-        }
-      }),
+      JSON.stringify({ error: { message: 'Forbidden - Tenant context required', function_name: 'menu-product-release-report' } }),
       {
-        status: 401,
+        status: 403,
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json'
@@ -116,6 +84,7 @@ Deno.serve(async (req) => {
     const { data: quarters, error: quartersError } = await supabaseAdmin
       .from('boh_quarter_calendar')
       .select('*')
+      .eq('tenant_id', tenantId)
       .gte('end_date', windowStart)
       .lte('start_date', windowEnd)
       .order('start_date', { ascending: true });
@@ -162,6 +131,7 @@ Deno.serve(async (req) => {
           summary
         )
       `)
+      .eq('tenant_id', tenantId)
       .eq('is_archived', false);
 
     // Apply filters
@@ -193,6 +163,7 @@ Deno.serve(async (req) => {
     const { data: userStories, error: storiesError } = await supabaseAdmin
       .from('boh_user_story')
       .select('*')
+      .eq('tenant_id', tenantId)
       .in('initiative_id', initiativeIds)
       .eq('is_archived', false);
 
@@ -219,6 +190,7 @@ Deno.serve(async (req) => {
           parent_major_release_id
         )
       `)
+      .eq('tenant_id', tenantId)
       .in('initiative_id', initiativeIds);
 
     if (relError) {
@@ -246,6 +218,7 @@ Deno.serve(async (req) => {
           weight
         )
       `)
+      .eq('tenant_id', tenantId)
       .in('release_version_id', linkedReleaseIds);
 
     if (releaseTicketsError) {
@@ -267,6 +240,7 @@ Deno.serve(async (req) => {
           weight
         )
       `)
+      .eq('tenant_id', tenantId)
       .in('initiative_id', initiativeIds)
       .is('release_version_id', null); // Only get tickets NOT linked to releases
 

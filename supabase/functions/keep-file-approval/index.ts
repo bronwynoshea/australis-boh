@@ -8,11 +8,12 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { handleCors, jsonResponse } from "../_shared/cors.ts";
 import { authenticateKeepRequest } from "../_shared/keep-auth-helper.ts";
 
-async function getUserRoleFlags(serviceClient: any, userId: string) {
+async function getUserRoleFlags(serviceClient: any, userId: string, currentTenantId: string) {
   const { data: user } = await serviceClient
     .from("boh_user")
     .select("id, primary_role_hint")
     .eq("id", userId)
+    .eq("tenant_id", currentTenantId)
     .maybeSingle();
 
   const primaryRole = user?.primary_role_hint || "";
@@ -23,6 +24,7 @@ async function getUserRoleFlags(serviceClient: any, userId: string) {
     .from("boh_user_role")
     .select("role:boh_role(code)")
     .eq("user_id", userId)
+    .eq("tenant_id", currentTenantId)
     .eq("app_context", "boh");
 
   const roleCodes = roleData?.map((row: any) => row.role?.code).filter(Boolean) || [];
@@ -71,6 +73,12 @@ async function handleGetApprovals(req: Request) {
       return jsonResponse(req, { success: false, error: "Unauthorized" }, 401);
     }
 
+    const currentTenantId = keepAuth.bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-file-approval] GET authenticated BOH user has no tenant_id", { bohUserId: keepAuth.bohUser.id });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
+
     const url = new URL(req.url);
     const fileId = url.searchParams.get("file_id");
 
@@ -95,8 +103,9 @@ async function handleGetApprovals(req: Request) {
 
     const { data: fileRecord, error: fileError } = await adminClient
       .from("keep_file")
-      .select("id, folder_id, area, lifecycle_status, uploaded_by")
+      .select("id, folder_id, tenant_id, area, lifecycle_status, uploaded_by")
       .eq("id", fileId)
+      .eq("tenant_id", currentTenantId)
       .single();
 
     if (fileError || !fileRecord) {
@@ -132,8 +141,8 @@ async function handleGetApprovals(req: Request) {
     const rejectedStages = approvals.filter(a => a.decision === "rejected").map(a => a.approval_stage) || [];
     const isRejected = rejectedStages.length > 0;
     const isApproved = fileRecord.lifecycle_status === "approved";
-    const submitterRole = await getUserRoleFlags(keepAuth.serviceClient, fileRecord.uploaded_by);
-    const reviewerRole = await getUserRoleFlags(keepAuth.serviceClient, keepAuth.bohUser.id);
+    const submitterRole = await getUserRoleFlags(keepAuth.serviceClient, fileRecord.uploaded_by, currentTenantId);
+    const reviewerRole = await getUserRoleFlags(keepAuth.serviceClient, keepAuth.bohUser.id, currentTenantId);
     const requiredApprovalCount = getRequiredApprovalCount(submitterRole.isAdminOrSuper);
     const isOwnFile = fileRecord.uploaded_by === keepAuth.bohUser.id;
 
@@ -190,7 +199,13 @@ async function handleSubmitApproval(req: Request) {
     }
 
     const userId = keepAuth.bohUser.id;
-    const reviewerRole = await getUserRoleFlags(keepAuth.serviceClient, userId);
+    const currentTenantId = keepAuth.bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-file-approval] POST authenticated BOH user has no tenant_id", { bohUserId: userId });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
+
+    const reviewerRole = await getUserRoleFlags(keepAuth.serviceClient, userId, currentTenantId);
 
     let body;
     try {
@@ -217,8 +232,9 @@ async function handleSubmitApproval(req: Request) {
     // Fetch file record
     const { data: fileRecord, error: fileError } = await keepAuth.serviceClient
       .from("keep_file")
-      .select("id, folder_id, area, lifecycle_status, uploaded_by")
+      .select("id, folder_id, tenant_id, area, lifecycle_status, uploaded_by")
       .eq("id", fileId)
+      .eq("tenant_id", currentTenantId)
       .single();
 
     if (fileError || !fileRecord) {
@@ -237,7 +253,7 @@ async function handleSubmitApproval(req: Request) {
       return jsonResponse(req, { success: false, error: "File has been rejected" }, 400);
     }
 
-    const submitterRole = await getUserRoleFlags(keepAuth.serviceClient, fileRecord.uploaded_by);
+    const submitterRole = await getUserRoleFlags(keepAuth.serviceClient, fileRecord.uploaded_by, currentTenantId);
     const baseRequiredApprovalCount = getRequiredApprovalCount(submitterRole.isAdminOrSuper);
     const isOwnFile = fileRecord.uploaded_by === userId;
 
@@ -292,7 +308,8 @@ async function handleSubmitApproval(req: Request) {
       await keepAuth.serviceClient
         .from("keep_file")
         .update({ lifecycle_status: "approved", updated_at: new Date().toISOString() })
-        .eq("id", fileId);
+        .eq("id", fileId)
+        .eq("tenant_id", currentTenantId);
 
       await keepAuth.serviceClient.from("keep_file_activity").insert({
         file_id: fileId,
@@ -391,7 +408,8 @@ async function handleSubmitApproval(req: Request) {
       await keepAuth.serviceClient
         .from("keep_file")
         .update({ lifecycle_status: "rejected", updated_at: new Date().toISOString() })
-        .eq("id", fileId);
+        .eq("id", fileId)
+        .eq("tenant_id", currentTenantId);
 
       await keepAuth.serviceClient.from("keep_file_activity").insert({
         file_id: fileId,
@@ -418,7 +436,8 @@ async function handleSubmitApproval(req: Request) {
       await keepAuth.serviceClient
         .from("keep_file")
         .update({ lifecycle_status: "approved", updated_at: new Date().toISOString() })
-        .eq("id", fileId);
+        .eq("id", fileId)
+        .eq("tenant_id", currentTenantId);
     }
 
     // Log activity

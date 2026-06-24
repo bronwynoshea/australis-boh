@@ -2,10 +2,16 @@
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
 
@@ -38,18 +44,19 @@ async function getServiceClient() {
   return createClient(supabaseUrl, secretKey, { auth: { persistSession: false } });
 }
 
-async function getBohUserId(serviceClient: any, authUserId: string) {
+async function getBohUserContext(serviceClient: any, authUserId: string) {
   const { data, error } = await serviceClient
     .from("boh_user")
-    .select("id")
+    .select("id, tenant_id")
     .eq("auth_user_id", authUserId)
+    .eq("app_context", "boh")
     .maybeSingle();
 
-  if (error || !data?.id) {
-    throw error ?? new Error("Unable to resolve boh_user for auth user");
+  if (error || !data?.id || !data?.tenant_id) {
+    throw error ?? new Error("Unable to resolve BOH user tenant context for auth user");
   }
 
-  return data.id as string;
+  return { id: data.id as string, tenantId: data.tenant_id as string };
 }
 
 const DEFAULT_INTERVIEWER_PROMPT = `You are Harper, the interviewer for a JOBZ CAFE® book project.
@@ -295,6 +302,10 @@ function buildGeminiPrompt(args: {
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
   }
@@ -311,14 +322,17 @@ Deno.serve(async (req: Request) => {
     }
 
     const serviceClient = await getServiceClient();
-    const bohUserId = await getBohUserId(serviceClient, user.id);
+    const bohContext = await getBohUserContext(serviceClient, user.id);
+    const bohUserId = bohContext.id;
+    const currentTenantId = bohContext.tenantId;
 
     const { data: project, error: projectError } = await serviceClient
       .from("content_projects")
       .select(
-        "id, owner_user_id, title, subtitle, purpose, reference_md, interviewer_prompt",
+        "id, owner_user_id, tenant_id, title, subtitle, purpose, reference_md, interviewer_prompt",
       )
       .eq("id", project_id)
+      .eq("tenant_id", currentTenantId)
       .maybeSingle();
 
     if (projectError || !project) {
@@ -332,8 +346,9 @@ Deno.serve(async (req: Request) => {
     // Ensure chapter section belongs to project.
     const { data: section, error: sectionError } = await serviceClient
       .from("content_sections")
-      .select("id, project_id, label, section_type, reference_md, notes, interviewer_prompt")
+      .select("id, project_id, tenant_id, label, section_type, reference_md, notes, interviewer_prompt")
       .eq("id", section_id)
+      .eq("tenant_id", currentTenantId)
       .maybeSingle();
 
     if (sectionError || !section) {
@@ -359,6 +374,7 @@ Deno.serve(async (req: Request) => {
       .select("sequence")
       .eq("project_id", project_id)
       .eq("section_id", section_id)
+      .eq("tenant_id", currentTenantId)
       .eq("is_hidden", false)
       .order("sequence", { ascending: false })
       .limit(1);
@@ -375,6 +391,7 @@ Deno.serve(async (req: Request) => {
       .select("id, sequence, role, question_text, answer_text")
       .eq("project_id", project_id)
       .eq("section_id", section_id)
+      .eq("tenant_id", currentTenantId)
       .eq("is_hidden", false)
       .order("sequence", { ascending: false })
       .limit(8);
@@ -389,6 +406,7 @@ Deno.serve(async (req: Request) => {
     const { data: savedUser, error: userInsertError } = await serviceClient
       .from("content_exchanges")
       .insert({
+        tenant_id: currentTenantId,
         project_id,
         section_id,
         sequence: nextSequence,
@@ -449,6 +467,7 @@ Deno.serve(async (req: Request) => {
     const { data: savedHarper, error: harperInsertError } = await serviceClient
       .from("content_exchanges")
       .insert({
+        tenant_id: currentTenantId,
         project_id,
         section_id,
         sequence: nextSequence + 1,

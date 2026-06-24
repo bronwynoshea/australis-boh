@@ -146,19 +146,29 @@ serve(async (req) => {
     }
 
 
-    // Look up boh_user for created_by
+    // Look up BOH user and tenant for created_by and tenant isolation.
     let createdBy: string | null = null;
+    let currentTenantId: string | null = null;
     const { data: bohUserRow, error: bohUserError } = await supabase
       .from("boh_user")
-      .select("id")
+      .select("id, tenant_id")
       .eq("auth_user_id", user.id)
+      .eq("app_context", "boh")
       .maybeSingle();
 
 
     if (bohUserError) {
       console.error("[sadie-create-ticket] boh_user lookup error", bohUserError);
-    } else if (bohUserRow?.id) {
+    } else if (bohUserRow?.id && bohUserRow?.tenant_id) {
       createdBy = bohUserRow.id;
+      currentTenantId = bohUserRow.tenant_id;
+    }
+
+    if (!createdBy || !currentTenantId) {
+      return new Response(
+        JSON.stringify({ error: true, message: "Unable to resolve BOH tenant context" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
 
@@ -173,6 +183,7 @@ serve(async (req) => {
       const { data: patronFromBoh, error: patronFromBohError } = await supabase
         .from("patron_person")
         .select("id, first_name, last_name, email")
+        .eq("tenant_id", currentTenantId)
         .eq("boh_user_id", createdBy)
         .maybeSingle();
 
@@ -189,6 +200,7 @@ serve(async (req) => {
       const { data: patronFromEmail, error: patronFromEmailError } = await supabase
         .from("patron_person")
         .select("id, first_name, last_name, email")
+        .eq("tenant_id", currentTenantId)
         .eq("email", requesterEmail)
         .maybeSingle();
 
@@ -205,6 +217,7 @@ serve(async (req) => {
       const { data: newPatron, error: newPatronError } = await supabase
         .from("patron_person")
         .insert({
+          tenant_id: currentTenantId,
           email: requesterEmail,
           boh_user_id: createdBy,
           source: "counter_ticket",
@@ -236,12 +249,14 @@ serve(async (req) => {
     const { data: statusRowOpen, error: statusErrorOpen } = await supabase
       .from("counter_ticket_status")
       .select("id, key, label")
+      .eq("tenant_id", currentTenantId)
       .eq("key", "open")
       .maybeSingle();
 
     const { data: statusRowNew, error: statusErrorNew } = await supabase
       .from("counter_ticket_status")
       .select("id, key, label")
+      .eq("tenant_id", currentTenantId)
       .eq("key", "new")
       .maybeSingle();
 
@@ -293,6 +308,7 @@ serve(async (req) => {
     const { data: priorityRows, error: priorityError } = await supabase
       .from("counter_ticket_priority")
       .select("id, key")
+      .eq("tenant_id", currentTenantId)
       .in("key", priorityKeyCandidates);
 
     const resolvedPriorityRow =
@@ -329,6 +345,7 @@ serve(async (req) => {
     const { data: lastCtrTicket, error: lastCtrTicketError } = await supabase
       .from("counter_ticket")
       .select("ticket_number, created_at")
+      .eq("tenant_id", currentTenantId)
       .like("ticket_number", "CTR-%")
       .order("created_at", { ascending: false })
       .limit(1)
@@ -352,6 +369,7 @@ serve(async (req) => {
     const formatTicketNumber = (n: number) => `CTR-${String(n).padStart(3, "0")}`;
 
     const baseTicketPayload: any = {
+      tenant_id: currentTenantId,
       // ticket_number is added later in the insert loop using formatTicketNumber
       // Canonical subject used throughout the Counter UI
       subject: slots.title,

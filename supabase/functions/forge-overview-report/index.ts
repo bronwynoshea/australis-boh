@@ -3,8 +3,8 @@
 // Uses real Forge data: workstreams, releases, submitted initiatives
 // @ts-nocheck
 
-import { createClient } from "jsr:@supabase/supabase-js@2";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { requireUser } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
@@ -20,44 +20,21 @@ Deno.serve(async (req) => {
     });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const publishableKey = Deno.env.get('SB_PUBLISHABLE_KEY');
-  const secretKey = Deno.env.get('SB_SECRET_KEY');
-
-  if (!supabaseUrl || !publishableKey || !secretKey) {
-    console.error('[forge-overview-report] Missing Supabase env vars');
+  const auth = await requireUser(req);
+  if (!auth.success) {
     return new Response(
-      JSON.stringify({
-        error: {
-          message: 'Server misconfiguration',
-          function_name: 'forge-overview-report'
-        }
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: { message: auth.error, function_name: 'forge-overview-report' } }),
+      { status: auth.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 
-  // Pattern B auth: verify user token
-  const supabaseUserClient = createClient(supabaseUrl, publishableKey, {
-    auth: { persistSession: false },
-    global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-  });
+  const supabaseAdmin = auth.serviceClient;
+  const tenantId = auth.context.bohUser?.tenant_id;
 
-  const supabaseAdmin = createClient(supabaseUrl, secretKey, {
-    auth: { persistSession: false },
-  });
-
-  const { data: { user }, error: userError } = await supabaseUserClient.auth.getUser();
-
-  if (userError || !user) {
+  if (!tenantId) {
     return new Response(
-      JSON.stringify({
-        error: {
-          message: 'Unauthorized - Please log in',
-          function_name: 'forge-overview-report'
-        }
-      }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: { message: 'Forbidden - Tenant context required', function_name: 'forge-overview-report' } }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 
@@ -73,6 +50,7 @@ Deno.serve(async (req) => {
     let submittedInitiativesQuery = supabaseAdmin
       .from('boh_initiative')
       .select('id, title, submitted_to_forge_at, forge_status_id', { count: 'exact' })
+      .eq('tenant_id', tenantId)
       .not('submitted_to_forge_at', 'is', null)
       .eq('is_archived', false);
 
@@ -93,7 +71,8 @@ Deno.serve(async (req) => {
     // First get workstream statuses for lookup
     const { data: statusMap } = await supabaseAdmin
       .from('boh_workstream_status')
-      .select('id, key, label');
+      .select('id, key, label')
+      .eq('tenant_id', tenantId);
     
     const statusById = new Map((statusMap || []).map(s => [s.id, s]));
 
@@ -101,6 +80,7 @@ Deno.serve(async (req) => {
     let workstreamsQuery = supabaseAdmin
       .from('boh_workstream')
       .select('id, status, status_id, initiative_id', { count: 'exact' })
+      .eq('tenant_id', tenantId)
       .eq('is_active', true);
 
     if (quarter || year || app_id) {
@@ -108,6 +88,7 @@ Deno.serve(async (req) => {
       const { data: initiativeIds } = await supabaseAdmin
         .from('boh_initiative')
         .select('id')
+        .eq('tenant_id', tenantId)
         .eq('is_archived', false)
         .filter(quarter ? 'target_quarter' : 'id', quarter ? 'eq' : 'not.is', quarter || null)
         .filter(year ? 'target_year' : 'id', year ? 'eq' : 'not.is', year || null)
@@ -151,6 +132,7 @@ Deno.serve(async (req) => {
     let minorReleasesQuery = supabaseAdmin
       .from('boh_release_version')
       .select('id', { count: 'exact' })
+      .eq('tenant_id', tenantId)
       .eq('release_tier', 'minor')
       .eq('is_active', true);
 
@@ -185,6 +167,7 @@ Deno.serve(async (req) => {
         status,
         sort_date
       `)
+      .eq('tenant_id', tenantId)
       .eq('release_tier', 'minor')
       .eq('is_active', true)
       .or(`release_date.gte.${today},and(release_date.is.null,sort_date.gte.${today})`)
@@ -213,6 +196,7 @@ Deno.serve(async (req) => {
       const { count: ticketCount, error: ticketError } = await supabaseAdmin
         .from('counter_ticket')
         .select('id', { count: 'exact' })
+        .eq('tenant_id', tenantId)
         .eq('release_version_id', nextRelease.id);
 
       if (ticketError) {
@@ -229,6 +213,7 @@ Deno.serve(async (req) => {
     const { data: activeReleases, error: activeReleasesError } = await supabaseAdmin
       .from('boh_release_version')
       .select('id')
+      .eq('tenant_id', tenantId)
       .in('status', ['planned', 'in progress'])
       .eq('is_active', true);
 
@@ -245,6 +230,7 @@ Deno.serve(async (req) => {
       const { data: releaseTickets, error: releaseTicketsError } = await supabaseAdmin
         .from('counter_ticket')
         .select('id, status_id, status:counter_ticket_status(key)')
+        .eq('tenant_id', tenantId)
         .in('release_version_id', activeReleaseIds);
 
       if (releaseTicketsError) {
@@ -265,6 +251,7 @@ Deno.serve(async (req) => {
     const { data: workstreamStatuses, error: statusError } = await supabaseAdmin
       .from('boh_workstream_status')
       .select('id, key, label, sort_order, color_token')
+      .eq('tenant_id', tenantId)
       .eq('is_active', true)
       .order('sort_order', { ascending: true });
 

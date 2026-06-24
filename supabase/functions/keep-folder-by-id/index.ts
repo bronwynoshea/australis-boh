@@ -22,6 +22,12 @@ Deno.serve(async (req) => {
       return jsonResponse(req, { success: false, error: "Unauthorized" }, 401);
     }
 
+    const currentTenantId = keepAuth.bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-folder-by-id] Authenticated BOH user has no tenant_id", { bohUserId: keepAuth.bohUser.id });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
+
     // 2. Parse query params
     const url = new URL(req.url);
     const folderId = url.searchParams.get("folder_id");
@@ -50,6 +56,7 @@ Deno.serve(async (req) => {
       .select(`
         id,
         parent_id,
+        tenant_id,
         name,
         slug,
         area,
@@ -60,7 +67,8 @@ Deno.serve(async (req) => {
         allow_user_created_children,
         is_active
       `)
-      .eq("id", folderId);
+      .eq("id", folderId)
+      .eq("tenant_id", currentTenantId);
 
     if (!includeInactive) {
       query = query.eq("is_active", true);

@@ -26,6 +26,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   const { context, serviceClient: supabaseAdmin } = auth;
+  const currentTenantId = context.bohUser?.tenant_id;
+  if (!currentTenantId) {
+    return jsonResponse(req, { success: false, error: "Admin user is missing tenant context" }, 403);
+  }
   console.log("[boh-manual-accept-invite] Admin manual accept:", context.authUser.email);
 
   // -----------------------------
@@ -61,6 +65,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .from("boh_invite")
     .select("*")
     .eq("id", inviteId)
+    .eq("tenant_id", currentTenantId)
     .single();
 
   console.log("[boh-manual-accept-invite] Invite lookup result:", { invite, inviteError });
@@ -87,6 +92,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .from("boh_user")
     .select("id")
     .eq("email", invite.email)
+    .eq("tenant_id", currentTenantId)
     .eq("app_context", "boh")
     .maybeSingle();
 
@@ -136,6 +142,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
           : invite.email,
         status: "active",
         primary_role_hint: invite.role_hint || "staff",
+        tenant_id: currentTenantId,
         app_context: "boh",
       })
       .select("id")
@@ -162,6 +169,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .from("boh_role")
       .select("id, code, label")
       .eq("code", invite.role_hint)
+      .eq("app_context", "boh")
       .single();
 
     console.log("[boh-manual-accept-invite] Role lookup result:", { roleData, roleError });
@@ -173,6 +181,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         .insert({
           user_id: bohUserId,
           role_id: roleData.id,
+          tenant_id: currentTenantId,
           app_context: "boh",
         });
 
@@ -199,29 +208,37 @@ Deno.serve(async (req: Request): Promise<Response> => {
     
     // Get app details for the slugs in the invite
     const { data: appDetails, error: appError } = await supabaseAdmin
-      .from("boh_app")
-      .select("id, slug")
-      .in("slug", invite.apps)
-      .eq("is_active", true);
+      .from("boh_tenant_app")
+      .select("app:boh_app!boh_tenant_app_app_id_fkey(id, slug)")
+      .eq("tenant_id", currentTenantId)
+      .in("status", ["enabled", "coming_soon"]);
 
     if (!appError && appDetails && appDetails.length > 0) {
+      const enabledApps = appDetails
+        .map((row: any) => Array.isArray(row.app) ? row.app[0] : row.app)
+        .filter((app: any) => app && invite.apps.includes(app.slug));
       // Create app access records
-      const appAccessRecords = appDetails.map(app => ({
+      const appAccessRecords = enabledApps.map(app => ({
         user_id: bohUserId,
         app_id: app.id,
         permission_level: "edit", // Default permission level
+        tenant_id: currentTenantId,
         app_context: "boh",
       }));
 
-      const { error: accessError } = await supabaseAdmin
-        .from("boh_user_app")
-        .insert(appAccessRecords);
-
-      if (accessError) {
-        console.error("[boh-manual-accept-invite] Error assigning apps:", accessError);
-        // Don't fail the whole process, just log the error
+      if (appAccessRecords.length === 0) {
+        console.log("[boh-manual-accept-invite] No tenant-enabled apps matched invite slugs:", invite.apps);
       } else {
-        console.log("[boh-manual-accept-invite] Successfully assigned apps");
+        const { error: accessError } = await supabaseAdmin
+          .from("boh_user_app")
+          .insert(appAccessRecords);
+
+        if (accessError) {
+          console.error("[boh-manual-accept-invite] Error assigning apps:", accessError);
+          // Don't fail the whole process, just log the error
+        } else {
+          console.log("[boh-manual-accept-invite] Successfully assigned apps");
+        }
       }
     } else {
       console.log("[boh-manual-accept-invite] No active apps found for slugs:", invite.apps);
@@ -238,7 +255,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       invited_user_id: bohUserId,
       accepted_at: new Date().toISOString(),
     })
-    .eq("id", inviteId);
+    .eq("id", inviteId)
+    .eq("tenant_id", currentTenantId);
 
   if (updateError) {
     console.error("[boh-manual-accept-invite] Error updating invite:", updateError);

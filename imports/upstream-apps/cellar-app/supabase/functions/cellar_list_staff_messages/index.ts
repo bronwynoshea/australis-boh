@@ -25,12 +25,14 @@ Deno.serve(async (request) => {
     const { data: staffVisibleAccess, error: staffVisibleAccessError } = await client
       .from('cellar_investor_access')
       .select('id')
+      .eq('tenant_id', staffUser.tenantId)
       .in('access_status', ['verified', 'appendix_requested', 'appendix_granted']);
     if (staffVisibleAccessError) return cellarError(staffVisibleAccessError.message, 400);
 
     const { data: visibilityRows, error: visibilityError } = await client
       .from('cellar_staff_visibility_permissions')
       .select('investor_access_id, permission_level, expires_at')
+      .eq('tenant_id', staffUser.tenantId)
       .eq('boh_user_id', staffUser.bohUserId);
     if (visibilityError) return cellarError(visibilityError.message, 400);
 
@@ -74,6 +76,7 @@ Deno.serve(async (request) => {
           pipeline_status
         )
       `)
+      .eq('tenant_id', staffUser.tenantId)
       .in('investor_access_id', visibleIds)
       .order('last_message_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
@@ -85,6 +88,7 @@ Deno.serve(async (request) => {
       ? await client
           .from('cellar_messages')
           .select('id, thread_id, sender_kind, sender_boh_user_id, body, sent_at')
+          .eq('tenant_id', staffUser.tenantId)
           .in('thread_id', threadIds)
           .order('sent_at', { ascending: true })
       : { data: [], error: null };

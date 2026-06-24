@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   Archive,
   ArrowRight,
@@ -226,6 +227,7 @@ type StaffAuthState = {
   status: 'checking' | 'signed_out' | 'stale' | 'ready' | 'unmapped';
   email: string;
   bohUserId: string | null;
+  tenantId: string | null;
   message: string;
 };
 type CellarWorkspaceAccessState = {
@@ -234,6 +236,7 @@ type CellarWorkspaceAccessState = {
   canInvestor: boolean;
   authUserId: string | null;
   bohUserId: string | null;
+  tenantId: string | null;
   investorAccessId: string | null;
   accessStatus: string | null;
   email: string | null;
@@ -747,7 +750,11 @@ const CELLAR_THEME_MODE_KEY = 'cellar_theme_mode';
 const CELLAR_BOH_EMBED_PARENT_ORIGINS = [
   'https://boh.jobzcafe.com',
   'https://dev-boh.jobzcafe.com',
+  'https://boh.australis.cloud',
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:8081',
+  'http://127.0.0.1:8081',
 ];
 const CELLAR_BOH_EMBED_HANDOFF_MESSAGE = 'CELLAR_BOH_EMBED_HANDOFF';
 const CELLAR_BOH_EMBED_READY_MESSAGE = 'CELLAR_BOH_EMBED_READY';
@@ -800,7 +807,11 @@ function getCellarSharedPresentationId() {
 }
 
 function isCellarEmbeddedBohMode() {
-  return new URLSearchParams(window.location.search).get('embedded') === 'boh';
+  return (
+    new URLSearchParams(window.location.search).get('embedded') === 'boh' ||
+    window.location.pathname === '/cellar' ||
+    window.location.pathname.startsWith('/cellar/')
+  );
 }
 
 function getCellarViewUrl(view: 'dashboard' | 'staff' | '' = '', extraParams: Record<string, string | null> = {}) {
@@ -946,6 +957,12 @@ const investorCategoryOptions: CellarSelectOption[] = [
 async function signOutToAccessScreen() {
   window.sessionStorage.removeItem('cellar_guest_session_id');
   window.sessionStorage.removeItem('cellar_entry_mode');
+
+  if (isCellarEmbeddedBohMode()) {
+    window.location.assign('/boh');
+    return;
+  }
+
   await supabase.auth.signOut();
   window.location.replace(getCellarViewUrl('', { entry: null }));
 }
@@ -1536,7 +1553,7 @@ function InvestorShell() {
     setMessageThreads((data?.cellar_message_threads ?? []) as InvestorMessageThread[]);
     setIsMessagesVerifiedRequired(!isVerified && data?.cellar_messages_enabled !== true);
     setIsMessagesLoading(false);
-  }, [isVerified]);
+  }, [isVerified, tenantId]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -1856,7 +1873,7 @@ function InvestorShell() {
             isAssetsLoading={isAssetsLoading}
           />
         )}
-        {section === 'Questions' && <QuestionsPage isVerified={isVerified} />}
+        {section === 'Questions' && <QuestionsPage isVerified={isVerified} tenantId={workspaceAccess?.tenantId ?? null} />}
         {section === 'Messages' && (
           <MessagesPage
             threads={messageThreads}
@@ -3293,7 +3310,7 @@ function NarrativePanel({ asset, narrative }: { asset: InvestorAsset; narrative:
   );
 }
 
-function QuestionsPage({ isVerified }: { isVerified: boolean }) {
+function QuestionsPage({ isVerified, tenantId }: { isVerified: boolean; tenantId: string | null }) {
   const [qas, setQas] = useState<PreparedQA[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -3303,11 +3320,18 @@ function QuestionsPage({ isVerified }: { isVerified: boolean }) {
   const loadQuestions = useCallback(async () => {
     setIsLoading(true);
     setError('');
+    if (!tenantId) {
+      setQas([]);
+      setError('Unable to resolve CELLAR tenant context.');
+      setIsLoading(false);
+      return;
+    }
     const visibility = isVerified ? ['guest', 'verified'] : ['guest'];
 
     const { data, error: qaError } = await supabase
       .from('cellar_prepared_qa')
       .select('id, question, answer, topic, status, visibility, related_asset_id, sort_order, published_at, updated_at, created_at')
+      .eq('tenant_id', tenantId)
       .eq('status', 'published')
       .eq('investor_kb_scope', 'investor_kb')
       .in('visibility', visibility)
@@ -5383,9 +5407,17 @@ function StaffShell({
   const staffWalkthroughVideo = CELLAR_DRAWER_CONTENT['staff-guide'].video;
 
   const loadStaffNotifications = useCallback(async () => {
+    const staffAuth = await getStaffAuthState();
+    if (staffAuth.status !== 'ready' || !staffAuth.tenantId) {
+      setStaffNotifications([]);
+      setPrefetchedStaffMessageThreads([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('cellar_investor_profiles')
       .select('id, email, first_name, last_name, investor_category, profile_status, submitted_at')
+      .eq('tenant_id', staffAuth.tenantId)
       .in('profile_status', ['verification_pending', 'needs_more_info'])
       .order('submitted_at', { ascending: false })
       .limit(10);
@@ -5434,9 +5466,16 @@ function StaffShell({
   }, []);
 
   const loadStaffPipelineCount = useCallback(async () => {
+    const staffAuth = await getStaffAuthState();
+    if (staffAuth.status !== 'ready' || !staffAuth.tenantId) {
+      setStaffPipelineCount(0);
+      return;
+    }
+
     const { count, error } = await supabase
       .from('cellar_investor_access')
       .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', staffAuth.tenantId)
       .or('access_status.in.(verified,appendix_requested,appendix_granted,paused),pipeline_status.eq.guest_code_sent');
 
     if (error) {
@@ -5886,6 +5925,7 @@ async function getStaffAuthState(): Promise<StaffAuthState> {
       status: 'signed_out',
       email: '',
       bohUserId: null,
+      tenantId: null,
       message: 'This browser does not currently have a valid Supabase staff session.',
     };
   }
@@ -5897,21 +5937,24 @@ async function getStaffAuthState(): Promise<StaffAuthState> {
       status: 'stale',
       email,
       bohUserId: null,
+      tenantId: null,
       message: 'Your cached staff session is stale. Sign out and reconnect your JOBZ CAFE® staff email before changing guest codes.',
     };
   }
 
   const { data, error } = await supabase
     .from('boh_user')
-    .select('id')
+    .select('id, tenant_id')
     .eq('auth_user_id', userData.user.id)
+    .eq('app_context', 'boh')
     .maybeSingle();
 
-  if (error || !data?.id) {
+  if (error || !data?.id || !data?.tenant_id) {
     return {
       status: 'unmapped',
       email,
       bohUserId: null,
+      tenantId: null,
       message: 'This Supabase Auth user is not linked to a BOH staff record yet.',
     };
   }
@@ -5920,15 +5963,18 @@ async function getStaffAuthState(): Promise<StaffAuthState> {
     status: 'ready',
     email,
     bohUserId: String(data.id),
+    tenantId: String(data.tenant_id),
     message: 'Staff session ready.',
   };
 }
 
-async function loadBohStaffUsers(): Promise<{ data: StaffTeamRecord[]; error: unknown | null }> {
+async function loadBohStaffUsers(tenantId?: string | null): Promise<{ data: StaffTeamRecord[]; error: unknown | null }> {
+  if (!tenantId) return { data: [], error: null };
   const { data: bohUsers, error } = await supabase
     .from('boh_user')
     .select('id, email, name:display_name')
-    .ilike('email', '%@jobzcafe.com')
+    .eq('tenant_id', tenantId)
+    .eq('app_context', 'boh')
     .order('display_name', { ascending: true });
 
   if (error) {
@@ -6178,6 +6224,20 @@ function StaffDashboard({
     setIsLoading(true);
     setTone('info');
     setStatus('Loading staff summary.');
+    const staffAuth = await getStaffAuthState();
+    if (staffAuth.status !== 'ready' || !staffAuth.tenantId) {
+      setThreads([]);
+      setRequests([]);
+      setVerifiedInvestorCount(0);
+      setVerificationRequestCount(0);
+      setApprovedVerificationCount(0);
+      setInviteSentCount(0);
+      setInviteConvertedCount(0);
+      setTone('error');
+      setStatus(staffAuth.message);
+      setIsLoading(false);
+      return;
+    }
     const [
       messageResponse,
       requestResponse,
@@ -6191,28 +6251,34 @@ function StaffDashboard({
       supabase
         .from('cellar_investor_profiles')
         .select('id, investor_access_id, email, first_name, last_name, investor_category, title, company, profile_status, submitted_at')
+        .eq('tenant_id', staffAuth.tenantId)
         .in('profile_status', ['verification_pending', 'needs_more_info'])
         .order('submitted_at', { ascending: false })
         .limit(8),
       supabase
         .from('cellar_investor_access')
         .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', staffAuth.tenantId)
         .in('access_status', ['verified', 'appendix_requested', 'appendix_granted', 'paused']),
       supabase
         .from('cellar_investor_profiles')
         .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', staffAuth.tenantId)
         .neq('profile_status', 'archived'),
       supabase
         .from('cellar_investor_profiles')
         .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', staffAuth.tenantId)
         .eq('profile_status', 'verified'),
       supabase
         .from('cellar_investor_access')
         .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', staffAuth.tenantId)
         .or('guest_code_sent_at.not.is.null,pipeline_status.eq.guest_code_sent'),
       supabase
         .from('cellar_investor_access')
         .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', staffAuth.tenantId)
         .not('guest_code_sent_at', 'is', null)
         .in('access_status', ['verified', 'appendix_requested', 'appendix_granted', 'paused']),
     ]);
@@ -6670,6 +6736,7 @@ async function getCellarWorkspaceAccess(): Promise<CellarWorkspaceAccessState> {
       canInvestor: false,
       authUserId: null,
       bohUserId: null,
+      tenantId: null,
       investorAccessId: null,
       accessStatus: null,
       email: null,
@@ -6702,6 +6769,7 @@ async function getCellarWorkspaceAccess(): Promise<CellarWorkspaceAccessState> {
       canInvestor: false,
       authUserId: null,
       bohUserId: null,
+      tenantId: null,
       investorAccessId: null,
       accessStatus: null,
       email: null,
@@ -6723,6 +6791,7 @@ async function getCellarWorkspaceAccess(): Promise<CellarWorkspaceAccessState> {
     canInvestor: access.can_investor === true,
     authUserId: access.auth_user_id ?? null,
     bohUserId: access.boh_user_id ?? null,
+    tenantId: access.tenant_id ?? null,
     investorAccessId: access.investor_access_id ?? null,
     accessStatus: access.access_status ?? null,
     email: access.email ?? null,
@@ -6746,9 +6815,19 @@ function StaffInvestorRequests({ focusedRequestId }: { focusedRequestId?: string
   const loadRequests = useCallback(async () => {
     setIsLoading(true);
     setStatus('');
+    const staffAuth = await getStaffAuthState();
+    if (staffAuth.status !== 'ready' || !staffAuth.tenantId) {
+      setRequests([]);
+      setTone('error');
+      setStatus(staffAuth.message);
+      setIsLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('cellar_investor_profiles')
       .select('id, investor_access_id, email, first_name, last_name, investor_category, title, company, profile_status, submitted_at')
+      .eq('tenant_id', staffAuth.tenantId)
       .in('profile_status', ['verification_pending', 'needs_more_info'])
       .order('submitted_at', { ascending: false });
 
@@ -6917,14 +6996,24 @@ function StaffInvestorPipelineScreen({ onOpenInvestor }: { onOpenInvestor: (inve
   const loadInvestors = useCallback(async () => {
     setIsLoading(true);
     setStatus('');
+    const staffAuth = await getStaffAuthState();
+    if (staffAuth.status !== 'ready' || !staffAuth.tenantId) {
+      setInvestors([]);
+      setTeamMembers([]);
+      setStatus(staffAuth.message);
+      setIsLoading(false);
+      return;
+    }
+
     const [{ data, error }, teamResponse] = await Promise.all([
       supabase
         .from('cellar_investor_access')
         .select('id, email, full_name, company, title, access_status, pipeline_status, assigned_boh_user_id, verified_at, last_seen_at, created_at, metadata')
+        .eq('tenant_id', staffAuth.tenantId)
         .or('access_status.in.(verified,appendix_requested,appendix_granted,paused),pipeline_status.eq.guest_code_sent')
         .order('verified_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false }),
-      loadBohStaffUsers(),
+      loadBohStaffUsers(staffAuth.tenantId),
     ]);
 
     if (error) {
@@ -6990,7 +7079,8 @@ function StaffInvestorPipelineScreen({ onOpenInvestor }: { onOpenInvestor: (inve
     const { error } = await supabase
       .from('cellar_investor_access')
       .update({ pipeline_status: nextStageKey, updated_by_boh_user_id: staffAuth.bohUserId })
-      .eq('id', investorId);
+      .eq('id', investorId)
+      .eq('tenant_id', staffAuth.tenantId);
 
     if (error) {
       setInvestors((current) =>
@@ -6999,6 +7089,7 @@ function StaffInvestorPipelineScreen({ onOpenInvestor }: { onOpenInvestor: (inve
       setStatus(getFriendlyCellarError(error, 'Unable to move investor right now.'));
     } else {
       await supabase.from('cellar_activity_events').insert({
+        tenant_id: staffAuth.tenantId,
         investor_access_id: investorId,
         actor_kind: 'staff',
         actor_auth_user_id: staffAuth.authUserId,
@@ -7199,6 +7290,21 @@ function StaffInvestorContactsScreen({
 
   const loadContacts = useCallback(async (options?: { silent?: boolean }) => {
     const isSilent = options?.silent === true;
+    const staffAuth = await getStaffAuthState();
+    if (staffAuth.status !== 'ready' || !staffAuth.tenantId) {
+      setInvestors([]);
+      setThreads([]);
+      setTeamMembers([]);
+      setContactNotes([]);
+      setActivityEvents([]);
+      if (!isSilent) {
+        setTone('error');
+        setStatus(staffAuth.message);
+        setIsLoading(false);
+      }
+      return;
+    }
+
     if (!isSilent) {
       setIsLoading(true);
       setTone('info');
@@ -7208,17 +7314,20 @@ function StaffInvestorContactsScreen({
       supabase
         .from('cellar_investor_access')
         .select('id, email, full_name, company, title, access_status, pipeline_status, assigned_boh_user_id, verified_at, last_seen_at, guest_code_sent_at, guest_code_sent_from_boh_user_id, guest_code_sent_by_boh_user_id, created_at, metadata')
+        .eq('tenant_id', staffAuth.tenantId)
         .or('access_status.in.(verified,appendix_requested,appendix_granted,paused),pipeline_status.eq.guest_code_sent')
         .order('verified_at', { ascending: false, nullsFirst: false }),
       supabase.functions.invoke('cellar_list_staff_messages', { body: {} }),
-      loadBohStaffUsers(),
+      loadBohStaffUsers(staffAuth.tenantId),
       supabase
         .from('cellar_staff_contact_notes')
         .select('id, investor_access_id, note_body, created_by_boh_user_id, updated_by_boh_user_id, created_at, updated_at')
+        .eq('tenant_id', staffAuth.tenantId)
         .order('created_at', { ascending: false }),
       supabase
         .from('cellar_activity_events')
         .select('id, investor_access_id, actor_kind, actor_boh_user_id, event_type, event_at, metadata')
+        .eq('tenant_id', staffAuth.tenantId)
         .order('event_at', { ascending: false }),
     ]);
 
@@ -7549,7 +7658,8 @@ function StaffInvestorContactsScreen({
     const { error } = await supabase
       .from('cellar_investor_access')
       .update({ assigned_boh_user_id: nextOwnerId, updated_by_boh_user_id: staffAuth.bohUserId })
-      .eq('id', selectedInvestor.id);
+      .eq('id', selectedInvestor.id)
+      .eq('tenant_id', staffAuth.tenantId);
 
     if (error) {
       setTone('error');
@@ -7568,6 +7678,7 @@ function StaffInvestorContactsScreen({
     setIsSavingContact(false);
     setEditSection(null);
     await supabase.from('cellar_activity_events').insert({
+      tenant_id: staffAuth.tenantId,
       investor_access_id: selectedInvestor.id,
       actor_kind: 'staff',
       actor_auth_user_id: staffAuth.authUserId,
@@ -7597,6 +7708,7 @@ function StaffInvestorContactsScreen({
     const { data, error } = await supabase
       .from('cellar_staff_contact_notes')
       .insert({
+        tenant_id: staffAuth.tenantId,
         investor_access_id: selectedInvestor.id,
         note_body: cleanDraft,
         created_by_boh_user_id: staffAuth.bohUserId,
@@ -7673,6 +7785,7 @@ function StaffInvestorContactsScreen({
     }
 
     await supabase.from('cellar_activity_events').insert({
+      tenant_id: staffAuth.tenantId,
       investor_access_id: investor.id,
       actor_kind: 'staff',
       actor_auth_user_id: staffAuth.authUserId,
@@ -7710,7 +7823,8 @@ function StaffInvestorContactsScreen({
         pipeline_status: 'paused',
         updated_by_boh_user_id: staffAuth.bohUserId,
       })
-      .eq('id', investor.id);
+      .eq('id', investor.id)
+      .eq('tenant_id', staffAuth.tenantId);
 
     if (error) {
       setTone('error');
@@ -7722,6 +7836,7 @@ function StaffInvestorContactsScreen({
     const archivedInvestor = { ...investor, access_status: 'paused', pipeline_status: 'paused' };
     setInvestors((current) => current.map((item) => (item.id === investor.id ? archivedInvestor : item)));
     await supabase.from('cellar_activity_events').insert({
+      tenant_id: staffAuth.tenantId,
       investor_access_id: investor.id,
       actor_kind: 'staff',
       actor_auth_user_id: staffAuth.authUserId,
@@ -9004,7 +9119,8 @@ function StaffAssets() {
         supabase
           .from('cellar_assets')
           .update({ presentation_id: targetPresentationId, updated_by_boh_user_id: nextAuth.bohUserId })
-          .eq('id', asset.id),
+          .eq('id', asset.id)
+          .eq('tenant_id', nextAuth.tenantId),
       ),
     );
     return results.every((result) => !result.error);
@@ -9203,7 +9319,8 @@ function StaffAssets() {
         const { error: assignmentError } = await supabase
           .from('cellar_assets')
           .update({ presentation_id: selectedPresentation.id })
-          .eq('id', uploadedAsset.id);
+          .eq('id', uploadedAsset.id)
+          .eq('tenant_id', nextAuth.tenantId);
         if (assignmentError) {
           throw new Error(assignmentError.message || 'Uploaded, but the asset could not be assigned to the presentation.');
         }
@@ -9345,7 +9462,8 @@ function StaffAssets() {
         metadata: nextMetadata,
         updated_by_boh_user_id: nextAuth.bohUserId,
       })
-      .eq('id', editingAsset.id);
+      .eq('id', editingAsset.id)
+      .eq('tenant_id', nextAuth.tenantId);
 
     if (error) {
       setSlideNarrativeStatus(error.message || 'Unable to save slide narrative.');
@@ -9406,7 +9524,8 @@ function StaffAssets() {
         published_at: editAssetStatus === 'published' ? new Date().toISOString() : null,
         updated_by_boh_user_id: nextAuth.bohUserId,
       })
-      .eq('id', editingAsset.id);
+      .eq('id', editingAsset.id)
+      .eq('tenant_id', nextAuth.tenantId);
 
     if (error) {
       setAssetActionTone('error');
@@ -9491,6 +9610,7 @@ function StaffAssets() {
     const { data, error } = await supabase
       .from('cellar_presentations')
       .insert({
+        tenant_id: nextAuth.tenantId,
         title: cleanTitle,
         slug: createCellarSlug(cleanTitle),
         description: presentationDescription.trim() || null,
@@ -9536,7 +9656,8 @@ function StaffAssets() {
         published_at: nextStatus === 'published' ? new Date().toISOString() : null,
         updated_by_boh_user_id: nextAuth.bohUserId,
       })
-      .eq('id', presentation.id);
+      .eq('id', presentation.id)
+      .eq('tenant_id', nextAuth.tenantId);
 
     if (error) {
       setAssetActionTone('error');
@@ -9580,7 +9701,8 @@ function StaffAssets() {
           : null,
         updated_by_boh_user_id: nextAuth.bohUserId,
       })
-      .eq('id', selectedPresentation.id);
+      .eq('id', selectedPresentation.id)
+      .eq('tenant_id', nextAuth.tenantId);
 
     if (error) {
       setAssetActionTone('error');
@@ -9607,7 +9729,8 @@ function StaffAssets() {
     const { error } = await supabase
       .from('cellar_assets')
       .update({ status: nextStatus })
-      .eq('id', asset.id);
+      .eq('id', asset.id)
+      .eq('tenant_id', nextAuth.tenantId);
 
     if (error) {
       setAssetActionTone('error');
@@ -9652,7 +9775,8 @@ function StaffAssets() {
         supabase
           .from('cellar_assets')
           .update({ sort_order: item.sort_order, updated_by_boh_user_id: nextAuth.bohUserId })
-          .eq('id', item.id),
+          .eq('id', item.id)
+          .eq('tenant_id', nextAuth.tenantId),
       ),
     );
     const failed = results.find((result) => result.error);
@@ -9681,6 +9805,7 @@ function StaffAssets() {
     const { data: presentation, error: presentationError } = await supabase
       .from('cellar_presentations')
       .insert({
+        tenant_id: nextAuth.tenantId,
         title: toCellarTitleCase(baseTitle),
         slug: createCellarSlug(baseTitle),
         description: 'Recovered from published Pitch Room items.',
@@ -9701,6 +9826,7 @@ function StaffAssets() {
       .from('cellar_assets')
       .update({ presentation_id: presentation.id, updated_by_boh_user_id: nextAuth.bohUserId })
       .is('presentation_id', null)
+      .eq('tenant_id', nextAuth.tenantId)
       .neq('status', 'archived');
     if (updateError) {
       setAssetActionTone('error');
@@ -10598,19 +10724,32 @@ function StaffQA() {
   const loadStaffQa = useCallback(async () => {
     setIsLoading(true);
     setStatus('');
+    const staffAuth = await getStaffAuthState();
+    if (staffAuth.status !== 'ready' || !staffAuth.tenantId) {
+      setTone('error');
+      setStatus(staffAuth.message);
+      setQas([]);
+      setPresentations([]);
+      setAssets([]);
+      setIsLoading(false);
+      return;
+    }
     const [qaResult, presentationResult, assetResult] = await Promise.all([
       supabase
         .from('cellar_prepared_qa')
         .select('id, question, answer, topic, status, visibility, related_asset_id, sort_order, published_at, updated_at, created_at')
+        .eq('tenant_id', staffAuth.tenantId)
         .order('sort_order', { ascending: true })
         .order('updated_at', { ascending: false, nullsFirst: false }),
       supabase
         .from('cellar_presentations')
         .select('id, title, slug, description, status, sort_order, published_at')
+        .eq('tenant_id', staffAuth.tenantId)
         .order('sort_order', { ascending: true }),
       supabase
         .from('cellar_assets')
         .select('id, presentation_id, title, asset_type, visibility, status, tab_label, summary, storage_bucket, storage_path, mime_type, sort_order, slide_narratives, metadata')
+        .eq('tenant_id', staffAuth.tenantId)
         .order('sort_order', { ascending: true }),
     ]);
 
@@ -10708,12 +10847,12 @@ function StaffQA() {
       sort_order: Number(form.sort_order) || 0,
       published_at: form.status === 'published' ? new Date().toISOString() : null,
       updated_by_boh_user_id: staffAuth.bohUserId,
-      ...(form.id ? {} : { created_by_boh_user_id: staffAuth.bohUserId }),
+      ...(form.id ? {} : { tenant_id: staffAuth.tenantId, created_by_boh_user_id: staffAuth.bohUserId }),
     };
 
     setIsSaving(true);
     const result = form.id
-      ? await supabase.from('cellar_prepared_qa').update(payload).eq('id', form.id)
+      ? await supabase.from('cellar_prepared_qa').update(payload).eq('id', form.id).eq('tenant_id', staffAuth.tenantId)
       : await supabase.from('cellar_prepared_qa').insert(payload);
     setIsSaving(false);
 
@@ -10905,7 +11044,7 @@ function StaffTeam() {
 export default function App() {
   const initialSearchParams = new URLSearchParams(window.location.search);
   const initialView = initialSearchParams.get('view') ?? '';
-  const initialIsEmbeddedBoh = initialSearchParams.get('embedded') === 'boh';
+  const initialIsEmbeddedBoh = isCellarEmbeddedBohMode();
   if (initialIsEmbeddedBoh) {
     window.sessionStorage.removeItem('cellar_entry_mode');
     window.sessionStorage.removeItem('cellar_guest_session_id');

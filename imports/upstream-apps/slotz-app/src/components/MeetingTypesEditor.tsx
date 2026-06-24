@@ -243,6 +243,7 @@ const MeetingTypesEditor: React.FC<{
             duration_minutes: 30,
             buffer_minutes_after: 5,
             is_active: false,
+            updated_at: new Date().toISOString(),
         };
         
         const addedMeeting = await supabaseDb.addMeetingType(newMeeting);

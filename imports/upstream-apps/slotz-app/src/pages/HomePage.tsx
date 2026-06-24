@@ -26,6 +26,7 @@ const HomePage: React.FC<HomePageProps> = ({ navigate, setIsStaff }) => {
     const [isProcessingAuth, setIsProcessingAuth] = useState(false);
     const [isCheckingSession, setIsCheckingSession] = useState(true);
     const [authMessage, setAuthMessage] = useState<string | null>(null);
+    const [embeddedSessionError, setEmbeddedSessionError] = useState<string | null>(null);
 
     // Check for existing session on component mount
     useEffect(() => {
@@ -54,7 +55,8 @@ const HomePage: React.FC<HomePageProps> = ({ navigate, setIsStaff }) => {
                 const { data: { session }, error } = await supabase.auth.getSession();
                 
                 if (session && !error) {
-                    // User is already authenticated, check for staff profile
+                    // User is already authenticated through BOH. Prefer an existing SLOTZ staff
+                    // profile and only fall back to the bootstrap function if none exists yet.
                     const { data: profile, error: profileError } = await supabase
                         .from('scheduling_staff_profiles')
                         .select('id')
@@ -65,16 +67,30 @@ const HomePage: React.FC<HomePageProps> = ({ navigate, setIsStaff }) => {
                         throw profileError;
                     }
 
-                    const staffProfileId = await bootstrapStaffProfile();
+                    let staffProfileId = profile?.id ?? null;
 
+                    if (!staffProfileId) {
+                        staffProfileId = await bootstrapStaffProfile();
+                    }
+
+                    localStorage.setItem('staffEmail', session.user.email || '');
                     localStorage.setItem('staffLoginTimestamp', Date.now().toString());
                     supabaseDb.setCurrentStaff(staffProfileId);
+                    setEmbeddedSessionError(null);
                     setIsStaff(true);
                     navigate('staff-dashboard');
                     return;
                 }
             } catch (error) {
                 console.error('Error checking session:', error);
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    setEmbeddedSessionError(
+                        error instanceof Error
+                            ? error.message
+                            : 'SLOTZ could not prepare your BOH staff workspace.'
+                    );
+                }
             } finally {
                 setIsCheckingSession(false);
             }
@@ -143,7 +159,7 @@ const HomePage: React.FC<HomePageProps> = ({ navigate, setIsStaff }) => {
                     throw profileError;
                 }
 
-                const staffProfileId = await bootstrapStaffProfile();
+                const staffProfileId = profile?.id ?? await bootstrapStaffProfile();
 
                 // Success! Set the staff ID for database queries
                 supabaseDb.setCurrentStaff(staffProfileId);
@@ -171,6 +187,15 @@ const HomePage: React.FC<HomePageProps> = ({ navigate, setIsStaff }) => {
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                         <p className="text-primary-text-muted">Checking session...</p>
+                    </div>
+                </div>
+            ) : embeddedSessionError ? (
+                <div className="flex-1 flex items-center justify-center bg-[#151024] p-6">
+                    <div className="max-w-lg rounded-2xl border border-primary/25 bg-[#201936] p-6 text-center shadow-2xl shadow-black/30">
+                        <AngledLogo size="sm" />
+                        <h2 className="mt-4 text-2xl font-semibold text-white">SLOTZ workspace needs setup</h2>
+                        <p className="mt-3 text-sm font-medium text-white/70">Your BOH session is active, but SLOTZ could not prepare the staff workspace.</p>
+                        <p className="mt-3 rounded-xl border border-primary/20 bg-[#151024] p-3 text-xs text-white/70">{embeddedSessionError}</p>
                     </div>
                 </div>
             ) : (

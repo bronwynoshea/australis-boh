@@ -23,6 +23,7 @@ Deno.serve(async (request) => {
           can_investor: false,
           auth_user_id: null,
           boh_user_id: null,
+          tenant_id: null,
           investor_access_id: null,
           access_status: null,
           email: null,
@@ -37,8 +38,9 @@ Deno.serve(async (request) => {
     const email = normalizeEmail(user.email);
     const { data: bohUser, error: bohUserError } = await client
       .from('boh_user')
-      .select('id, email, status')
+      .select('id, email, status, tenant_id')
       .eq('auth_user_id', user.id)
+      .eq('app_context', 'boh')
       .maybeSingle();
 
     if (bohUserError) return cellarError(bohUserError.message, 400);
@@ -51,6 +53,7 @@ Deno.serve(async (request) => {
           can_investor: false,
           auth_user_id: user.id,
           boh_user_id: String(bohUser.id),
+          tenant_id: bohUser.tenant_id ? String(bohUser.tenant_id) : null,
           investor_access_id: null,
           access_status: null,
           email: String(bohUser.email ?? user.email ?? ''),
@@ -63,7 +66,7 @@ Deno.serve(async (request) => {
 
     const { data: firstInvestorAccess, error: investorAccessError } = await client
       .from('cellar_investor_access')
-      .select('id, email, full_name, access_status, verified_at, auth_user_id')
+      .select('id, email, full_name, access_status, verified_at, auth_user_id, tenant_id')
       .eq('auth_user_id', user.id)
       .in('access_status', CELLAR_APPROVED_ACCESS_STATUSES)
       .order('verified_at', { ascending: false, nullsFirst: false })
@@ -77,7 +80,7 @@ Deno.serve(async (request) => {
     if (!investorAccess?.id && email) {
       const byEmail = await client
         .from('cellar_investor_access')
-        .select('id, email, full_name, access_status, verified_at, auth_user_id')
+        .select('id, email, full_name, access_status, verified_at, auth_user_id, tenant_id')
         .ilike('email', email)
         .in('access_status', CELLAR_APPROVED_ACCESS_STATUSES)
         .order('verified_at', { ascending: false, nullsFirst: false })
@@ -91,8 +94,9 @@ Deno.serve(async (request) => {
     const { data: firstInvestorProfile, error: investorProfileError } = investorAccess?.id
       ? await client
           .from('cellar_investor_profiles')
-          .select('email, first_name, last_name, title, company, metadata, profile_status, reviewed_at, auth_user_id')
+          .select('email, first_name, last_name, title, company, metadata, profile_status, reviewed_at, auth_user_id, tenant_id')
           .eq('investor_access_id', investorAccess.id)
+          .eq('tenant_id', investorAccess.tenant_id)
           .order('submitted_at', { ascending: false })
           .limit(1)
           .maybeSingle()
@@ -104,7 +108,7 @@ Deno.serve(async (request) => {
     if (!investorAccess?.id && email) {
       const byProfile = await client
         .from('cellar_investor_profiles')
-        .select('email, first_name, last_name, title, company, metadata, profile_status, reviewed_at, auth_user_id, investor_access_id')
+        .select('email, first_name, last_name, title, company, metadata, profile_status, reviewed_at, auth_user_id, investor_access_id, tenant_id')
         .ilike('email', email)
         .eq('profile_status', 'verified')
         .order('reviewed_at', { ascending: false, nullsFirst: false })
@@ -116,8 +120,9 @@ Deno.serve(async (request) => {
       if (byProfile.data?.investor_access_id) {
         const byProfileAccess = await client
           .from('cellar_investor_access')
-          .select('id, email, full_name, access_status, verified_at, auth_user_id')
+          .select('id, email, full_name, access_status, verified_at, auth_user_id, tenant_id')
           .eq('id', byProfile.data.investor_access_id)
+          .eq('tenant_id', byProfile.data.tenant_id)
           .in('access_status', CELLAR_APPROVED_ACCESS_STATUSES)
           .maybeSingle();
         if (byProfileAccess.error) return cellarError(byProfileAccess.error.message, 400);
@@ -130,7 +135,8 @@ Deno.serve(async (request) => {
       await client
         .from('cellar_investor_access')
         .update({ auth_user_id: user.id })
-        .eq('id', investorAccess.id);
+        .eq('id', investorAccess.id)
+        .eq('tenant_id', investorAccess.tenant_id);
     }
 
     if (investorAccess?.id && investorProfile && investorProfile.auth_user_id !== user.id) {
@@ -138,6 +144,7 @@ Deno.serve(async (request) => {
         .from('cellar_investor_profiles')
         .update({ auth_user_id: user.id })
         .eq('investor_access_id', investorAccess.id)
+        .eq('tenant_id', investorAccess.tenant_id)
         .ilike('email', investorProfile.email ?? email);
     }
 
@@ -148,6 +155,7 @@ Deno.serve(async (request) => {
         can_investor: Boolean(investorAccess?.id),
         auth_user_id: user.id,
         boh_user_id: null,
+        tenant_id: investorAccess?.tenant_id ?? investorProfile?.tenant_id ?? null,
         investor_access_id: investorAccess?.id ?? null,
         access_status: investorAccess?.access_status ?? null,
         email: investorProfile?.email ?? investorAccess?.email ?? user.email ?? null,

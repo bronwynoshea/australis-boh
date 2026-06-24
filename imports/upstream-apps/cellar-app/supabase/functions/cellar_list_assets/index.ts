@@ -30,6 +30,7 @@ Deno.serve(async (request) => {
       const { data: presentations, error: presentationsError } = await client
         .from('cellar_presentations')
         .select('id, title, slug, description, status, sort_order, published_at')
+        .eq('tenant_id', staffUser.tenantId)
         .neq('status', 'archived')
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
@@ -39,6 +40,7 @@ Deno.serve(async (request) => {
         const assetsQuery = client
           .from('cellar_assets')
           .select(selectColumns)
+          .eq('tenant_id', staffUser.tenantId)
           .neq('status', 'archived')
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: false })
@@ -65,7 +67,7 @@ Deno.serve(async (request) => {
     const { data: investorAccess } = authUser
       ? await client
           .from('cellar_investor_access')
-          .select('access_status')
+          .select('access_status, tenant_id')
           .eq('auth_user_id', authUser.id)
           .in('access_status', ['verified', 'appendix_requested', 'appendix_granted'])
           .maybeSingle()
@@ -73,7 +75,7 @@ Deno.serve(async (request) => {
     const { data: guestSession } = sessionId
       ? await client
           .from('cellar_investor_sessions')
-          .select('id')
+          .select('id, tenant_id')
           .eq('id', sessionId)
           .eq('session_kind', 'guest_code')
           .gt('expires_at', new Date().toISOString())
@@ -95,6 +97,7 @@ Deno.serve(async (request) => {
     const { data: presentations, error: presentationsError } = await client
       .from('cellar_presentations')
       .select('id, title, description, status, published_at')
+      .eq('tenant_id', investorAccess?.tenant_id ?? guestSession?.tenant_id)
       .eq('status', 'published')
       .order('sort_order', { ascending: true })
       .order('published_at', { ascending: false });
@@ -113,6 +116,7 @@ Deno.serve(async (request) => {
       client
         .from('cellar_assets')
         .select(selectColumns)
+        .eq('tenant_id', investorAccess?.tenant_id ?? guestSession?.tenant_id)
         .eq('status', 'published')
         .eq('investor_kb_scope', 'investor_kb')
         .in('visibility', allowedVisibility)

@@ -1,15 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase as bohSupabase } from '../../../../../src/lib/supabase';
 
 export const cellarSupabaseUrl =
-  import.meta.env.VITE_CELLAR_SUPABASE_URL;
+  import.meta.env.VITE_CELLAR_SUPABASE_URL ||
+  import.meta.env.VITE_SUPABASE_URL;
 export const cellarSupabasePublishableKey =
-  import.meta.env.VITE_CELLAR_SUPABASE_PUBLISHABLE_KEY;
+  import.meta.env.VITE_CELLAR_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!cellarSupabaseUrl || !cellarSupabasePublishableKey) {
-  console.warn('[Cellar] VITE_CELLAR_SUPABASE_URL and VITE_CELLAR_SUPABASE_PUBLISHABLE_KEY are required.');
+  console.warn('[Cellar] Supabase URL and publishable key are required.');
 }
 
-export const supabase = createClient(
-  cellarSupabaseUrl || 'https://placeholder.supabase.co',
-  cellarSupabasePublishableKey || 'placeholder-key',
-);
+export const supabase = bohSupabase;

@@ -32,8 +32,11 @@ export async function cellarAuthenticatedBohUser(request: Request) {
   if (!user) return null;
   const client = cellarServiceClient();
   const { data } = await client.from('boh_user')
-    .select('id')
+    .select('id, tenant_id')
     .eq('auth_user_id', user.id)
+    .eq('app_context', 'boh')
     .maybeSingle();
-  return data?.id ? { authUserId: user.id, bohUserId: String(data.id) } : null;
+  return data?.id && data?.tenant_id
+    ? { authUserId: user.id, bohUserId: String(data.id), tenantId: String(data.tenant_id) }
+    : null;
 }

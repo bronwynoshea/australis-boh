@@ -51,6 +51,7 @@ Deno.serve(async (request) => {
       .from('cellar_presentations')
       .select('id')
       .eq('id', presentationId)
+      .eq('tenant_id', staffUser.tenantId)
       .neq('status', 'archived')
       .single();
     if (presentationError || !presentation) return cellarError('CELLAR_PRESENTATION_NOT_FOUND', 404);
@@ -58,6 +59,7 @@ Deno.serve(async (request) => {
       .from('cellar_assets')
       .select('sort_order')
       .eq('presentation_id', presentationId)
+      .eq('tenant_id', staffUser.tenantId)
       .neq('status', 'archived')
       .order('sort_order', { ascending: false })
       .limit(1)
@@ -70,6 +72,7 @@ Deno.serve(async (request) => {
     if (uploadError) return cellarError(uploadError.message, 400);
 
     const { data, error } = await client.from('cellar_assets').insert({
+      tenant_id: staffUser.tenantId,
       presentation_id: presentationId,
       title,
       asset_type: assetType,

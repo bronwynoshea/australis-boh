@@ -30,6 +30,7 @@ Deno.serve(async (request) => {
       .from('cellar_message_threads')
       .select('id, investor_access_id')
       .eq('id', threadId)
+      .eq('tenant_id', staffUser.tenantId)
       .maybeSingle();
     if (threadError) return cellarError(threadError.message, 400);
     if (!thread?.id) return cellarError('CELLAR_MESSAGE_THREAD_NOT_FOUND', 404);
@@ -38,12 +39,14 @@ Deno.serve(async (request) => {
       .from('cellar_investor_access')
       .select('assigned_boh_user_id, access_status')
       .eq('id', thread.investor_access_id)
+      .eq('tenant_id', staffUser.tenantId)
       .maybeSingle();
     if (accessError) return cellarError(accessError.message, 400);
 
     const { data: visibilityRows, error: visibilityError } = await client
       .from('cellar_staff_visibility_permissions')
       .select('permission_level, expires_at')
+      .eq('tenant_id', staffUser.tenantId)
       .eq('investor_access_id', thread.investor_access_id)
       .eq('boh_user_id', staffUser.bohUserId);
     if (visibilityError) return cellarError(visibilityError.message, 400);
@@ -63,6 +66,7 @@ Deno.serve(async (request) => {
     const { data: message, error: messageError } = await client
       .from('cellar_messages')
       .insert({
+        tenant_id: staffUser.tenantId,
         thread_id: thread.id,
         investor_access_id: thread.investor_access_id,
         sender_kind: 'staff',
@@ -81,7 +85,8 @@ Deno.serve(async (request) => {
         status: 'waiting_on_investor',
         last_message_at: new Date().toISOString(),
       })
-      .eq('id', thread.id);
+      .eq('id', thread.id)
+      .eq('tenant_id', staffUser.tenantId);
 
     return cellarJson({ cellar_message_id: message.id });
   } catch (error) {

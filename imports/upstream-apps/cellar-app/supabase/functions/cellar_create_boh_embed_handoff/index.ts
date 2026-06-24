@@ -4,7 +4,11 @@ import { cellarBearerToken, cellarServiceClient } from '../_shared/cellar_supaba
 const CELLAR_ALLOWED_BOH_ORIGINS = new Set([
   'https://boh.jobzcafe.com',
   'https://dev-boh.jobzcafe.com',
+  'https://boh.australis.cloud',
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:8081',
+  'http://127.0.0.1:8081',
 ]);
 
 function corsHeaders(request: Request) {

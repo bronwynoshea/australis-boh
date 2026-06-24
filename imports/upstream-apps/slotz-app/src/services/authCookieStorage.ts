@@ -1,9 +1,15 @@
-import Cookies from 'js-cookie';
-
 type CookieStorage = {
   getItem: (key: string) => string | null;
   setItem: (key: string, value: string) => void;
   removeItem: (key: string) => void;
+};
+
+type CookieAttributes = {
+  path?: string;
+  sameSite?: 'Lax' | 'Strict' | 'None';
+  secure?: boolean;
+  expires?: number;
+  domain?: string;
 };
 
 const shouldUseJobzCafeDomain = () => {
@@ -12,9 +18,9 @@ const shouldUseJobzCafeDomain = () => {
   return host.endsWith('jobzcafe.com');
 };
 
-const cookieOptions = () => {
+const cookieOptions = (): CookieAttributes => {
   const secure = typeof window !== 'undefined' && window.location.protocol === 'https:';
-  const opts: Cookies.CookieAttributes = {
+  const opts: CookieAttributes = {
     path: '/',
     sameSite: 'Lax',
     secure,
@@ -28,15 +34,36 @@ const cookieOptions = () => {
   return opts;
 };
 
+const encode = (value: string) => encodeURIComponent(value).replace(/%(2[346B]|5E|60|7C)/g, decodeURIComponent);
+
+const serializeCookie = (key: string, value: string, options: CookieAttributes) => {
+  const segments = [`${encode(key)}=${encode(value)}`];
+  if (options.expires) {
+    const expiresAt = new Date(Date.now() + options.expires * 24 * 60 * 60 * 1000);
+    segments.push(`Expires=${expiresAt.toUTCString()}`);
+  }
+  if (options.path) segments.push(`Path=${options.path}`);
+  if (options.domain) segments.push(`Domain=${options.domain}`);
+  if (options.sameSite) segments.push(`SameSite=${options.sameSite}`);
+  if (options.secure) segments.push('Secure');
+  return segments.join('; ');
+};
+
 export const authCookieStorage: CookieStorage = {
   getItem: (key) => {
-    const v = Cookies.get(key);
-    return v ?? null;
+    if (typeof document === 'undefined') return null;
+    const encodedKey = `${encode(key)}=`;
+    const cookie = document.cookie
+      .split('; ')
+      .find((part) => part.startsWith(encodedKey));
+    return cookie ? decodeURIComponent(cookie.slice(encodedKey.length)) : null;
   },
   setItem: (key, value) => {
-    Cookies.set(key, value, cookieOptions());
+    if (typeof document === 'undefined') return;
+    document.cookie = serializeCookie(key, value, cookieOptions());
   },
   removeItem: (key) => {
-    Cookies.remove(key, cookieOptions());
+    if (typeof document === 'undefined') return;
+    document.cookie = serializeCookie(key, '', { ...cookieOptions(), expires: -1 });
   },
 };

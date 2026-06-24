@@ -15,6 +15,12 @@ function json(req: Request, data: unknown, status = 200) {
   });
 }
 
+function isDailyRoomAlreadyExists(resp: Response, body: unknown) {
+  if (resp.status === 409) return true;
+  const bodyText = typeof body === 'string' ? body : JSON.stringify(body || {});
+  return resp.status === 400 && /room named .* already exists/i.test(bodyText);
+}
+
 function normalizeAppContext(raw: unknown): string {
   const v = String(raw || "cafe").toLowerCase();
   if (v === "journey" || v === "coach" || v === "mentor" || v === "cafe") return v;
@@ -59,6 +65,36 @@ async function createDailyMeetingToken(params: {
   if (!resp.ok) {
     throw new Error(
       `daily_token_error_${resp.status}: ${JSON.stringify(jsonBody)}`,
+    );
+  }
+
+  return jsonBody;
+}
+
+async function ensureDailyRoom(params: {
+  dailyApiKey: string;
+  name: string;
+}) {
+  const { dailyApiKey, name } = params;
+
+  const resp = await fetch("https://api.daily.co/v1/rooms", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${dailyApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name,
+      privacy: "private",
+    }),
+  });
+
+  const jsonBody = await resp.json().catch(() => ({}));
+  if (isDailyRoomAlreadyExists(resp, jsonBody)) return { name };
+
+  if (!resp.ok) {
+    throw new Error(
+      `daily_room_create_error_${resp.status}: ${JSON.stringify(jsonBody)}`,
     );
   }
 
@@ -276,6 +312,11 @@ serve(async (req: Request) => {
       avatarUrl: profile?.avatar_url || null,
       isHost: isOwner,
     };
+
+    await ensureDailyRoom({
+      dailyApiKey,
+      name: room.daily_room_name,
+    });
 
     const tokenResp = await createDailyMeetingToken({
       dailyApiKey,

@@ -36,22 +36,14 @@ const PersonalRoomHostGate: React.FC<PersonalRoomHostGateProps> = ({ roomId: pro
     if (propRoomId) {
       setIsJoining(true);
       try {
-        // Check if we already have a token from PersonalRoomLandingPage
-        const existingToken = sessionStorage.getItem('personalRoomToken');
-        const isHost = sessionStorage.getItem('personalRoomIsHost') === 'true';
-        
-        let data;
-        if (existingToken && isHost) {
-          // Use existing token
-          data = JSON.parse(existingToken);
-          console.log('[PersonalRoomHostGate] Using existing token from sessionStorage');
-        } else {
-          // Fetch host token from loft-join-token
-          data = await callEdgeFunction('loft-join-token', { 
-            loftRoomId: propRoomId,
-          });
-          console.log('[PersonalRoomHostGate] Fetched new token from edge function');
-        }
+        // Always fetch a fresh host token. Existing sessionStorage can contain a
+        // token for a DB room whose Daily room disappeared after a Daily account
+        // or domain/API-key change; loft-join-token now reconciles the Daily room
+        // before issuing the token.
+        const data = await callEdgeFunction('loft-join-token', { 
+          loftRoomId: propRoomId,
+        });
+        console.log('[PersonalRoomHostGate] Fetched fresh token from edge function');
         
         // Store token data in sessionStorage for PersonalRoomPage to use
         try {

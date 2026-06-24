@@ -10,6 +10,9 @@ interface HostApplication {
   application_reason: string;
   experience_description: string | null;
   topics_to_host: string | null;
+  applicant_persona?: string | null;
+  requested_host_scope?: string | null;
+  requested_audience?: string | null;
   submitted_at: string;
   applicant_name?: string;
   applicant_email?: string;
@@ -40,9 +43,12 @@ const AdminHostApplications: React.FC = () => {
         application_reason: app.application_reason,
         experience_description: app.experience_description,
         topics_to_host: app.topics_to_host,
+        applicant_persona: app.applicant_persona,
+        requested_host_scope: app.requested_host_scope,
+        requested_audience: app.requested_audience,
         submitted_at: app.submitted_at,
-        applicant_name: app.applicant_name || 'Unknown User',
-        applicant_email: app.applicant_email,
+        applicant_name: app.applicant_name || app.profile?.display_name || app.profile?.full_name || app.profile?.email || 'Unknown User',
+        applicant_email: app.applicant_email || app.profile?.email,
       }));
 
       setApplications(formatted);
@@ -201,6 +207,25 @@ const AdminHostApplications: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {app.applicant_persona && (
+                      <div className="rounded-xl bg-black/5 p-3 text-xs dark:bg-white/5">
+                        <div className="font-bold uppercase tracking-widest text-main/50 dark:text-white/50">Applicant</div>
+                        <div className="mt-1 font-semibold text-main dark:text-white">{app.applicant_persona.replace(/_/g, ' ')}</div>
+                      </div>
+                    )}
+                    {app.requested_host_scope && (
+                      <div className="rounded-xl bg-black/5 p-3 text-xs dark:bg-white/5">
+                        <div className="font-bold uppercase tracking-widest text-main/50 dark:text-white/50">Scope</div>
+                        <div className="mt-1 font-semibold text-main dark:text-white">{app.requested_host_scope.replace(/_/g, ' ')}</div>
+                      </div>
+                    )}
+                    <div className="rounded-xl bg-black/5 p-3 text-xs dark:bg-white/5">
+                      <div className="font-bold uppercase tracking-widest text-main/50 dark:text-white/50">Personal Room</div>
+                      <div className="mt-1 font-semibold text-main dark:text-white">Not granted by host approval</div>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-main/60 dark:text-white/60">
                       <FileText className="w-3 h-3" />

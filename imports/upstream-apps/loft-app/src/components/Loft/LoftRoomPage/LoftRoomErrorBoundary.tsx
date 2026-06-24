@@ -1,4 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
@@ -9,7 +10,11 @@ interface State {
   error?: Error;
 }
 
-class LoftRoomErrorBoundary extends Component<Props, State> {
+class LoftRoomErrorBoundary extends React.Component<Props, State> {
+  declare state: State;
+  declare props: Props;
+  declare setState: React.Component<Props, State>['setState'];
+
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };

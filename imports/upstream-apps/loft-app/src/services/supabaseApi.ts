@@ -31,8 +31,15 @@ const normalizeProfile = (profileRow: any, fallbackName: string): UserProfile =>
     fallbackName ||
     'Loft member';
   const canUsePersonalRoom = !!(profileRow.can_use_personal_room ?? profileRow.canUsePersonalRoom);
-  const personalRoomSlug = profileRow.personal_room_slug || profileRow.personalRoomSlug || undefined;
-  const personalRoomId = profileRow.personal_room_id || profileRow.personalRoomId || undefined;
+  const canCreateLoftRooms = !!(
+    profileRow.can_create_loft_rooms ??
+    profileRow.canCreateLoftRooms ??
+    profileRow.can_host_loft ??
+    profileRow.is_loft_admin ??
+    Number(profileRow.user_type_id) === 5
+  );
+  const personalRoomSlug = canUsePersonalRoom ? profileRow.personal_room_slug || profileRow.personalRoomSlug || undefined : undefined;
+  const personalRoomId = canUsePersonalRoom ? profileRow.personal_room_id || profileRow.personalRoomId || undefined : undefined;
 
   return {
     id: profileRow.id,
@@ -40,6 +47,8 @@ const normalizeProfile = (profileRow: any, fallbackName: string): UserProfile =>
     avatarUrl: profileRow.avatar_url ?? profileRow.avatarUrl ?? undefined,
     defaultBgId: profileRow.default_bg_id ?? profileRow.defaultBgId ?? undefined,
     can_host_loft: !!profileRow.can_host_loft,
+    can_create_loft_rooms: canCreateLoftRooms,
+    canCreateLoftRooms,
     can_use_personal_room: canUsePersonalRoom,
     canUsePersonalRoom,
     personal_room_slug: personalRoomSlug,

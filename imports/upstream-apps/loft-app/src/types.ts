@@ -32,6 +32,8 @@ export interface UserProfile {
   avatarUrl?: string | null;
   defaultBgId?: string;
   can_host_loft: boolean;
+  can_create_loft_rooms?: boolean;
+  canCreateLoftRooms?: boolean;
   can_use_personal_room?: boolean;
   canUsePersonalRoom: boolean;
   personalRoomSlug?: string;

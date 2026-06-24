@@ -44,10 +44,22 @@ const GuestThankYouPage: React.FC = () => {
 
               <div className="loft-card p-4 md:p-5 space-y-4">
                 <a
+                  href="/apps/loft#/lobby"
+                  className="rounded-2xl bg-cafe text-white px-6 py-3.5 md:py-4 text-[11px] font-black uppercase tracking-[0.25em] shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  Back to Loft lobby
+                </a>
+                <a
+                  href="/apps/loft#/personal-room"
+                  className="rounded-2xl bg-white/80 dark:bg-white/10 text-main dark:text-white px-6 py-3.5 md:py-4 text-[11px] font-black uppercase tracking-[0.25em] border border-[var(--loft-border)] hover:bg-white dark:hover:bg-white/15 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  Back to Personal Table
+                </a>
+                <a
                   href="https://jobzcafe.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-2xl bg-cafe text-white px-6 py-3.5 md:py-4 text-[11px] font-black uppercase tracking-[0.25em] shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  className="rounded-2xl bg-transparent text-cafe px-6 py-3.5 md:py-4 text-[11px] font-black uppercase tracking-[0.25em] border border-cafe/30 hover:bg-cafe/10 active:scale-95 transition-all flex items-center justify-center gap-2"
                 >
                   Visit JOBZCAFE®
                   <ExternalLink className="w-4 h-4" />

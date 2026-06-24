@@ -846,7 +846,7 @@ const LoftRoomPage: React.FC<LoftRoomPageProps> = ({ roomId, onLeave }) => {
       if (mappedProfileId || !fallbackName) return undefined;
       const target = fallbackName.trim().toLowerCase();
       if (!target) return undefined;
-      const entry = Object.entries(profileDirectory).find(
+      const entry = (Object.entries(profileDirectory) as Array<[string, ProfileDirectoryEntry]>).find(
         ([, value]) => (value?.displayName || '').trim().toLowerCase() === target
       );
       return entry?.[0];
@@ -1984,7 +1984,7 @@ if (isHostParticipant) role = LoftRole.HOST;
   useEffect(() => {
     return () => {
       // Clear all speaker debounce timers
-      Object.values(speakerDebounceRef.current).forEach(timer => {
+      (Object.values(speakerDebounceRef.current) as NodeJS.Timeout[]).forEach(timer => {
         if (timer) clearTimeout(timer);
       });
       speakerDebounceRef.current = {};

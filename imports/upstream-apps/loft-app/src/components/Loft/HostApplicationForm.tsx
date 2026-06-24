@@ -11,6 +11,7 @@ const HostApplicationForm: React.FC<HostApplicationFormProps> = ({ onClose, onSu
   const [applicationReason, setApplicationReason] = useState('');
   const [experienceDescription, setExperienceDescription] = useState('');
   const [topicsToHost, setTopicsToHost] = useState('');
+  const [applicantPersona, setApplicantPersona] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -31,6 +32,8 @@ const HostApplicationForm: React.FC<HostApplicationFormProps> = ({ onClose, onSu
         applicationReason: applicationReason.trim(),
         experienceDescription: experienceDescription.trim() || null,
         topicsToHost: topicsToHost.trim() || null,
+        applicantPersona: applicantPersona || null,
+        requestedHostScope: 'user_generated',
       });
 
       setSuccess(true);
@@ -89,7 +92,7 @@ const HostApplicationForm: React.FC<HostApplicationFormProps> = ({ onClose, onSu
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           <div className="space-y-2">
             <p className="text-sm text-main/70 dark:text-white/70">
-              As a host, you'll be able to create and manage your own discussion tables (Host Table feature), build your community, and share your expertise with others.
+              As a host, you'll be able to create and manage your own Clubhouse-style Loft rooms. This does not create a Personal Room; Personal Rooms are separately granted to JOBZCAFE® staff and recruiters.
             </p>
           </div>
 
@@ -120,6 +123,26 @@ const HostApplicationForm: React.FC<HostApplicationFormProps> = ({ onClose, onSu
                 placeholder="Share your background, qualifications, or relevant experience..."
                 className="w-full px-4 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl text-sm text-main dark:text-white resize-none focus:ring-2 focus:ring-cafe/30 outline-none min-h-[100px]"
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-main/60 dark:text-white/60">
+                I am applying as
+              </label>
+              <select
+                value={applicantPersona}
+                onChange={(e) => setApplicantPersona(e.target.value)}
+                className="w-full px-4 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl text-sm text-main dark:text-white focus:ring-2 focus:ring-cafe/30 outline-none"
+              >
+                <option value="">Select one…</option>
+                <option value="recruiter">Recruiter</option>
+                <option value="job_seeker">Job seeker</option>
+                <option value="jobzcafe_staff">JOBZCAFE® staff</option>
+                <option value="community_member">Community member</option>
+              </select>
+              <p className="text-xs text-main/50 dark:text-white/50">
+                Recruiters and job seekers can apply to host public/community rooms. Personal Rooms remain a separate staff/recruiter permission.
+              </p>
             </div>
 
             <div className="space-y-2">

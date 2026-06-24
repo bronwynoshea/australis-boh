@@ -1,28 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
-import { authCookieStorage } from './authCookieStorage';
+import { supabase } from '../../../../../src/lib/supabase';
 
 export const AUTH_STORAGE_KEY = 'jobzcafe.supabase.auth';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-if (!supabaseUrl || !supabasePublishableKey) {
-  throw new Error('Missing Loft Supabase environment variables. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.');
-}
-
-export const supabase = createClient(
-  supabaseUrl,
-  supabasePublishableKey,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storage: authCookieStorage,
-      storageKey: AUTH_STORAGE_KEY,
-    },
-  }
-);
+// BOH-native Loft must reuse the already-authenticated BOH Supabase client.
+// The standalone Loft repo used its own cookie-backed client; inside BOH that
+// creates a second auth store and causes the imported app to think the user is
+// signed out even when the BOH shell has a valid session.
+export { supabase };
 
 if (typeof window !== 'undefined') {
   (window as any).__loftSupabase = supabase;

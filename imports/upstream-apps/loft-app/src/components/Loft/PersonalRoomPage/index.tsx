@@ -19,7 +19,7 @@ import ScreenShareToolbar from './components/ScreenShareToolbar';
 import { clearPersonalGuestAccessState } from './utils/personalRoomGuestStorage';
 
 
-const DAILY_DOMAIN = 'jobzcafe.daily.co';
+const DAILY_DOMAIN = (import.meta.env.VITE_DAILY_DOMAIN || 'jobzcafe.daily.co').replace(/^https?:\/\//, '').replace(/\/$/, '');
 const DAILY_SINGLETON_KEY = '__personalRoomDailyCallObject';
 
 // 🔥 FIX: Version for localStorage schema - increment when breaking changes occur
@@ -1736,30 +1736,12 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
         
         if (hostTokenString && isHost) {
           try {
-            const hostTokenData = JSON.parse(hostTokenString);
-            setTokenData({
-              token: hostTokenData.token,
-              dailyRoomName: hostTokenData.dailyRoomName,
-              roomTitle: hostTokenData.roomTitle,
-              currentUserProfile: {
-                profileId: hostTokenData.currentUserProfile?.profileId || '',
-                userId: hostTokenData.currentUserProfile?.userId || '',
-                displayName: hostTokenData.currentUserProfile?.displayName || '',
-                avatarUrl: hostTokenData.currentUserProfile?.avatarUrl,
-                isHost: true
-              }
-            });
-            
-            setHostUserData({ 
-              name: hostTokenData.hostName || 'Host',
-              avatarUrl: undefined
-            });
-            
-            if (hostTokenData.hostDetails) {
-              setHostDetails(hostTokenData.hostDetails);
-            }
-            
-            return;
+            // Do not trust an existing host token as the source of truth. A token
+            // can survive in sessionStorage after the external Daily room has
+            // been deleted/recreated by an account or domain/API-key change.
+            // Continue to loft-join-token below; the Edge Function reconciles
+            // Daily room existence before issuing a fresh token.
+            JSON.parse(hostTokenString);
           } catch (err) {
               }
         }
@@ -1820,8 +1802,10 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
           });
         }
         
-      } catch (err) {
-            setJoinError('Failed to get room token');
+      } catch (err: any) {
+        const errorMessage = err?.message || err?.name || 'Failed to get room token';
+        console.error('[PersonalRoomPage] Failed to get room token:', errorMessage, err);
+        setJoinError(`Failed to get room token: ${errorMessage}`);
       }
     };
     

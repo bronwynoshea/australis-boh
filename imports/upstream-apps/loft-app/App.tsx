@@ -32,6 +32,16 @@ const LoftIcon = ({ className = "w-5 h-5" }: { className?: string }) => {
   );
 };
 
+const BOH_LOFT_BASE_PATHS = ['/apps/loft', '/loft'];
+
+const stripBohLoftBasePath = (pathname: string): string => {
+  const normalized = pathname || '/';
+  const base = BOH_LOFT_BASE_PATHS.find((candidate) => normalized === candidate || normalized.startsWith(`${candidate}/`));
+  if (!base) return normalized;
+  const stripped = normalized.slice(base.length);
+  return stripped.startsWith('/') ? stripped || '/' : `/${stripped}`;
+};
+
 const App = () => {
   // ✅ FIXED - Only get profile once, with proper memoization
   const { user, profile: rawProfile, isLoading: isUserLoading } = useSupabaseUser();
@@ -74,7 +84,7 @@ const App = () => {
     return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
   };
 
-  const canHost = profile?.can_host_loft ?? false;
+  const canHost = !!(profile?.can_host_loft || (profile as any)?.canCreateLoftRooms || (profile as any)?.can_create_loft_rooms);
   const isLoadingProfile = isUserLoading;
   const canUsePersonalRoom =
     getProfileFlag('canUsePersonalRoom', 'can_use_personal_room') ||
@@ -90,8 +100,9 @@ const App = () => {
       try {
         const { data, error } = await supabase.rpc('get_my_host_application_status');
         if (error) throw error;
+        const nextStatusValue = Array.isArray(data) ? data[0]?.status : data?.status ?? data;
         const nextStatus =
-          data === 'pending' || data === 'approved' || data === 'rejected' ? data : 'none';
+          nextStatusValue === 'pending' || nextStatusValue === 'approved' || nextStatusValue === 'rejected' ? nextStatusValue : 'none';
         setApplicationStatus(nextStatus);
       } catch (err) {
         console.error('Failed to fetch application status:', err);
@@ -218,13 +229,14 @@ const App = () => {
   useEffect(() => {
     const syncPath = () => {
       const fromHash = window.location.hash.replace('#', '');
-      const fromPathname = window.location.pathname;
+      const fromPathname = stripBohLoftBasePath(window.location.pathname);
       const next = fromHash || fromPathname || '/';
       setCurrentPath(next);
     };
 
-    if (!window.location.hash && window.location.pathname && window.location.pathname !== '/') {
-      window.location.hash = window.location.pathname;
+    const normalizedPathname = stripBohLoftBasePath(window.location.pathname);
+    if (!window.location.hash && normalizedPathname && normalizedPathname !== '/') {
+      window.location.hash = normalizedPathname;
     }
 
     const onPopState = () => syncPath();
@@ -395,6 +407,8 @@ const App = () => {
   } else if (currentPath === '/join' || currentPath.startsWith('/join?')) {
     content = <LoftLandingPage onBackToCafe={exitToCafe} />;
   } else if (currentPath === '/thanks') {
+    content = <GuestThankYouPage />;
+  } else if (currentPath === '/daily-redirect') {
     content = <GuestThankYouPage />;
   } else if (currentPath === '/lobby') {
     content = <LoftLobbyPage onNavigate={navigate} />;

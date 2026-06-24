@@ -9,6 +9,12 @@ function json(req: Request, data: unknown, status = 200) {
   });
 }
 
+function isDailyRoomAlreadyExists(resp: Response, body: unknown) {
+  if (resp.status === 409) return true;
+  const bodyText = typeof body === 'string' ? body : JSON.stringify(body || {});
+  return resp.status === 400 && /room named .* already exists/i.test(bodyText);
+}
+
 async function createDailyRoom(params: {
   dailyApiKey: string;
   name: string;
@@ -30,7 +36,8 @@ async function createDailyRoom(params: {
   const jsonBody = await resp.json().catch(() => ({}));
 
   // If the room name already exists, that's fine; we can reuse it.
-  if (resp.status === 409) return { name };
+  // Daily may return either 409 or a 400 invalid-request-error for this case.
+  if (isDailyRoomAlreadyExists(resp, jsonBody)) return { name };
 
   if (!resp.ok) {
     throw new Error(`daily_room_create_error_${resp.status}: ${JSON.stringify(jsonBody)}`);
@@ -92,7 +99,7 @@ serve(async (req: Request) => {
     // Get user's profile
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profile")
-      .select("id, display_name, full_name, first_name, last_name, personal_room_id, can_use_personal_room")
+      .select("id, display_name, full_name, first_name, last_name, personal_room_id, can_use_personal_room, can_host_loft, is_loft_admin, user_type_id")
       .eq("user_id", user.id)
       .single();
 
@@ -101,7 +108,10 @@ serve(async (req: Request) => {
     }
 
     if (!profile.can_use_personal_room) {
-      return json(req, { error: "permission_denied", message: "Personal Room is only available to internal team members" }, 403);
+      return json(req, {
+        error: "permission_denied",
+        message: "Personal Rooms are limited to JOBZCAFE® staff and recruiters with explicit Personal Room access. Clubhouse-style host approval does not create a Personal Room.",
+      }, 403);
     }
 
     const profileId = String(profile.id);
@@ -124,6 +134,15 @@ serve(async (req: Request) => {
             .update({ invite_code: inviteCode, updated_at: new Date().toISOString() })
             .eq("id", existingRoom.id);
         }
+
+        // Daily rooms can disappear when the Daily account/domain/API key changes,
+        // while BOH still has a valid personal-room row. Reconcile the external
+        // Daily room before returning the existing DB row so old Personal Rooms
+        // keep working after Daily configuration changes.
+        await createDailyRoom({
+          dailyApiKey,
+          name: existingRoom.daily_room_name,
+        });
 
         return json(req, {
           roomId: existingRoom.id,
@@ -159,6 +178,8 @@ serve(async (req: Request) => {
       started_at: new Date().toISOString(),
       scheduled_tz: 'UTC',
       scheduled_start_at: new Date().toISOString(),
+      room_origin: 'personal',
+      business_context: null,
     };
 
     const { data: room, error: insertError } = await supabaseAdmin

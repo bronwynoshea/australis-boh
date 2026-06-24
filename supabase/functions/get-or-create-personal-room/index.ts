@@ -117,11 +117,34 @@ serve(async (req: Request) => {
     const profileId = String(profile.id);
     const userName = profile.display_name || profile.full_name || profile.first_name || 'Host';
 
+    const { data: bohUser, error: bohUserError } = await supabaseAdmin
+      .from("boh_user")
+      .select("tenant_id")
+      .eq("auth_user_id", user.id)
+      .single();
+
+    if (bohUserError || !bohUser?.tenant_id) {
+      return json(req, { error: "tenant_not_found" }, 403);
+    }
+
+    const { data: tenant, error: tenantError } = await supabaseAdmin
+      .from("boh_tenant")
+      .select("id, slug")
+      .eq("id", bohUser.tenant_id)
+      .single();
+
+    if (tenantError || !tenant?.slug) {
+      return json(req, { error: "tenant_not_found" }, 403);
+    }
+
+    const tenantId = String(tenant.id);
+    const tenantSlug = String(tenant.slug).toLowerCase();
+
     // Check if user already has a personal room
     if (profile.personal_room_id) {
       const { data: existingRoom, error: roomError } = await supabaseAdmin
         .from("loft_room")
-        .select("id, title, daily_room_name, invite_code")
+        .select("id, title, daily_room_name, invite_code, tenant_id")
         .eq("id", profile.personal_room_id)
         .single();
 
@@ -131,7 +154,12 @@ serve(async (req: Request) => {
           inviteCode = generateInviteCode();
           await supabaseAdmin
             .from("loft_room")
-            .update({ invite_code: inviteCode, updated_at: new Date().toISOString() })
+            .update({ invite_code: inviteCode, tenant_id: tenantId, updated_at: new Date().toISOString() })
+            .eq("id", existingRoom.id);
+        } else if (!existingRoom.tenant_id) {
+          await supabaseAdmin
+            .from("loft_room")
+            .update({ tenant_id: tenantId, updated_at: new Date().toISOString() })
             .eq("id", existingRoom.id);
         }
 
@@ -149,6 +177,7 @@ serve(async (req: Request) => {
           dailyRoomName: existingRoom.daily_room_name,
           title: existingRoom.title,
           inviteCode,
+          tenantSlug,
           isNew: false,
         });
       }
@@ -165,6 +194,7 @@ serve(async (req: Request) => {
 
     const insertRow = {
       app_context: 'cafe',
+      tenant_id: tenantId,
       host_profile_id: profileId,
       title: `${userName}'s Personal Room`,
       description: 'Personal meeting room - always available',
@@ -208,6 +238,7 @@ serve(async (req: Request) => {
       dailyRoomName: room.daily_room_name,
       title: room.title,
       inviteCode,
+      tenantSlug,
       isNew: true,
     });
   } catch (e) {

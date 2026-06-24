@@ -16,7 +16,8 @@ const explainError = (value: string) => {
 };
 
 const PersonalRoomPublicJoinPage: React.FC = () => {
-  const { slug = '' } = useParams();
+  const { tenantSlug = '', slug = '' } = useParams();
+  const normalizedTenantSlug = useMemo(() => tenantSlug.toLowerCase().replace(/[^a-z0-9-_]/g, ''), [tenantSlug]);
   const normalizedSlug = useMemo(() => slug.toLowerCase().replace(/[^a-z0-9-_]/g, ''), [slug]);
   const [guestName, setGuestName] = useState('');
   const [joinResult, setJoinResult] = useState<PersonalRoomJoin | null>(null);
@@ -29,8 +30,14 @@ const PersonalRoomPublicJoinPage: React.FC = () => {
     setJoinResult(null);
     setIsJoining(true);
 
+    if (!normalizedTenantSlug) {
+      setError('This Loft link is missing its tenant. Ask the host for the tenant-specific link.');
+      setIsJoining(false);
+      return;
+    }
+
     try {
-      const result = await joinPersonalRoomBySlug(normalizedSlug, guestName.trim() || 'Guest');
+      const result = await joinPersonalRoomBySlug(normalizedSlug, guestName.trim() || 'Guest', normalizedTenantSlug);
       setJoinResult(result);
     } catch (err) {
       setError(explainError((err as Error).message));
@@ -49,6 +56,16 @@ const PersonalRoomPublicJoinPage: React.FC = () => {
         </p>
 
         <form onSubmit={handleJoin} className="mt-8 space-y-5">
+          <div>
+            <label htmlFor="tenant" className="text-sm font-semibold">Tenant</label>
+            <input
+              id="tenant"
+              type="text"
+              value={normalizedTenantSlug || 'Missing tenant'}
+              readOnly
+              className="mt-2 w-full rounded-xl border border-boh-border-light bg-white/60 px-4 py-3 font-mono text-sm outline-none dark:border-boh-border dark:bg-white/5"
+            />
+          </div>
           <div>
             <label htmlFor="slug" className="text-sm font-semibold">Room code</label>
             <input
@@ -82,7 +99,7 @@ const PersonalRoomPublicJoinPage: React.FC = () => {
           )}
           <button
             type="submit"
-            disabled={isJoining || normalizedSlug.length < 3}
+            disabled={isJoining || normalizedSlug.length < 3 || !normalizedTenantSlug}
             className="w-full rounded-xl bg-boh-primary px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isJoining ? 'Requesting access…' : 'Join Personal Room'}

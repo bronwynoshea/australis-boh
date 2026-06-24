@@ -45,9 +45,9 @@ export const joinLoftRoom = (loftRoomId: string) =>
     body: { loftRoomId, appContext: 'cafe' },
   });
 
-export const joinPersonalRoomBySlug = (slug: string, guestName: string) =>
+export const joinPersonalRoomBySlug = (slug: string, guestName: string, tenantSlug?: string) =>
   invokeLoftFunction<PersonalRoomJoin>('join-personal-room-by-slug', {
-    body: { slug, guestName },
+    body: { slug, guestName, tenantSlug },
   });
 
 export const getPersonalRoomWaitlist = async (personalRoomId: string) => {

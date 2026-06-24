@@ -43,6 +43,40 @@ function sanitizeGuestName(name: string): string {
     .trim() || 'Guest';
 }
 
+function isDailyRoomAlreadyExists(resp: Response, body: unknown) {
+  if (resp.status === 409) return true;
+  const bodyText = typeof body === 'string' ? body : JSON.stringify(body || {});
+  return resp.status === 400 && /room named .* already exists/i.test(bodyText);
+}
+
+async function ensureDailyRoom(params: {
+  dailyApiKey: string;
+  name: string;
+}) {
+  const { dailyApiKey, name } = params;
+
+  const resp = await fetch("https://api.daily.co/v1/rooms", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${dailyApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name,
+      privacy: "private",
+    }),
+  });
+
+  const jsonBody = await resp.json().catch(() => ({}));
+  if (isDailyRoomAlreadyExists(resp, jsonBody)) return { name };
+
+  if (!resp.ok) {
+    throw new Error(`daily_room_create_error_${resp.status}: ${JSON.stringify(jsonBody)}`);
+  }
+
+  return jsonBody;
+}
+
 async function createDailyMeetingToken(params: {
   dailyApiKey: string;
   roomName: string;
@@ -109,7 +143,7 @@ serve(async (req: Request) => {
     });
 
     const body = await req.json().catch(() => ({}));
-    const { slug, guestName } = body;
+    const { slug, tenantSlug, guestName } = body;
 
     // ✅ VALIDATE SLUG FORMAT (prevent injection attacks)
     if (!slug || typeof slug !== 'string') {
@@ -126,61 +160,81 @@ serve(async (req: Request) => {
       return json(req, { error: "invalid_slug_length" }, 400);
     }
 
+    // ✅ VALIDATE TENANT SLUG FORMAT. Public links must carry tenant context
+    // so invite codes are resolved inside the intended tenant namespace.
+    if (!tenantSlug || typeof tenantSlug !== 'string') {
+      return json(req, { error: "tenant_required" }, 400);
+    }
+
+    const sanitizedTenantSlug = tenantSlug.toLowerCase().replace(/[^a-z0-9-_]/g, '');
+    if (sanitizedTenantSlug !== tenantSlug.toLowerCase()) {
+      return json(req, { error: "invalid_tenant_format" }, 400);
+    }
+
+    if (sanitizedTenantSlug.length < 2 || sanitizedTenantSlug.length > 64) {
+      return json(req, { error: "invalid_tenant_length" }, 400);
+    }
+
     const sanitizedGuestName = sanitizeGuestName(guestName || "Guest");
 
-    console.log('[join-personal-room] Looking up slug:', sanitizedSlug);
+    console.log('[join-personal-room] Looking up tenant/code:', {
+      tenantSlug: sanitizedTenantSlug,
+      inviteCode: sanitizedSlug,
+    });
 
-    // ✅ LOOKUP WITH PRIVACY CHECKS
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profile")
-      .select(`
-        id, 
-        display_name, 
-        personal_room_id,
-        personal_room_public
-      `)
-      .eq("personal_room_slug", sanitizedSlug)
+    const { data: tenant, error: tenantError } = await supabaseAdmin
+      .from("boh_tenant")
+      .select("id, slug, name")
+      .eq("slug", sanitizedTenantSlug)
       .single();
 
-    if (profileError || !profile) {
-      console.log('[join-personal-room] Profile not found for slug:', sanitizedSlug);
-      // ✅ GENERIC ERROR (don't reveal if slug exists or not)
-      return json(req, { 
-        error: "room_not_found", 
-        message: "Personal room not found or not available" 
+    if (tenantError || !tenant) {
+      console.log('[join-personal-room] Tenant not found:', sanitizedTenantSlug);
+      return json(req, {
+        error: "room_not_found",
+        message: "Personal room not found or not available"
       }, 404);
     }
 
-    if (!profile.personal_room_id) {
-      console.log('[join-personal-room] No personal room created');
-      return json(req, { 
-        error: "room_not_available", 
-        message: "This personal room is not available" 
-      }, 404);
-    }
-
-    // ✅ CHECK IF ROOM IS PUBLIC
-    if (!profile.personal_room_public) {
-      console.log('[join-personal-room] Room is private:', profile.personal_room_id);
-      return json(req, { 
-        error: "room_private", 
-        message: "This personal room is private" 
-      }, 403);
-    }
-
-    // ✅ GET ROOM DETAILS (including Daily room name)
+    // ✅ LOOKUP WITH TENANT + INVITE CODE PRIVACY CHECKS
     const { data: room, error: roomError } = await supabaseAdmin
       .from("loft_room")
-      .select("id, title, daily_room_name, status")
-      .eq("id", profile.personal_room_id)
+      .select("id, title, daily_room_name, status, tenant_id, public_join_enabled, host_profile_id")
+      .eq("tenant_id", tenant.id)
+      .ilike("invite_code", sanitizedSlug)
       .single();
 
     if (roomError || !room) {
-      console.log('[join-personal-room] Room not found in database');
-      return json(req, { 
-        error: "room_not_found", 
-        message: "Personal room not found" 
+      console.log('[join-personal-room] Room not found for tenant/code:', {
+        tenantSlug: sanitizedTenantSlug,
+        inviteCode: sanitizedSlug,
+      });
+      return json(req, {
+        error: "room_not_found",
+        message: "Personal room not found or not available"
       }, 404);
+    }
+
+    if (!room.public_join_enabled) {
+      console.log('[join-personal-room] Room public join disabled:', room.id);
+      return json(req, {
+        error: "room_private",
+        message: "This personal room is private"
+      }, 403);
+    }
+
+    const { data: profile } = await supabaseAdmin
+      .from("profile")
+      .select("id, display_name, personal_room_public")
+      .eq("id", room.host_profile_id)
+      .single();
+
+    if (profile && profile.personal_room_public === false) {
+      console.log('[join-personal-room] Host profile marks room private:', room.id);
+      return json(req, {
+        error: "room_private",
+        message: "This personal room is private"
+      }, 403);
     }
 
     // ✅ CHECK ROOM STATUS
@@ -190,6 +244,12 @@ serve(async (req: Request) => {
         message: "This room has ended" 
       }, 410);
     }
+
+    // ✅ RECONCILE DAILY ROOM BEFORE TOKEN GENERATION
+    await ensureDailyRoom({
+      dailyApiKey,
+      name: room.daily_room_name,
+    });
 
     // ✅ GENERATE TOKEN (don't expose room ID to client)
     const tokenResp = await createDailyMeetingToken({
@@ -201,17 +261,19 @@ serve(async (req: Request) => {
 
     // ✅ AUDIT LOG
     const userAgent = req.headers.get('user-agent') || 'unknown';
-    await supabaseAdmin.from("loft_room_join_logs").insert({
+    const { error: auditError } = await supabaseAdmin.from("loft_room_join_logs").insert({
       room_id: room.id,
-      join_type: 'personal_room_slug',
+      join_type: 'tenant_personal_room_code',
       guest_name: sanitizedGuestName,
-      slug_used: sanitizedSlug,
+      slug_used: `${sanitizedTenantSlug}/${sanitizedSlug}`,
       ip_address: clientIP,
       user_agent: userAgent,
       joined_at: new Date().toISOString(),
-    }).catch(err => {
-      console.error('[audit-log-error]', err);
     });
+
+    if (auditError) {
+      console.error('[audit-log-error]', auditError);
+    }
 
     console.log('[join-personal-room] Success for slug:', sanitizedSlug);
 
@@ -219,15 +281,15 @@ serve(async (req: Request) => {
     return json(req, {
       token: tokenResp.token,
       dailyRoomName: room.daily_room_name,
-      roomTitle: room.title || `${profile.display_name}'s Room`,
-      hostName: profile.display_name,
+      roomTitle: room.title || `${profile?.display_name || tenant.name || 'Host'}'s Room`,
+      hostName: profile?.display_name || tenant.name || 'Host',
     });
 
   } catch (e) {
     console.error('[join-personal-room] Error:', e);
     return json(req, { 
       error: "unexpected_error", 
-      message: "An error occurred. Please try again." 
+      message: "An error occurred. Please try again."
     }, 500);
   }
 });

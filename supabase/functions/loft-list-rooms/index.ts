@@ -82,6 +82,19 @@ serve(async (req: Request) => {
       return json(req, { error: "profile_not_found" }, 400);
     }
 
+    const { data: bohUser, error: bohUserError } = await supabaseAdmin
+      .from("boh_user")
+      .select("id, tenant_id")
+      .eq("auth_user_id", user.id)
+      .eq("app_context", "boh")
+      .maybeSingle();
+
+    if (bohUserError || !bohUser?.tenant_id) {
+      return json(req, { error: "tenant_not_found" }, 403);
+    }
+
+    const tenantId = String(bohUser.tenant_id);
+
     const body = (await req.json().catch(() => ({}))) as Body;
     const filter = String(body.filter || "all").toLowerCase();
     const includeEnded = !!body.includeEnded;
@@ -106,6 +119,8 @@ serve(async (req: Request) => {
       .order("status", { ascending: true })
       .order("scheduled_start_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false });
+
+    roomQuery = roomQuery.eq("tenant_id", tenantId);
 
     let callerMemberRoomIds = new Set<string>();
     let rsvpRoomIds = new Set<string>();

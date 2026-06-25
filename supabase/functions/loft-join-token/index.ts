@@ -142,7 +142,7 @@ serve(async (req: Request) => {
 
     let roomQuery = supabaseAdmin
       .from("loft_room")
-      .select("id, app_context, host_profile_id, title, daily_room_name, is_recorded, visibility, status, scheduled_start_at, started_at, is_open, opened_at")
+      .select("id, app_context, tenant_id, host_profile_id, title, daily_room_name, is_recorded, visibility, status, scheduled_start_at, started_at, is_open, opened_at")
       .eq("id", loftRoomId);
 
     if (appContext) {
@@ -172,6 +172,24 @@ serve(async (req: Request) => {
 
     if (profileError || !profile) {
       return json(req, { error: "profile_not_found" }, 400);
+    }
+
+    const { data: bohUser, error: bohUserError } = await supabaseAdmin
+      .from("boh_user")
+      .select("id, tenant_id")
+      .eq("auth_user_id", authedUser.id)
+      .eq("app_context", "boh")
+      .maybeSingle();
+
+    if (bohUserError || !bohUser?.tenant_id) {
+      return json(req, { error: "tenant_not_found" }, 403);
+    }
+
+    const tenantId = String(bohUser.tenant_id);
+    const roomTenantId = (room as any)?.tenant_id ? String((room as any).tenant_id) : "";
+
+    if (!roomTenantId || roomTenantId !== tenantId) {
+      return json(req, { error: "room_not_found" }, 404);
     }
 
     const profileId = String((profile as any)?.id || "");

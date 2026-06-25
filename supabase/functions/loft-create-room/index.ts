@@ -122,6 +122,19 @@ serve(async (req: Request) => {
       return json(req, { error: "profile_not_found" }, 400);
     }
 
+    const { data: bohUser, error: bohUserError } = await supabaseAdmin
+      .from("boh_user")
+      .select("id, tenant_id")
+      .eq("auth_user_id", user.id)
+      .eq("app_context", "boh")
+      .maybeSingle();
+
+    if (bohUserError || !bohUser?.tenant_id) {
+      return json(req, { error: "tenant_not_found" }, 403);
+    }
+
+    const tenantId = String(bohUser.tenant_id);
+
     const canCreateRooms = !!profile.can_host_loft || !!profile.is_loft_admin || Number(profile.user_type_id) === 5;
     if (!canCreateRooms) {
       return json(req, {
@@ -146,6 +159,7 @@ serve(async (req: Request) => {
 
     const insertRow = {
       app_context: appContext,
+      tenant_id: tenantId,
       host_profile_id: profile.id,
       title,
       description: String(payload.description || ""),
@@ -212,6 +226,7 @@ serve(async (req: Request) => {
 
           instances.push({
             app_context: appContext,
+            tenant_id: tenantId,
             host_profile_id: profile.id,
             title,
             description: String(payload.description || ""),

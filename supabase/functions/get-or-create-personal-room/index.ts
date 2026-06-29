@@ -140,48 +140,72 @@ serve(async (req: Request) => {
     const tenantId = String(tenant.id);
     const tenantSlug = String(tenant.slug).toLowerCase();
 
-    // Check if user already has a personal room
+    async function returnExistingPersonalRoom(existingRoom: any) {
+      let inviteCode = existingRoom.invite_code || '';
+      const updates: Record<string, unknown> = {};
+      if (!inviteCode) {
+        inviteCode = generateInviteCode();
+        updates.invite_code = inviteCode;
+      }
+      if (!existingRoom.tenant_id) updates.tenant_id = tenantId;
+      if (existingRoom.room_origin !== 'personal') updates.room_origin = 'personal';
+      if (!Array.isArray(existingRoom.tags) || !existingRoom.tags.includes('personal-room')) {
+        updates.tags = [...new Set([...(existingRoom.tags || []), 'personal-room'])];
+      }
+      if (Object.keys(updates).length > 0) {
+        updates.updated_at = new Date().toISOString();
+        await supabaseAdmin.from("loft_room").update(updates).eq("id", existingRoom.id);
+      }
+
+      // Daily rooms can disappear when the Daily account/domain/API key changes,
+      // while BOH still has a valid personal-room row. Reconcile the external
+      // Daily room before returning the existing DB row so old Personal Rooms
+      // keep working after Daily configuration changes.
+      await createDailyRoom({ dailyApiKey, name: existingRoom.daily_room_name });
+
+      if (profile.personal_room_id !== existingRoom.id) {
+        await supabaseAdmin.from("profile").update({ personal_room_id: existingRoom.id }).eq("id", profileId);
+      }
+
+      await supabaseAdmin
+        .from("loft_room_member")
+        .upsert({ loft_room_id: existingRoom.id, profile_id: profileId, role: "host" }, { onConflict: "loft_room_id,profile_id" });
+
+      return json(req, {
+        roomId: existingRoom.id,
+        dailyRoomName: existingRoom.daily_room_name,
+        title: existingRoom.title,
+        inviteCode,
+        tenantSlug,
+        isNew: false,
+      });
+    }
+
+    // Check if user already has a personal room. The DB enforces one active
+    // personal room per tenant + host; this lookup also covers old profiles whose
+    // profile.personal_room_id was not backfilled.
     if (profile.personal_room_id) {
       const { data: existingRoom, error: roomError } = await supabaseAdmin
         .from("loft_room")
-        .select("id, title, daily_room_name, invite_code, tenant_id")
+        .select("id, title, daily_room_name, invite_code, tenant_id, tags, room_origin")
         .eq("id", profile.personal_room_id)
-        .single();
+        .maybeSingle();
 
-      if (!roomError && existingRoom) {
-        let inviteCode = existingRoom.invite_code || '';
-        if (!inviteCode) {
-          inviteCode = generateInviteCode();
-          await supabaseAdmin
-            .from("loft_room")
-            .update({ invite_code: inviteCode, tenant_id: tenantId, updated_at: new Date().toISOString() })
-            .eq("id", existingRoom.id);
-        } else if (!existingRoom.tenant_id) {
-          await supabaseAdmin
-            .from("loft_room")
-            .update({ tenant_id: tenantId, updated_at: new Date().toISOString() })
-            .eq("id", existingRoom.id);
-        }
-
-        // Daily rooms can disappear when the Daily account/domain/API key changes,
-        // while BOH still has a valid personal-room row. Reconcile the external
-        // Daily room before returning the existing DB row so old Personal Rooms
-        // keep working after Daily configuration changes.
-        await createDailyRoom({
-          dailyApiKey,
-          name: existingRoom.daily_room_name,
-        });
-
-        return json(req, {
-          roomId: existingRoom.id,
-          dailyRoomName: existingRoom.daily_room_name,
-          title: existingRoom.title,
-          inviteCode,
-          tenantSlug,
-          isNew: false,
-        });
-      }
+      if (!roomError && existingRoom) return returnExistingPersonalRoom(existingRoom);
     }
+
+    const { data: hostPersonalRoom, error: hostRoomError } = await supabaseAdmin
+      .from("loft_room")
+      .select("id, title, daily_room_name, invite_code, tenant_id, tags, room_origin")
+      .eq("tenant_id", tenantId)
+      .eq("host_profile_id", profileId)
+      .eq("room_origin", "personal")
+      .neq("status", "deleted")
+      .limit(1)
+      .maybeSingle();
+
+    if (hostRoomError) return json(req, { error: "db_error", details: hostRoomError }, 500);
+    if (hostPersonalRoom) return returnExistingPersonalRoom(hostPersonalRoom);
 
     // Create new personal room
     const dailyRoomName = `loft-personal-${profileId}`;

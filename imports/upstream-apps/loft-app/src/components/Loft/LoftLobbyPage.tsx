@@ -325,10 +325,11 @@ const LoftLobbyPage: React.FC<LoftLobbyPageProps> = ({ onNavigate }) => {
       (isHost && status.kind === 'scheduled') ||
       showRSVPBadge;
     const joinLabel = isHost ? 'Start' : 'Join';
-    const joinButtonDisabled = false;
-    const joinButtonLabel = joinButtonDisabled ? 'Waiting for host' : joinLabel;
     const participantCount = room.participant_count ?? 0;
-    const isRoomFull = participantCount >= 30;
+    const roomCapacity = room.max_participants ?? 30;
+    const isRoomFull = !isHost && !personal && participantCount >= roomCapacity;
+    const joinButtonDisabled = isRoomFull && !isRsvped;
+    const joinButtonLabel = joinButtonDisabled ? 'Full' : joinLabel;
 
     return (
       <div
@@ -440,19 +441,19 @@ const LoftLobbyPage: React.FC<LoftLobbyPageProps> = ({ onNavigate }) => {
             {showJoinButton && (
               <button
                 type="button"
-                disabled={joinButtonDisabled || (isRoomFull && !isRsvped)}
-                aria-disabled={joinButtonDisabled || (isRoomFull && !isRsvped)}
+                disabled={joinButtonDisabled}
+                aria-disabled={joinButtonDisabled}
                 onClick={() => {
-                  if (joinButtonDisabled || (isRoomFull && !isRsvped)) return;
+                  if (joinButtonDisabled) return;
                   onNavigate(roomPath);
                 }}
                 className={`px-5 py-2.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all duration-200 ${
-                  joinButtonDisabled || (isRoomFull && !isRsvped)
+                  joinButtonDisabled
                     ? 'bg-[var(--loft-surface-2)] text-main/40 dark:text-white/40 border border-[var(--loft-border)] cursor-not-allowed'
                     : 'bg-cafe text-white shadow-lg hover:brightness-110 active:scale-95'
                 }`}
               >
-                {isRoomFull && !isRsvped ? 'Full' : joinButtonLabel}
+                {joinButtonLabel}
               </button>
             )}
 
@@ -495,11 +496,12 @@ const LoftLobbyPage: React.FC<LoftLobbyPageProps> = ({ onNavigate }) => {
       (isHost && status.kind === 'scheduled') ||
       showRSVPBadge;
     const joinLabel = isHost ? 'Start' : 'Join';
-    const joinButtonDisabled = false;
     const participantCount = room.participant_count ?? 0;
-    const isRoomFull = participantCount >= 30;
-    const listRowCtaLabel = joinButtonDisabled ? 'Waiting' : isRoomFull ? 'Full' : joinLabel;
-    const listRowCtaClasses = joinButtonDisabled || isRoomFull
+    const roomCapacity = room.max_participants ?? 30;
+    const isRoomFull = !isHost && !personal && participantCount >= roomCapacity;
+    const joinButtonDisabled = isRoomFull && !isRsvped;
+    const listRowCtaLabel = joinButtonDisabled ? 'Full' : joinLabel;
+    const listRowCtaClasses = joinButtonDisabled
       ? 'bg-[var(--loft-surface-2)] text-main/50 dark:text-white/60 border border-[var(--loft-border)] cursor-not-allowed'
       : 'bg-cafe/90 text-white shadow-md hover:brightness-110 active:scale-95';
 
@@ -678,10 +680,10 @@ const LoftLobbyPage: React.FC<LoftLobbyPageProps> = ({ onNavigate }) => {
           {showJoinButton && (
             <button
               type="button"
-              disabled={joinButtonDisabled || (isRoomFull && !isRsvped)}
+              disabled={joinButtonDisabled}
               onClick={(e) => {
                 e.stopPropagation();
-                if (!joinButtonDisabled && !(isRoomFull && !isRsvped)) {
+                if (!joinButtonDisabled) {
                   onNavigate(roomPath);
                 }
               }}
@@ -746,10 +748,10 @@ const LoftLobbyPage: React.FC<LoftLobbyPageProps> = ({ onNavigate }) => {
           {showJoinButton && (
             <button
               type="button"
-              disabled={joinButtonDisabled || (isRoomFull && !isRsvped)}
+              disabled={joinButtonDisabled}
               onClick={(e) => {
                 e.stopPropagation();
-                if (!joinButtonDisabled && !(isRoomFull && !isRsvped)) {
+                if (!joinButtonDisabled) {
                   onNavigate(roomPath);
                 }
               }}

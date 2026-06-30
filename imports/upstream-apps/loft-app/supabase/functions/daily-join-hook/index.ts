@@ -26,14 +26,14 @@ serve(async (req: Request) => {
     }
 
     // Log the payload safely
-    console.log("[daily-join-hook] Received webhook", {
+    console.log("[loft-daily-join-hook] Received webhook", {
       timestamp: new Date().toISOString(),
       body: body ? JSON.stringify(body).slice(0, 500) : null,
     });
 
     return json(req, { ok: true }, 200);
   } catch (error) {
-    console.error("[daily-join-hook] Unexpected error:", error);
+    console.error("[loft-daily-join-hook] Unexpected error:", error);
     return json(req, { ok: true }, 200);
   }
 });

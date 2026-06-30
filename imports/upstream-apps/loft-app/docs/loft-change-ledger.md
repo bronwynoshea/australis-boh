@@ -61,9 +61,9 @@
 - Updated `loft-join-token` so host Daily tokens explicitly allow cloud recording for solo webinar/presentation workflows.
 - Updated the Personal Room chat footer so it explains that messages are visible to current participants and are not saved after the session ends.
 - Replaced the raw remaining-character number with explicit `characters left` text.
-- Updated `toggle-recording` so authenticated hosts start/stop Daily cloud recording through the Daily REST API instead of only flipping the `loft_room.is_recorded` database flag.
+- Updated `loft-toggle-recording` so authenticated hosts start/stop Daily cloud recording through the Daily REST API instead of only flipping the `loft_room.is_recorded` database flag.
 - Updated recording failures to return and display safe host-facing messages instead of raw Edge Function wrapper text.
-- Added host ownership validation to `toggle-recording`; only the Personal Room host can change recording.
+- Added host ownership validation to `loft-toggle-recording`; only the Personal Room host can change recording.
 - Updated new Personal Room Daily room creation to enable cloud recording at the room level.
 - Updated touched Edge Functions to prefer the JOBZCAFE-approved Supabase publishable/server secret env names while retaining compatibility with the current dev secret names.
 - Auth boundary: no `--no-verify-jwt` change was made.
@@ -71,9 +71,9 @@
 
 ## 2026-05-06 - Personal Room waiting-room dismissal wired to authenticated close/leave paths
 
-- Replaced dead frontend calls to the missing `remove-from-waitlist` function with `update-guest-leave-status`.
-- Scoped `update-guest-leave-status` by `loftRoomId` and guest name so dismissals only affect the current Personal Room waiting-room table entries.
-- Updated authenticated host close/leave paths (`loft-end-room`, `loft-leave-room`, and `clear-room-waitlist`) to clear `loft_room_waitlist` rows for the room, with `clear-room-waitlist` validating the current user is the room host.
+- Replaced dead frontend calls to the missing `remove-from-waitlist` function with `loft-update-guest-leave-status`.
+- Scoped `loft-update-guest-leave-status` by `loftRoomId` and guest name so dismissals only affect the current Personal Room waiting-room table entries.
+- Updated authenticated host close/leave paths (`loft-end-room`, `loft-leave-room`, and `loft-clear-room-waitlist`) to clear `loft_room_waitlist` rows for the room, with `loft-clear-room-waitlist` validating the current user is the room host.
 - Auth boundary: no `--no-verify-jwt` change was made.
 - Database migration: none in this change. No table, RLS, storage, or schema mutation was made.
 
@@ -87,10 +87,10 @@
 ## 2026-05-05 - Personal Room guest links use invite code
 
 - Clarified the Personal Room URL split: member/host access uses the authenticated Personal Room route, while external participants use the room invite code.
-- Updated `get-personal-room-by-slug` so `/personal/{code}` resolves `loft_room.invite_code` first, with legacy profile-slug resolution only for older links.
-- Updated `request-personal-room-access` and `check-guest-waitlist-status` to resolve the invite code to the Personal Room before reading/writing `loft_room_waitlist`.
+- Updated `loft-get-personal-room-by-slug` so `/personal/{code}` resolves `loft_room.invite_code` first, with legacy profile-slug resolution only for older links.
+- Updated `loft-request-personal-room-access` and `loft-check-guest-waitlist-status` to resolve the invite code to the Personal Room before reading/writing `loft_room_waitlist`.
 - Updated the host Personal Room page and lobby routing to copy/use the external guest invite code instead of the host/member `personal_room_slug`.
-- Deployed `request-personal-room-access` to JOBZCAFE-dev (`jmjrgthqnrebzflythvj`) with JWT verification disabled after explicit approval, because external participants must be able to request access before login.
+- Deployed `loft-request-personal-room-access` to JOBZCAFE-dev (`jmjrgthqnrebzflythvj`) with JWT verification disabled after explicit approval, because external participants must be able to request access before login.
 - Remaining hardening: add per-invite/IP/email rate limiting to reduce spam on the public access-request endpoint.
 - Purpose: host/member identity must not be conflated with the external participant link, especially before Slotz attaches bookings and appointments to Loft sessions.
 - Database migration: none in this change.
@@ -125,7 +125,7 @@
 
 - Added the coding guardrail that existing Loft Edge Functions should be migrated away from legacy JWT assumptions when touched.
 - Clarified the split between public-safe pre-login functions and authenticated functions.
-- Deployed `get-personal-room-by-slug` to JOBZCAFE-dev (`jmjrgthqnrebzflythvj`) with JWT verification disabled so public personal-room invite links can resolve safe metadata before the guest logs in or enters details.
+- Deployed `loft-get-personal-room-by-slug` to JOBZCAFE-dev (`jmjrgthqnrebzflythvj`) with JWT verification disabled so public personal-room invite links can resolve safe metadata before the guest logs in or enters details.
 - Database migration: none in this change. No table, RLS, storage, or schema mutation was made.
 
 ## 2026-05-05 - Loft profile interaction pattern documented
@@ -146,7 +146,7 @@
 - Unified the root Supabase API/client modules with the active `src/services` modules so the shell, Profile, Lobby, and Personal Room use the same auth state.
 - Updated the Loft auth listener to refresh on Supabase session events beyond only `SIGNED_IN` / `SIGNED_OUT`.
 - Matched the browser profile lookup to the backend pattern by checking `profile.user_id = auth.user.id`, then `profile.id = auth.user.id`.
-- Made Personal Room reachable for authenticated members while leaving permission enforcement to the `get-or-create-personal-room` Edge Function.
+- Made Personal Room reachable for authenticated members while leaving permission enforcement to the `loft-get-or-create-personal-room` Edge Function.
 - Database migration: none in this change. No table, RLS, storage, or schema mutation was made.
 
 ## 2026-05-05 - Edge Function CORS aligned with Loft dev and registered URL

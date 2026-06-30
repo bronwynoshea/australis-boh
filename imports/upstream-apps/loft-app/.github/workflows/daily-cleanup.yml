@@ -13,7 +13,7 @@ jobs:
     steps:
     - name: Cleanup Loft Rooms
       run: |
-        curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/cleanup-ended-rooms" \
+        curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/loft-cleanup-ended-rooms" \
           -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
           -H "Content-Type: application/json" \
           -d '{}'

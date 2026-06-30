@@ -2003,7 +2003,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
           console.error('[PersonalRoomPage] Missing VITE_SUPABASE_URL for guest leave status beacon.');
           return;
         }
-        const beaconUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/update-guest-leave-status`;
+        const beaconUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/loft-update-guest-leave-status`;
         navigator.sendBeacon(beaconUrl, blob);
       }
     };
@@ -2168,7 +2168,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
     try {
       const newRecordingState = !isRecording;
       setScreenShareNotice(newRecordingState ? 'Starting recording...' : 'Stopping recording...');
-      const recordingResult = await callEdgeFunction('toggle-recording', {
+      const recordingResult = await callEdgeFunction('loft-toggle-recording', {
         roomId,
         isRecording: newRecordingState,
         userId: profile?.id

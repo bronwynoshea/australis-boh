@@ -42,7 +42,7 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
             title: string;
             hostName: string;
             inviteCode?: string | null;
-          }>('get-personal-room-by-slug', { slug });
+          }>('loft-get-personal-room-by-slug', { slug });
           
           setRoomId(response.roomId);
           setRoomTitle(response.title);
@@ -79,7 +79,7 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
           title: string; 
           isNew: boolean; 
           inviteCode?: string;
-        }>('get-or-create-personal-room', {});
+        }>('loft-get-or-create-personal-room', {});
 
         setRoomId(response.roomId);
         setRoomTitle(response.title);

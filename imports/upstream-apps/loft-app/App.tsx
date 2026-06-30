@@ -84,8 +84,9 @@ const App = () => {
     return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
   };
 
-  const canHost = !!(profile?.can_host_loft || (profile as any)?.canCreateLoftRooms || (profile as any)?.can_create_loft_rooms);
   const isLoadingProfile = isUserLoading;
+  const canHost = !!(profile?.can_host_loft || (profile as any)?.canCreateLoftRooms || (profile as any)?.can_create_loft_rooms);
+  const canApplyToHost = !isLoadingProfile && !!profile?.id && !canHost && applicationStatus !== 'pending' && applicationStatus !== 'approved';
   const canUsePersonalRoom =
     getProfileFlag('canUsePersonalRoom', 'can_use_personal_room') ||
     !!getProfileString('personalRoomSlug', 'personal_room_slug') ||
@@ -413,7 +414,34 @@ const App = () => {
   } else if (currentPath === '/lobby') {
     content = <LoftLobbyPage onNavigate={navigate} />;
   } else if (currentPath === '/create') {
-    content = <LoftRoomForm onNavigate={navigate} />;
+    content = canHost ? (
+      <LoftRoomForm onNavigate={navigate} />
+    ) : (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="loft-card max-w-xl p-8 text-center space-y-5">
+          <Sparkles className="w-10 h-10 text-cafe mx-auto" />
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black uppercase tracking-tight text-main dark:text-white">Request Host Access</h2>
+            <p className="text-sm text-main/70 dark:text-white/70">
+              Any Loft member can request access to host Clubhouse-style Loft rooms. This is separate from Personal Rooms, which are granted to recruiters and staff.
+            </p>
+          </div>
+          {applicationStatus === 'pending' ? (
+            <div className="rounded-xl border border-cafe/30 bg-cafe/10 px-4 py-3 text-xs font-bold uppercase tracking-widest text-cafe">
+              Your host request is pending review.
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowHostApplication(true)}
+              className="rounded-xl bg-cafe px-5 py-3 text-sm font-bold uppercase tracking-widest text-white transition hover:brightness-110"
+            >
+              Apply to Host Loft Rooms
+            </button>
+          )}
+        </div>
+      </div>
+    );
   } else if (currentPath === '/personal-room') {
     content = <PersonalRoomLandingPage onNavigate={navigate} />;
   } else if (currentPath === '/personal-room/host') {
@@ -558,9 +586,15 @@ const App = () => {
                 </div>
               )}
               
+              {!isLoadingProfile && canApplyToHost && (
+                <div className="pt-4">
+                   <SidebarItem icon={<Sparkles className="w-5 h-5" />} label="Request Host Access" active={false} onClick={() => setShowHostApplication(true)} collapsed={isSidebarCollapsed} />
+                </div>
+              )}
+
               {!isLoadingProfile && canHost && (
                 <div className="pt-4">
-                   <SidebarItem icon={<Plus className="w-5 h-5" />} label="Host Table" active={currentPath === '/create'} onClick={() => navigate('/create')} collapsed={isSidebarCollapsed} />
+                   <SidebarItem icon={<Plus className="w-5 h-5" />} label="Host Loft Room" active={currentPath === '/create'} onClick={() => navigate('/create')} collapsed={isSidebarCollapsed} />
                 </div>
               )}
 
@@ -676,9 +710,15 @@ const App = () => {
                       </div>
                     )}
                     
+                    {!isLoadingProfile && canApplyToHost && (
+                      <div className="pt-2">
+                        <MobileSheetItem icon={<Sparkles className="w-5 h-5" />} label="Request Host Access" active={false} onClick={() => { setShowHostApplication(true); setIsMobileMenuOpen(false); }} />
+                      </div>
+                    )}
+
                     {!isLoadingProfile && canHost && (
                       <div className="pt-2">
-                        <MobileSheetItem icon={<Plus className="w-5 h-5" />} label="Host Table" active={currentPath === '/create'} onClick={() => { navigate('/create'); setIsMobileMenuOpen(false); }} />
+                        <MobileSheetItem icon={<Plus className="w-5 h-5" />} label="Host Loft Room" active={currentPath === '/create'} onClick={() => { navigate('/create'); setIsMobileMenuOpen(false); }} />
                       </div>
                     )}
 

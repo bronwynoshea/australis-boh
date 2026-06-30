@@ -256,7 +256,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, onN
         }
         
         // Add guest to waitlist using the correct function
-        const waitlistResponse = await callEdgeFunction('request-personal-room-access', {
+        const waitlistResponse = await callEdgeFunction('loft-request-personal-room-access', {
           slug: slug,
           guestName: nextName,
           guestEmail: nextEmail

@@ -48,13 +48,13 @@ serve(async (req: Request) => {
   if (req.method !== "POST") return json(req, { error: "method_not_allowed" }, 405);
 
   try {
-    console.log('[get-personal-room-by-slug] Request received');
+    console.log('[loft-get-personal-room-by-slug] Request received');
     
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!supabaseUrl || !serviceRoleKey) {
-      console.log('[get-personal-room-by-slug] Server not configured');
+      console.log('[loft-get-personal-room-by-slug] Server not configured');
       return json(req, { error: "server_not_configured" }, 500);
     }
 
@@ -62,17 +62,17 @@ serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    console.log('[get-personal-room-by-slug] Parsing request body');
+    console.log('[loft-get-personal-room-by-slug] Parsing request body');
     const body = await req.json().catch((e) => {
-      console.log('[get-personal-room-by-slug] Failed to parse JSON:', e);
+      console.log('[loft-get-personal-room-by-slug] Failed to parse JSON:', e);
       return {};
     });
     const { slug } = body;
 
-    console.log('[get-personal-room-by-slug] Slug:', slug);
+    console.log('[loft-get-personal-room-by-slug] Slug:', slug);
 
     if (!slug) {
-      console.log('[get-personal-room-by-slug] No slug provided');
+      console.log('[loft-get-personal-room-by-slug] No slug provided');
       return json(req, { error: "slug_required" }, 400);
     }
 
@@ -80,31 +80,31 @@ serve(async (req: Request) => {
     const normalizedCode = normalizedSlug.toUpperCase();
 
     // External guest links use loft_room.invite_code. Member/host vanity slugs belong to profile.
-    console.log('[get-personal-room-by-slug] Looking up room invite code:', normalizedCode);
+    console.log('[loft-get-personal-room-by-slug] Looking up room invite code:', normalizedCode);
     let { room, roomError, hostProfileId } = await findPersonalRoomByInviteCode(supabaseAdmin, normalizedCode);
 
     if (!room) {
-      console.log('[get-personal-room-by-slug] Invite code not found; checking legacy profile slug');
+      console.log('[loft-get-personal-room-by-slug] Invite code not found; checking legacy profile slug');
       const { data: profile, error: profileError } = await supabaseAdmin
         .from("profile")
         .select("id, display_name, personal_room_id")
         .eq("personal_room_slug", normalizedSlug)
         .maybeSingle();
 
-      console.log('[get-personal-room-by-slug] Legacy profile lookup result:', { profile, profileError });
+      console.log('[loft-get-personal-room-by-slug] Legacy profile lookup result:', { profile, profileError });
 
       if (profileError || !profile) {
-        console.log('[get-personal-room-by-slug] Personal room not found');
+        console.log('[loft-get-personal-room-by-slug] Personal room not found');
         return json(req, { error: "personal_room_not_found", message: "No Personal Room found with this guest link" }, 404);
       }
 
       if (!profile.personal_room_id) {
-        console.log('[get-personal-room-by-slug] Profile has no personal room ID');
+        console.log('[loft-get-personal-room-by-slug] Profile has no personal room ID');
         return json(req, { error: "personal_room_not_created", message: "This user has not created their Personal Room yet" }, 404);
       }
 
       hostProfileId = profile.id;
-      console.log('[get-personal-room-by-slug] Looking up legacy profile room:', profile.personal_room_id);
+      console.log('[loft-get-personal-room-by-slug] Looking up legacy profile room:', profile.personal_room_id);
       const legacyRoom = await supabaseAdmin
         .from("loft_room")
         .select("id, title, is_open, opened_at, invite_code, host_profile_id, tags")
@@ -114,14 +114,14 @@ serve(async (req: Request) => {
       roomError = legacyRoom.error;
     }
 
-    console.log('[get-personal-room-by-slug] Room lookup result:', { room, roomError });
+    console.log('[loft-get-personal-room-by-slug] Room lookup result:', { room, roomError });
 
     if (roomError || !room) {
-      console.log('[get-personal-room-by-slug] Room not found');
+      console.log('[loft-get-personal-room-by-slug] Room not found');
       return json(req, { error: "room_not_found" }, 404);
     }
 
-    console.log('[get-personal-room-by-slug] Success, returning room:', room.id);
+    console.log('[loft-get-personal-room-by-slug] Success, returning room:', room.id);
     return json(req, {
       roomId: room.id,
       title: room.title,

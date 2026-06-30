@@ -193,8 +193,8 @@ The product intent is that some non-employee users may be allowed to create/host
 Original imported Loft app includes:
 
 - `host_application` table
-- `submit-host-application` function
-- `review-host-application` function
+- `loft-submit-host-application` function
+- `loft-review-host-application` function
 - RPCs such as `get_my_host_application_status` and `get_host_applications`
 
 Recommended permission split:
@@ -255,7 +255,7 @@ Imported functions impacted:
 - `loft-create-room`
 - `loft-update-room`
 - `loft-end-room`
-- `cleanup-ended-rooms`
+- `loft-cleanup-ended-rooms`
 - older personal-room SQL RPCs
 
 #### `loft_room_member` missing columns

@@ -1,21 +1,21 @@
 project_id = "jmjrgthqnrebzflythvj"
 
-[functions.get-or-create-personal-room]
+[functions.loft-get-or-create-personal-room]
 verify_jwt = true
 
-[functions.get-personal-room-by-slug]
+[functions.loft-get-personal-room-by-slug]
 verify_jwt = false
 
-[functions.request-personal-room-access]
+[functions.loft-request-personal-room-access]
 verify_jwt = false
 
-[functions.check-guest-waitlist-status]
+[functions.loft-check-guest-waitlist-status]
 verify_jwt = false
 
-[functions.clear-room-waitlist]
+[functions.loft-clear-room-waitlist]
 verify_jwt = true
 
-[functions.update-guest-leave-status]
+[functions.loft-update-guest-leave-status]
 verify_jwt = true
 
 [functions.loft-join-token]
@@ -33,7 +33,7 @@ verify_jwt = true
 [functions.loft-public-join-token]
 verify_jwt = false
 
-[functions.toggle-recording]
+[functions.loft-toggle-recording]
 verify_jwt = true
 
 [functions.loft-admin-list-personal-tables]
@@ -42,5 +42,5 @@ verify_jwt = true
 [functions.loft-admin-manage-personal-table]
 verify_jwt = true
 
-[functions.review-host-application]
+[functions.loft-review-host-application]
 verify_jwt = true

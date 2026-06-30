@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Resend } from 'https://esm.sh/resend@2.0.0'
+import { upsertLoftVideoSessionForBooking } from '../_shared/slotzLoftBridge.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,8 +32,8 @@ serve(async (req: Request) => {
       .from('scheduling_bookings')
       .select(`
         *,
-        scheduling_meeting_types(id, name, duration_minutes),
-        scheduling_staff_profiles(id, full_name, email, timezone)
+        scheduling_meeting_types(*),
+        scheduling_staff_profiles(*)
       `)
       .eq('id', bookingId)
       .single()
@@ -53,6 +54,12 @@ serve(async (req: Request) => {
 
     if (updateError) throw updateError
 
+    const loftResult = await upsertLoftVideoSessionForBooking(supabase, {
+      ...booking,
+      ...cancelledBooking,
+      scheduling_meeting_types: booking.scheduling_meeting_types,
+      scheduling_staff_profiles: booking.scheduling_staff_profiles,
+    }, { status: 'cancelled' })
     const calendarResult = await deleteOutlookEvent(supabase, booking)
     const emailResult = await sendCancellationEmail(booking)
 
@@ -63,6 +70,9 @@ serve(async (req: Request) => {
       outlook_error: calendarResult.error,
       email_sent: emailResult.success,
       email_error: emailResult.error,
+      loft_video_session_id: loftResult.videoSessionId || null,
+      loft_bridge_success: loftResult.success === true,
+      loft_bridge_error: loftResult.error || null,
     })
   } catch (error) {
     console.error('Cancel booking error:', error)

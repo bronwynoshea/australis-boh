@@ -20,14 +20,14 @@ Implemented:
 - Added rotate guest invite links.
 - Added authenticated JOBZCAFE-dev Edge Function loft-admin-list-personal-tables.
 - Added authenticated JOBZCAFE-dev Edge Function loft-admin-manage-personal-table.
-- Updated review-host-application so JOBZCAFE® superadmins can also use the host application review surface.
+- Updated loft-review-host-application so JOBZCAFE® superadmins can also use the host application review surface.
 - Removed the old frontend shortcut that showed Personal Table access to every signed-in user.
 - Updated supabase/config.toml and docs/loft-change-ledger.md.
 
 Deployed to JOBZCAFE-dev:
 - loft-admin-list-personal-tables.
 - loft-admin-manage-personal-table.
-- review-host-application.$$ as body
+- loft-review-host-application.$$ as body
 ),
 inserted_comment as (
   insert into public.counter_ticket_comment (

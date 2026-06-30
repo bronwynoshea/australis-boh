@@ -42,7 +42,7 @@ inserted as (
     'Bronwyn O''Shea',
     'bronwyn@jobzcafe.com',
     'codex',
-    $$Capture completed work from a thread that hit an issue after implementation: add /admin/personal-tables, restrict navigation to user_type_id 5, support list/enable/disable/copy/rotate workflows, add authenticated JOBZCAFE-dev Edge Functions, update review-host-application for JOBZCAFE® superadmins, remove broad signed-in user shortcut, and update Loft change ledger.$$,
+    $$Capture completed work from a thread that hit an issue after implementation: add /admin/personal-tables, restrict navigation to user_type_id 5, support list/enable/disable/copy/rotate workflows, add authenticated JOBZCAFE-dev Edge Functions, update loft-review-host-application for JOBZCAFE® superadmins, remove broad signed-in user shortcut, and update Loft change ledger.$$,
     status_id,
     priority_id,
     now(),

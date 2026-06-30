@@ -101,21 +101,21 @@ serve(async (req) => {
       .eq('loft_room_id', loftRoomId);
 
     if (error) {
-      console.error('[clear-room-waitlist] Error:', error);
+      console.error('[loft-clear-room-waitlist] Error:', error);
       return new Response(
         JSON.stringify({ error: error.message }),
         { status: 500, headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('[clear-room-waitlist] Cleared all waitlist entries for room:', loftRoomId);
+    console.log('[loft-clear-room-waitlist] Cleared all waitlist entries for room:', loftRoomId);
 
     return new Response(
       JSON.stringify({ success: true }),
       { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('[clear-room-waitlist] Unexpected error:', error);
+    console.error('[loft-clear-room-waitlist] Unexpected error:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
       { status: 500, headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' } }

@@ -87,9 +87,9 @@ New items added after the first version:
 | `loft-list-hand-raises` | Source updated | `jobzcafe-dev` / `jmjrgthqnrebzflythvj` | Raised-hand list for sessions. | Uses shared explicit CORS handling. |
 | `loft-current-profile` | Source created | `jobzcafe-dev` / `jmjrgthqnrebzflythvj` | Authenticated profile hydration. | Avoids frontend assumptions about direct profile table access. |
 | `loft-list-rooms` | Source created | `jobzcafe-dev` / `jmjrgthqnrebzflythvj` | Lobby session listing. | Avoids direct browser reads from session listing tables/views. |
-| `get-personal-room-by-slug` | Source updated | `jobzcafe-dev` / `jmjrgthqnrebzflythvj` | Public-safe Personal Table invite lookup. | Public-safe function; returns minimum safe table-open metadata. |
-| `request-personal-room-access` | Source updated | `jobzcafe-dev` / `jmjrgthqnrebzflythvj` | Public-safe guest access request. | Public-safe function; guests can request access before login. |
-| `toggle-recording` | Source updated | `jobzcafe-dev` / `jmjrgthqnrebzflythvj` | Host recording start/stop. | Authenticated host-only Daily cloud recording path. |
+| `loft-get-personal-room-by-slug` | Source updated | `jobzcafe-dev` / `jmjrgthqnrebzflythvj` | Public-safe Personal Table invite lookup. | Public-safe function; returns minimum safe table-open metadata. |
+| `loft-request-personal-room-access` | Source updated | `jobzcafe-dev` / `jmjrgthqnrebzflythvj` | Public-safe guest access request. | Public-safe function; guests can request access before login. |
+| `loft-toggle-recording` | Source updated | `jobzcafe-dev` / `jmjrgthqnrebzflythvj` | Host recording start/stop. | Authenticated host-only Daily cloud recording path. |
 
 ## Environment Configuration
 

@@ -8,9 +8,9 @@ Use these BOH-native values:
   - Local/dev-safe alternatives implemented in the app:
     - `/daily-redirect` public route
     - `/apps/loft/daily-redirect` inside the Loft shell
-- Meeting join hook: `https://lczzeiqmnegyjrwtgmsj.functions.supabase.co/daily-join-hook`
+- Meeting join hook: `https://lczzeiqmnegyjrwtgmsj.functions.supabase.co/loft-daily-join-hook`
 
-The BOH `daily-join-hook` Edge Function is deployed and smoke-tested with an unauthenticated POST returning HTTP 200.
+The BOH `loft-daily-join-hook` Edge Function is deployed and smoke-tested with an unauthenticated POST returning HTTP 200.
 
 Confirmed BOH-DEV secrets now include:
 

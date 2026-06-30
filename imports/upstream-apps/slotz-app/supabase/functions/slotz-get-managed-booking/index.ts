@@ -28,7 +28,21 @@ serve(async (req: Request) => {
 
     if (error || !booking) return json({ error: 'Booking not found' }, 404)
 
-    return json({ booking })
+    const { data: loftVideoSession, error: loftVideoSessionError } = await supabase
+      .from('loft_video_session')
+      .select('id, loft_room_id, join_url, status, scheduled_start_at, scheduled_end_at')
+      .eq('tenant_id', booking.tenant_id)
+      .eq('source_app', 'slotz')
+      .eq('business_record_table', 'scheduling_bookings')
+      .eq('business_record_id', booking.id)
+      .maybeSingle()
+
+    if (loftVideoSessionError) {
+      console.error('Loft video session lookup failed:', loftVideoSessionError)
+      return json({ error: 'Loft video session lookup failed', details: loftVideoSessionError.message }, 500)
+    }
+
+    return json({ booking: { ...booking, loft_video_session: loftVideoSession || null } })
   } catch (error) {
     console.error('Get managed booking error:', error)
     return json({ error: error instanceof Error ? error.message : 'Internal server error' }, 500)

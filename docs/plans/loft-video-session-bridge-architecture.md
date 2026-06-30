@@ -278,9 +278,9 @@ For now, one `loft_video_session` row per interview/appointment is enough.
 This direction is now reflected in code/migration work:
 
 - `loft-create-room` now requires host eligibility (`can_host_loft`, Loft admin, or superadmin) before creating Clubhouse-style rooms.
-- `submit-host-application` records applicant persona and requested host scope, and rejects self-service Personal Room requests.
+- `loft-submit-host-application` records applicant persona and requested host scope, and rejects self-service Personal Room requests.
 - Host approval grants `can_host_loft` only. It does **not** grant `can_use_personal_room`.
-- `get-or-create-personal-room` keeps Personal Rooms behind explicit `can_use_personal_room`, with copy clarifying that Personal Rooms are limited to JOBZCAFE® staff and recruiters.
+- `loft-get-or-create-personal-room` keeps Personal Rooms behind explicit `can_use_personal_room`, with copy clarifying that Personal Rooms are limited to JOBZCAFE® staff and recruiters.
 - `loft-current-profile` hides Personal Room slug/id unless `can_use_personal_room` is true, while separately exposing `canCreateLoftRooms` for room hosting.
 - New migration `20260624_loft_host_permissions_and_video_session_bridge.sql` adds host-application moderation metadata, room origin metadata, and `loft_video_session` for JOBZCAFE® business tracking.
 

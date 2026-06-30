@@ -16,12 +16,12 @@ Complete waitlist and access control system for Personal Rooms with:
 - `PersonalRoomAdmissionSidebar.tsx` - Host approval management sidebar
 
 ### Edge Functions (Supabase)
-- `get-personal-room-access/` - Get room details + access status
-- `get-personal-room-waitlist/` - Fetch waitlist for host
-- `approve-waitlist-entry/` - Approve guest request
-- `reject-waitlist-entry/` - Reject guest request
-- `toggle-recording/` - Start/stop recording
-- `request-personal-room-access/` - Already created
+- `loft-get-personal-room-access/` - Get room details + access status
+- `loft-get-personal-room-waitlist/` - Fetch waitlist for host
+- `loft-approve-waitlist-entry/` - Approve guest request
+- `loft-reject-waitlist-entry/` - Reject guest request
+- `loft-toggle-recording/` - Start/stop recording
+- `loft-request-personal-room-access/` - Already created
 
 ### Database
 - `waitlist-schema.sql` - Complete database schema
@@ -37,11 +37,11 @@ psql -f database/waitlist-schema.sql
 ### 2. Deploy Edge Functions
 ```bash
 # Deploy all edge functions
-supabase functions deploy get-personal-room-access
-supabase functions deploy get-personal-room-waitlist
-supabase functions deploy approve-waitlist-entry
-supabase functions deploy reject-waitlist-entry
-supabase functions deploy toggle-recording
+supabase functions deploy loft-get-personal-room-access
+supabase functions deploy loft-get-personal-room-waitlist
+supabase functions deploy loft-approve-waitlist-entry
+supabase functions deploy loft-reject-waitlist-entry
+supabase functions deploy loft-toggle-recording
 ```
 
 ### 3. Update Components
@@ -81,7 +81,7 @@ const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 // Add to PersonalRoomPage
 const handleToggleRecording = async () => {
   try {
-    await callEdgeFunction('toggle-recording', {
+    await callEdgeFunction('loft-toggle-recording', {
       roomId,
       isRecording: !isRecording,
       userId: profile?.id

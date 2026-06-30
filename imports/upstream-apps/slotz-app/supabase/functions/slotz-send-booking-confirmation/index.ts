@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { absoluteBohUrl, upsertLoftVideoSessionForBooking } from '../_shared/slotzLoftBridge.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,11 +31,13 @@ async function upsertPatronPerson(supabaseClient: any, booking: any) {
   if (!fullName) throw new Error('Missing guest name for Patron contact')
 
   const { firstName, lastName } = splitName(fullName)
-  const { data: existing, error: lookupError } = await supabaseClient
+  let lookup = supabaseClient
     .from('patron_person')
-    .select('id, first_name, last_name, email, phone, source')
+    .select('id, first_name, last_name, email, phone, source, tenant_id')
     .eq('email', email)
-    .maybeSingle()
+  if (booking.tenant_id) lookup = lookup.eq('tenant_id', booking.tenant_id)
+
+  const { data: existing, error: lookupError } = await lookup.maybeSingle()
 
   if (lookupError) throw new Error(`Patron contact lookup failed: ${lookupError.message}`)
 
@@ -62,6 +65,7 @@ async function upsertPatronPerson(supabaseClient: any, booking: any) {
   const { data: created, error: createError } = await supabaseClient
     .from('patron_person')
     .insert({
+      tenant_id: booking.tenant_id || null,
       first_name: firstName || null,
       last_name: lastName || null,
       email,
@@ -120,6 +124,11 @@ serve(async (req: Request) => {
     if (!guestTimezone) throw new Error('Missing guest timezone')
 
     const patronPerson = await upsertPatronPerson(supabaseClient, booking)
+    const loftResult = await upsertLoftVideoSessionForBooking(supabaseClient, {
+      ...booking,
+      patron_person_id: patronPerson.id,
+    })
+    const loftJoinUrl = loftResult.success && loftResult.joinUrl ? absoluteBohUrl(loftResult.joinUrl) : ''
 
     const startTime = new Date(booking.start_time)
     const endTime = new Date(booking.end_time)
@@ -156,9 +165,10 @@ serve(async (req: Request) => {
     const formatDateUTC = (date: Date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
     const reminderTitle = `${meetingType.name} with ${staffProfile.full_name}`
     const reminderLocation = 'Online session'
+    const sessionJoinUrl = loftJoinUrl || staffProfile.meeting_link || ''
     const reminderDetails = [
       `Your ${meetingType.name} with ${staffProfile.full_name} is confirmed.`,
-      staffProfile.meeting_link ? `Join the session: ${staffProfile.meeting_link}` : '',
+      sessionJoinUrl ? `Join the session: ${sessionJoinUrl}` : '',
       'Need to reschedule or cancel? Use the Manage Session button in your SLOTZ confirmation email so your host is notified and the booking stays in sync.',
       'This calendar entry is a reminder only.'
     ].filter(Boolean).join('\n\n')
@@ -185,7 +195,7 @@ serve(async (req: Request) => {
             </div>
 
             <div style="padding:0 34px 34px 34px;">
-              ${staffProfile.meeting_link ? `<a href="${staffProfile.meeting_link}" style="display:block; text-align:center; background:#635ccd; color:#ffffff; text-decoration:none; padding:16px 20px; border-radius:16px; font-weight:800; font-size:16px; margin-bottom:12px;">Join Personal Room</a>` : ''}
+              ${sessionJoinUrl ? `<a href="${sessionJoinUrl}" style="display:block; text-align:center; background:#635ccd; color:#ffffff; text-decoration:none; padding:16px 20px; border-radius:16px; font-weight:800; font-size:16px; margin-bottom:12px;">Join Personal Room</a>` : ''}
               <a href="${manageUrl}" style="display:block; text-align:center; background:#ffffff; color:#635ccd; text-decoration:none; padding:15px 20px; border-radius:16px; font-weight:800; font-size:16px; border:1px solid #d8ccff;">Manage Session</a>
               <div style="margin:22px 0 0 0; padding:20px; border-radius:20px; background:#fbf9ff; border:1px solid #eee8ff;">
                 <div style="font-size:11px; letter-spacing:0.16em; text-transform:uppercase; font-weight:800; color:#635ccd; margin-bottom:12px;">Calendar reminder</div>
@@ -258,6 +268,10 @@ serve(async (req: Request) => {
         success: true,
         guest_email_sent: true,
         staff_email_sent: true,
+        loft_video_session_id: loftResult.videoSessionId || null,
+        loft_join_url: loftResult.joinUrl || null,
+        loft_bridge_success: loftResult.success === true,
+        loft_bridge_error: loftResult.error || null,
         guest_email_id: guestEmail.id,
         staff_email_id: staffEmail.id,
         patron_person_id: patronPerson.id,

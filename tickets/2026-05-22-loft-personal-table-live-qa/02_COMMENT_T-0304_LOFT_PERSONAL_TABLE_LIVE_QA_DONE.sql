@@ -13,7 +13,7 @@ Status: FIXED IN SOURCE - Personal Table live QA regressions corrected.
 Completed:
 - Improved Loft login email error copy so invalid or unrecognised emails do not show raw OTP signup errors.
 - Fixed Personal Table leave flow so the host no longer sees a blocking browser alert when guest request cleanup fails.
-- Hardened clear-room-waitlist host profile lookup and deployed the Edge Function to JOBZCAFE-dev.
+- Hardened loft-clear-room-waitlist host profile lookup and deployed the Edge Function to JOBZCAFE-dev.
 - Removed stale departed guest tiles immediately and blocked approved waitlist entries from re-adding guests after they leave.
 - Exposed layout controls to external guests as well as hosts.
 - Reattached video tracks across grid, sidebar, and spotlight layout changes.
@@ -24,7 +24,7 @@ Loft commits:
 - bf9d35d Fix Personal Table leave and layout controls.
 - 657cd90 Recover stalled Personal Table screen sharing.
 
-Validation: npm.cmd run build passed after each source change. clear-room-waitlist was deployed to JOBZCAFE-dev.$$ as body
+Validation: npm.cmd run build passed after each source change. loft-clear-room-waitlist was deployed to JOBZCAFE-dev.$$ as body
 ),
 inserted_comment as (
   insert into public.counter_ticket_comment (

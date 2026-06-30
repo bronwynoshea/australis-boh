@@ -114,14 +114,45 @@ export async function ensureExternalLoftProfile(
     .maybeSingle();
 
   if (existingError) throw new Error(`external_profile_lookup_failed: ${existingError.message}`);
-  if (existing?.profile_id) {
-    return { profileId: existing.profile_id, created: false, displayName: existing.display_name || displayNameForCaller(caller, patron) };
-  }
-
-  const profileId = crypto.randomUUID();
   const displayName = displayNameForCaller(caller, patron);
   const { firstName, lastName } = splitName(displayName);
   const email = normalizeText(caller.email) || normalizeText(patron?.email) || null;
+
+  const canUsePersonalRoom = caller.persona === 'recruiter' || caller.persona === 'coach' || caller.persona === 'staff';
+  const canAutoHostLoft = caller.persona === 'staff';
+
+  if (existing?.profile_id) {
+    await supabaseAdmin
+      .from('profile')
+      .update({
+        email,
+        display_name: displayName,
+        full_name: displayName,
+        first_name: firstName || null,
+        last_name: lastName || null,
+        can_use_personal_room: canUsePersonalRoom,
+        can_host_loft: canAutoHostLoft,
+      })
+      .eq('id', existing.profile_id);
+
+    await supabaseAdmin
+      .from('loft_external_profile_link')
+      .update({
+        patron_organisation_id: caller.patronOrganisationId || null,
+        persona: caller.persona,
+        external_auth_user_id: caller.externalAuthUserId || null,
+        external_profile_id: caller.externalProfileId || null,
+        primary_email: email,
+        display_name: displayName,
+      })
+      .eq('tenant_id', caller.tenantId)
+      .eq('patron_person_id', caller.patronPersonId)
+      .eq('app_context', caller.appContext);
+
+    return { profileId: existing.profile_id, created: false, displayName };
+  }
+
+  const profileId = crypto.randomUUID();
 
   const { error: profileError } = await supabaseAdmin
     .from('profile')
@@ -133,8 +164,8 @@ export async function ensureExternalLoftProfile(
       full_name: displayName,
       first_name: firstName || null,
       last_name: lastName || null,
-      can_use_personal_room: caller.persona === 'recruiter' || caller.persona === 'coach' || caller.persona === 'staff',
-      can_host_loft: caller.persona === 'recruiter' || caller.persona === 'coach' || caller.persona === 'staff',
+      can_use_personal_room: canUsePersonalRoom,
+      can_host_loft: canAutoHostLoft,
       user_type_id: null,
     });
 

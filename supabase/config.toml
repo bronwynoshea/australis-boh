@@ -49,7 +49,7 @@ verify_jwt = false
 [functions.get-campaign-bonus-tiers]
 verify_jwt = false
 
-[functions.daily-join-hook]
+[functions.loft-daily-join-hook]
 verify_jwt = false
 
 [functions.get-hero-campaign]
@@ -156,7 +156,7 @@ verify_jwt = false
 verify_jwt = false
 
 # Downloaded BOH production functions - Pattern B authentication
-[functions.approve-waitlist-entry]
+[functions.loft-approve-waitlist-entry]
 verify_jwt = false
 
 [functions.calendar-sync]
@@ -258,16 +258,16 @@ verify_jwt = false
 [functions.create-outlook-event]
 verify_jwt = false
 
-[functions.get-or-create-personal-room]
+[functions.loft-get-or-create-personal-room]
 verify_jwt = false
 
-[functions.get-personal-room-by-slug]
+[functions.loft-get-personal-room-by-slug]
 verify_jwt = false
 
-[functions.get-personal-room-waitlist]
+[functions.loft-get-personal-room-waitlist]
 verify_jwt = false
 
-[functions.join-personal-room-by-slug]
+[functions.loft-join-personal-room-by-slug]
 verify_jwt = false
 
 [functions.lessons-learned]
@@ -282,7 +282,7 @@ verify_jwt = false
 [functions.patron-recruiter-intake]
 verify_jwt = false
 
-[functions.reject-waitlist-entry]
+[functions.loft-reject-waitlist-entry]
 verify_jwt = false
 
 [functions.send-booking-confirmation]
@@ -306,13 +306,13 @@ verify_jwt = false
 [functions.send-staff-notification]
 verify_jwt = false
 
-[functions.check-guest-waitlist-status]
+[functions.loft-check-guest-waitlist-status]
 verify_jwt = false
 
-[functions.clear-room-waitlist]
+[functions.loft-clear-room-waitlist]
 verify_jwt = false
 
-[functions.update-guest-leave-status]
+[functions.loft-update-guest-leave-status]
 verify_jwt = false
 
 [functions.loft-current-profile]
@@ -327,7 +327,7 @@ verify_jwt = false
 [functions.loft-public-join-token]
 verify_jwt = false
 
-[functions.toggle-recording]
+[functions.loft-toggle-recording]
 verify_jwt = false
 
 [functions.loft-admin-list-personal-tables]
@@ -336,22 +336,22 @@ verify_jwt = false
 [functions.loft-admin-manage-personal-table]
 verify_jwt = false
 
-[functions.review-host-application]
+[functions.loft-review-host-application]
 verify_jwt = false
 
-[functions.request-personal-room-access]
+[functions.loft-request-personal-room-access]
 verify_jwt = false
 
-[functions.cleanup-ended-rooms]
+[functions.loft-cleanup-ended-rooms]
 verify_jwt = false
 
 [functions.gemini-model-healthcheck]
 verify_jwt = false
 
-[functions.get-personal-room-access]
+[functions.loft-get-personal-room-access]
 verify_jwt = false
 
-[functions.get_loft_room_summary]
+[functions.loft-get-room-summary]
 verify_jwt = false
 
 [functions.loft-create-room]
@@ -387,10 +387,10 @@ verify_jwt = false
 [functions.loft-update-room]
 verify_jwt = false
 
-[functions.submit-host-application]
+[functions.loft-submit-host-application]
 verify_jwt = false
 
-[functions.update-invite-code]
+[functions.loft-update-invite-code]
 verify_jwt = false
 [functions.loft-external-personal-room]
 verify_jwt = false

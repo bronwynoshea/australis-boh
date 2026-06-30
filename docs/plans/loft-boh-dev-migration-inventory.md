@@ -94,20 +94,20 @@ Notes:
 | BOH function | Current purpose/notes | Env variable NAMES seen |
 |---|---|---|
 | `supabase/functions/loft-join-token/index.ts` | Richer than source app version. Creates Daily token; requires authenticated user; resolves `profile` from auth `user_id`; checks private membership; starts/opens host room; returns members/currentUserProfile/hostDetails. | `SUPABASE_URL`, `SB_SECRET_KEY`, `SUPABASE_ANON_KEY`, `DAILY_API_KEY` |
-| `supabase/functions/get-or-create-personal-room/index.ts` | Authenticated host personal room creation/reuse. Requires `profile.can_use_personal_room`; creates Daily room `loft-personal-<profileId>`; inserts `loft_room`; updates `profile.personal_room_id`; adds host member. | `SUPABASE_URL`, `SB_SECRET_KEY`, `SUPABASE_ANON_KEY`, `DAILY_API_KEY` |
-| `supabase/functions/get-personal-room-by-slug/index.ts` | Looks up profile by `personal_room_slug` and returns room id/title. Logging is verbose and returns more existence detail than `join-personal-room-by-slug`. | `SUPABASE_URL`, `SB_SECRET_KEY` |
-| `supabase/functions/join-personal-room-by-slug/index.ts` | Public/guest join by personal room slug. Includes in-memory IP rate limiting, slug/name sanitization, privacy checks, Daily token generation, and audit insert to `loft_room_join_logs`. | `SUPABASE_URL`, `SB_SECRET_KEY`, `DAILY_API_KEY` |
-| `supabase/functions/get-personal-room-waitlist/index.ts` | Present; not read in full for this inventory, but search confirms waitlist related code exists. | Not inventoried in detail; inspect before implementation. |
-| `supabase/functions/approve-waitlist-entry/index.ts` and `supabase/functions/reject-waitlist-entry/index.ts` | Present; likely host/admin waitlist moderation. | Not inventoried in detail; inspect before implementation. |
+| `supabase/functions/loft-get-or-create-personal-room/index.ts` | Authenticated host personal room creation/reuse. Requires `profile.can_use_personal_room`; creates Daily room `loft-personal-<profileId>`; inserts `loft_room`; updates `profile.personal_room_id`; adds host member. | `SUPABASE_URL`, `SB_SECRET_KEY`, `SUPABASE_ANON_KEY`, `DAILY_API_KEY` |
+| `supabase/functions/loft-get-personal-room-by-slug/index.ts` | Looks up profile by `personal_room_slug` and returns room id/title. Logging is verbose and returns more existence detail than `loft-join-personal-room-by-slug`. | `SUPABASE_URL`, `SB_SECRET_KEY` |
+| `supabase/functions/loft-join-personal-room-by-slug/index.ts` | Public/guest join by personal room slug. Includes in-memory IP rate limiting, slug/name sanitization, privacy checks, Daily token generation, and audit insert to `loft_room_join_logs`. | `SUPABASE_URL`, `SB_SECRET_KEY`, `DAILY_API_KEY` |
+| `supabase/functions/loft-get-personal-room-waitlist/index.ts` | Present; not read in full for this inventory, but search confirms waitlist related code exists. | Not inventoried in detail; inspect before implementation. |
+| `supabase/functions/loft-approve-waitlist-entry/index.ts` and `supabase/functions/loft-reject-waitlist-entry/index.ts` | Present; likely host/admin waitlist moderation. | Not inventoried in detail; inspect before implementation. |
 
 BOH `supabase/config.toml` already has `verify_jwt = false` entries for:
-- `get-or-create-personal-room`
-- `get-personal-room-by-slug`
-- `get-personal-room-waitlist`
-- `join-personal-room-by-slug`
+- `loft-get-or-create-personal-room`
+- `loft-get-personal-room-by-slug`
+- `loft-get-personal-room-waitlist`
+- `loft-join-personal-room-by-slug`
 - `loft-join-token`
-- `approve-waitlist-entry`
-- `reject-waitlist-entry`
+- `loft-approve-waitlist-entry`
+- `loft-reject-waitlist-entry`
 
 Missing from BOH config/functions relative to source app:
 - `loft-create-room`
@@ -145,7 +145,7 @@ Recommended initial pages/components:
 - `pages/PersonalRoomPage.tsx`: host personal room creation/reuse, invite code/link, public/private slug state, waitlist state.
 - `pages/LoftRoomPage.tsx`: authenticated Daily room join host/listener UI using `loft-join-token`.
 - `pages/PersonalRoomPublicJoinPage.tsx` or a protected/public BOH route decision: guest join by slug currently has a public function but BOH `renderProtectedRoute` protects `/loft/*`, so guest routes may need a separate unauthenticated route if public joins remain part of BOH Loft.
-- `lib/loftApi.ts`: typed wrappers for Supabase functions (`get-or-create-personal-room`, `loft-join-token`, `join-personal-room-by-slug`, waitlist functions; later `loft-create-room`/`loft-rsvp`).
+- `lib/loftApi.ts`: typed wrappers for Supabase functions (`loft-get-or-create-personal-room`, `loft-join-token`, `loft-join-personal-room-by-slug`, waitlist functions; later `loft-create-room`/`loft-rsvp`).
 - `types.ts`: room/member/waitlist response types.
 
 Key implementation decision:
@@ -230,12 +230,12 @@ Migration safety:
 
 Keep/adapt existing BOH functions as the base:
 - `loft-join-token`
-- `get-or-create-personal-room`
-- `get-personal-room-by-slug`
-- `join-personal-room-by-slug`
-- `get-personal-room-waitlist`
-- `approve-waitlist-entry`
-- `reject-waitlist-entry`
+- `loft-get-or-create-personal-room`
+- `loft-get-personal-room-by-slug`
+- `loft-join-personal-room-by-slug`
+- `loft-get-personal-room-waitlist`
+- `loft-approve-waitlist-entry`
+- `loft-reject-waitlist-entry`
 
 Add only if needed for MVP:
 - `loft-create-room` adapted from source app to BOH env names and CORS helper.
@@ -296,13 +296,13 @@ Supabase function checks without exposing secrets:
 
 ```bash
 cd /home/jobzcafe/jobzcafe-boh
-supabase functions deploy get-or-create-personal-room --project-ref <BOH_DEV_PROJECT_REF>
+supabase functions deploy loft-get-or-create-personal-room --project-ref <BOH_DEV_PROJECT_REF>
 supabase functions deploy loft-join-token --project-ref <BOH_DEV_PROJECT_REF>
-supabase functions deploy get-personal-room-by-slug --project-ref <BOH_DEV_PROJECT_REF>
-supabase functions deploy join-personal-room-by-slug --project-ref <BOH_DEV_PROJECT_REF>
-supabase functions deploy get-personal-room-waitlist --project-ref <BOH_DEV_PROJECT_REF>
-supabase functions deploy approve-waitlist-entry --project-ref <BOH_DEV_PROJECT_REF>
-supabase functions deploy reject-waitlist-entry --project-ref <BOH_DEV_PROJECT_REF>
+supabase functions deploy loft-get-personal-room-by-slug --project-ref <BOH_DEV_PROJECT_REF>
+supabase functions deploy loft-join-personal-room-by-slug --project-ref <BOH_DEV_PROJECT_REF>
+supabase functions deploy loft-get-personal-room-waitlist --project-ref <BOH_DEV_PROJECT_REF>
+supabase functions deploy loft-approve-waitlist-entry --project-ref <BOH_DEV_PROJECT_REF>
+supabase functions deploy loft-reject-waitlist-entry --project-ref <BOH_DEV_PROJECT_REF>
 ```
 
 If adding source-migrated functions:
@@ -313,9 +313,9 @@ supabase functions deploy loft-rsvp --project-ref <BOH_DEV_PROJECT_REF>
 ```
 
 Suggested smoke tests after a dev user is available:
-- Signed-in BOH user with personal-room permission calls `get-or-create-personal-room` and receives `roomId`, `dailyRoomName`, `title`, `inviteCode`, `isNew`.
+- Signed-in BOH user with personal-room permission calls `loft-get-or-create-personal-room` and receives `roomId`, `dailyRoomName`, `title`, `inviteCode`, `isNew`.
 - Same user calls `loft-join-token` with returned `roomId` and receives `token`, `dailyRoomName`, `role`, `currentUserProfile`, and `members`.
-- Guest/public flow calls `join-personal-room-by-slug` with a valid public slug and guest name and receives token/daily room name without room id leakage.
+- Guest/public flow calls `loft-join-personal-room-by-slug` with a valid public slug and guest name and receives token/daily room name without room id leakage.
 - Private slug returns `room_private`/403.
 - Bad/unknown slug returns generic not-found response.
 - Waitlist approve/reject flows update membership and are visible in the BOH UI.
@@ -326,7 +326,7 @@ Suggested smoke tests after a dev user is available:
 2. BOH currently has no Loft schema migration/manual SQL source for `loft_room` and related tables. The next implementation card should inspect BOH-DEV schema directly or locate the standalone Loft schema source before writing migrations.
 3. Identity model must be decided before deep implementation: keep legacy `profile.id` for Loft transition or migrate ownership to BOH `boh_user.id` per BOH guidance.
 4. Public guest Personal Room join conflicts with BOH's currently protected `/loft/*` route. If public guest joins belong in BOH, add an explicit public route outside the protected BOH shell.
-5. Existing BOH `get-personal-room-by-slug` has verbose logs/existence-detail responses; prefer the hardened `join-personal-room-by-slug` pattern for public surfaces.
+5. Existing BOH `loft-get-personal-room-by-slug` has verbose logs/existence-detail responses; prefer the hardened `loft-join-personal-room-by-slug` pattern for public surfaces.
 
 ## Commands run for this inventory
 

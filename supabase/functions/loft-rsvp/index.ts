@@ -84,7 +84,7 @@ serve(async (req: Request) => {
 
     const { data: room, error: roomError } = await supabaseAdmin
       .from("loft_room")
-      .select("id, app_context, host_profile_id, visibility")
+      .select("id, app_context, host_profile_id, visibility, max_participants")
       .eq("id", loftRoomId)
       .eq("app_context", appContext)
       .single();
@@ -116,6 +116,42 @@ serve(async (req: Request) => {
       }
     }
 
+    if (status === "going") {
+      const configuredCapacity = Number((room as any)?.max_participants || 0);
+      const maxParticipants = Number.isFinite(configuredCapacity) && configuredCapacity > 0 ? configuredCapacity : 30;
+
+      const { data: existingRsvp, error: existingRsvpError } = await supabaseAdmin
+        .from("loft_room_rsvp")
+        .select("status")
+        .eq("loft_room_id", loftRoomId)
+        .eq("profile_id", profile.id)
+        .maybeSingle();
+
+      if (existingRsvpError) {
+        return json(req, { error: "rsvp_lookup_failed", details: existingRsvpError }, 500);
+      }
+
+      if (String(existingRsvp?.status || "").toLowerCase() !== "going") {
+        const { count: goingCount, error: goingCountError } = await supabaseAdmin
+          .from("loft_room_rsvp")
+          .select("id", { count: "exact", head: true })
+          .eq("loft_room_id", loftRoomId)
+          .eq("status", "going");
+
+        if (goingCountError) {
+          return json(req, { error: "rsvp_capacity_lookup_failed", details: goingCountError }, 500);
+        }
+
+        if (typeof goingCount === "number" && goingCount >= maxParticipants) {
+          return json(req, {
+            error: "room_full",
+            message: "This Loft room has reached RSVP capacity.",
+            maxParticipants,
+          }, 403);
+        }
+      }
+    }
+
     // Persist RSVP state (canonical)
     const { error: rsvpError } = await supabaseAdmin
       .from("loft_room_rsvp")
@@ -132,22 +168,20 @@ serve(async (req: Request) => {
       return json(req, { error: "rsvp_upsert_failed", details: rsvpError }, 500);
     }
 
-    // Keep membership for access control (especially private rooms)
+    // Keep inactive membership for access/control metadata without counting an RSVP as an active attendee.
     if (status === "going") {
       const { error: memberError } = await supabaseAdmin
         .from("loft_room_member")
-        .insert({
+        .upsert({
           loft_room_id: loftRoomId,
           profile_id: profile.id,
           role: "listener",
-        });
+          is_active: false,
+          left_at: null,
+        }, { onConflict: "loft_room_id,profile_id" });
 
       if (memberError) {
-        const code = (memberError as any)?.code;
-        // tolerate duplicates
-        if (code !== "23505") {
-          return json(req, { error: "member_insert_failed", code, details: memberError }, 500);
-        }
+        return json(req, { error: "member_upsert_failed", details: memberError }, 500);
       }
     } else {
       // On cancel, remove listener membership so the UI (which uses membership as RSVP signal)

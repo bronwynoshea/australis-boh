@@ -85,6 +85,12 @@ export interface SchedulingMeetingType {
   currency?: string | null;             // Currency code (e.g., "USD")
   max_bookings_per_day?: number | null; // Daily booking limit
   requires_approval?: boolean;          // Whether bookings need approval
+
+  // Loft video bridge
+  loft_video_enabled?: boolean;
+  loft_business_context?: 'interview' | 'coaching' | 'onboarding' | 'appointment' | 'group_session' | 'internal_meeting' | 'other';
+  loft_host_persona?: 'recruiter' | 'coach' | 'staff';
+
   created_at: string;                   // ISO timestamp
   updated_at: string;                   // ISO timestamp
 }
@@ -139,6 +145,14 @@ export interface SchedulingBooking {
   // Joined data (when fetched with relations)
   scheduling_meeting_types?: SchedulingMeetingType;
   scheduling_staff_profiles?: SchedulingStaffProfile;
+  loft_video_session?: {
+    id: string;
+    loft_room_id: string | null;
+    join_url: string | null;
+    status: string;
+    scheduled_start_at: string | null;
+    scheduled_end_at: string | null;
+  } | null;
 }
 
 /**

@@ -13,5 +13,5 @@ export const suggestLoftRoomTitleAndDescription = async (prompt: string): Promis
 };
 
 export const getLoftRoomSummary = async (transcript: string): Promise<string> => {
-  return callEdgeFunction<string>('get_loft_room_summary', { transcript });
+  return callEdgeFunction<string>('loft-get-room-summary', { transcript });
 }

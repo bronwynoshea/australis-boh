@@ -70,11 +70,18 @@ serve(async (req: Request) => {
 
     if (existingRoom?.id) {
       await ensureDailyRoom(dailyApiKey, existingRoom.daily_room_name);
+      const expectedTitle = `${externalProfile.displayName}'s ${persona === 'coach' ? 'Coaching' : 'Interview'} Room`;
+      if (existingRoom.title !== expectedTitle) {
+        await supabaseAdmin
+          .from('loft_room')
+          .update({ title: expectedTitle, updated_at: new Date().toISOString() })
+          .eq('id', existingRoom.id);
+      }
       return jsonResponse(req, {
         success: true,
         roomId: existingRoom.id,
         dailyRoomName: existingRoom.daily_room_name,
-        title: existingRoom.title,
+        title: expectedTitle,
         inviteCode: existingRoom.invite_code || null,
         tenantSlug: tenant.slug,
         isNew: false,

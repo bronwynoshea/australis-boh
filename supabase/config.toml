@@ -394,3 +394,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.loft-external-personal-room]
 verify_jwt = false
+
+[functions.talent-interview-request]
+verify_jwt = false

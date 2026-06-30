@@ -117,6 +117,25 @@ serve(async (req: Request) => {
       });
     }
 
+    const smsResult = body.sendSms === true
+      ? await enqueueSmsNotification(supabaseAdmin, {
+        tenantId: tenant.id,
+        sourceApp: normalizeText(body.sourceApp || 'talent'),
+        costCenter: normalizeText(body.costCenter || 'talent_interviews'),
+        sourceRecordTable: normalizeText(body.sourceRecordTable || 'talent_interview_request'),
+        sourceRecordId: normalizeText(body.talentInterviewId || body.interviewId || body.sourceRecordId) || booking.id,
+        patronPersonId: candidatePatron.id,
+        candidate,
+        recruiter,
+        schedule,
+        inviteUrl: candidateInviteUrl,
+        idempotencyKey: `talent-interview-sms-${normalizeText(body.talentInterviewId || body.interviewId || body.sourceRecordId) || booking.id}`,
+        smsConsentStatus: normalizeText(body.smsConsentStatus || body.candidate?.smsConsentStatus || body.jobSeeker?.smsConsentStatus),
+        smsConsentSource: normalizeText(body.smsConsentSource || 'talent_interview_request'),
+        smsConsentText: normalizeText(body.smsConsentText || ''),
+      })
+      : { skipped: true, reason: 'send_sms_false' };
+
     return jsonResponse(req, {
       success: true,
       bookingId: booking.id,
@@ -130,6 +149,7 @@ serve(async (req: Request) => {
       scheduledStartAt: schedule.startAt,
       scheduledEndAt: schedule.endAt,
       messageStatus: body.sendEmail === true ? 'sent' : 'not_sent',
+      smsNotification: smsResult,
       availabilityExposed: false,
     });
   } catch (error) {
@@ -332,6 +352,72 @@ async function upsertLoftVideoSession(payload: Record<string, unknown>) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data?.success === false) throw new Error(`loft_video_session_upsert_failed: ${data?.error || response.status}`);
   return data;
+}
+
+async function enqueueSmsNotification(supabaseAdmin: any, input: any) {
+  if (!input.candidate.phone) return { skipped: true, reason: 'candidate_phone_missing' };
+
+  const consentStatus = input.smsConsentStatus === 'opted_in' || input.smsConsentStatus === 'opted_out'
+    ? input.smsConsentStatus
+    : 'unknown';
+  const status = consentStatus === 'opted_in' ? 'queued' : 'suppressed';
+  const when = new Intl.DateTimeFormat('en-US', {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: input.candidate.timezone || 'UTC', timeZoneName: 'short',
+  }).format(new Date(input.schedule.startAt));
+  const text = `JOBZCAFE: Your interview with ${input.recruiter.fullName} is scheduled for ${when}. Details: ${input.inviteUrl} Reply STOP to opt out.`;
+
+  const { data: contact, error: contactError } = await supabaseAdmin
+    .from('boh_notification_contact_preference')
+    .upsert({
+      tenant_id: input.tenantId,
+      patron_person_id: input.patronPersonId,
+      recipient_type: 'job_seeker',
+      email: input.candidate.email,
+      phone_e164: input.candidate.phone,
+      sms_consent_status: consentStatus,
+      sms_consent_source: consentStatus === 'opted_in' ? input.smsConsentSource : null,
+      sms_consent_text: consentStatus === 'opted_in' ? input.smsConsentText : null,
+      sms_consent_at: consentStatus === 'opted_in' ? new Date().toISOString() : null,
+      timezone: input.candidate.timezone || 'UTC',
+      metadata: { source: 'talent_interview_request' },
+    }, { onConflict: 'tenant_id,patron_person_id' })
+    .select('id, sms_consent_status')
+    .single();
+  if (contactError) throw new Error(`notification_contact_upsert_failed: ${contactError.message}`);
+
+  const { data: event, error } = await supabaseAdmin
+    .from('boh_notification_event')
+    .upsert({
+      tenant_id: input.tenantId,
+      contact_preference_id: contact.id,
+      patron_person_id: input.patronPersonId,
+      source_app: input.sourceApp,
+      source_record_table: input.sourceRecordTable,
+      source_record_id: input.sourceRecordId,
+      cost_center: input.costCenter,
+      event_key: 'talent_interview_scheduled',
+      channel: 'sms',
+      provider: 'unassigned',
+      status,
+      recipient_type: 'job_seeker',
+      recipient_email: input.candidate.email,
+      recipient_phone_e164: input.candidate.phone,
+      template_key: 'talent_interview_scheduled_sms',
+      template_version: 1,
+      body_text: text,
+      idempotency_key: input.idempotencyKey,
+      consent_checked_at: new Date().toISOString(),
+      consent_status: consentStatus,
+      suppressed_reason: status === 'suppressed' ? (consentStatus === 'opted_out' ? 'sms_opted_out' : 'sms_consent_missing') : null,
+      metadata: {
+        invite_url: input.inviteUrl,
+        availability_exposed: false,
+      },
+    }, { onConflict: 'idempotency_key' })
+    .select('id, status, suppressed_reason')
+    .single();
+  if (error) throw new Error(`notification_event_upsert_failed: ${error.message}`);
+  return { skipped: status !== 'queued', event };
 }
 
 async function sendCandidateEmail(input: any) {

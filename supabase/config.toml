@@ -397,3 +397,12 @@ verify_jwt = false
 
 [functions.talent-interview-request]
 verify_jwt = false
+
+[functions.boh-notification-enqueue]
+verify_jwt = false
+
+[functions.boh-notification-dispatch]
+verify_jwt = false
+
+[functions.boh-sms-webhook]
+verify_jwt = false

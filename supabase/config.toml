@@ -52,6 +52,9 @@ verify_jwt = false
 [functions.loft-daily-join-hook]
 verify_jwt = false
 
+[functions.loft-video-session-upsert]
+verify_jwt = false
+
 [functions.get-hero-campaign]
 verify_jwt = false
 

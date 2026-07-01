@@ -58,6 +58,7 @@ serve(async (req: Request) => {
     });
 
     const meetingType = await ensureTalentInterviewMeetingType(supabaseAdmin, staffProfile.id, {
+      tenantId: tenant.id,
       durationMinutes: schedule.durationMinutes,
     });
 
@@ -102,7 +103,8 @@ serve(async (req: Request) => {
 
     const manageUrl = absoluteUrl(Deno.env.get('SLOTZ_APP_URL'), `/#manage-${booking.id}`);
     const joinUrl = loftResult.joinUrl ? absoluteUrl(Deno.env.get('BOH_APP_URL'), loftResult.joinUrl) : null;
-    const candidateInviteUrl = joinUrl || manageUrl;
+    if (!joinUrl) throw new Error('loft_join_url_required');
+    const candidateInviteUrl = joinUrl;
 
     if (body.sendEmail === true) {
       await sendCandidateEmail({
@@ -161,15 +163,13 @@ serve(async (req: Request) => {
 function validateTalentBearer(req: Request): boolean {
   const header = req.headers.get('Authorization') || '';
   const token = header.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || '';
-  const expected = Deno.env.get('TALENT_BOH_INTERVIEW_REQUEST_TOKEN')?.trim()
-    || Deno.env.get('BOH_TALENT_INTERVIEW_REQUEST_TOKEN')?.trim()
-    || Deno.env.get('BOH_LOFT_EXTERNAL_ACCESS_TOKEN')?.trim();
+  const expected = Deno.env.get('TALENT_BOH_INTERVIEW_REQUEST_TOKEN')?.trim();
   return Boolean(expected && token && token === expected);
 }
 
 function getServerConfig() {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const serviceRoleKey = Deno.env.get('SB_SECRET_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceRoleKey) throw new Error('server_not_configured');
   return { supabaseUrl, serviceRoleKey };
 }
@@ -211,14 +211,17 @@ async function upsertPatronPerson(supabaseAdmin: any, input: any) {
     .maybeSingle();
   if (existingError) throw new Error(`patron_lookup_failed: ${existingError.message}`);
   if (existing?.id) {
+    if (existing.person_type_key && existing.person_type_key !== input.personTypeKey) {
+      throw new Error(`patron_person_type_mismatch: expected ${input.personTypeKey}, found ${existing.person_type_key}`);
+    }
     const { data, error } = await supabaseAdmin
       .from('patron_person')
       .update({
-        display_name: input.fullName || existing.display_name || input.email,
+        display_name: input.fullName,
         first_name: firstName || null,
         last_name: lastName || null,
         phone: input.phone || null,
-        person_type_key: existing.person_type_key || input.personTypeKey,
+        person_type_key: input.personTypeKey,
         external_app_context: input.externalAppContext,
       })
       .eq('id', existing.id)
@@ -268,17 +271,16 @@ async function ensureRecruiterStaffProfile(supabaseAdmin: any, input: any) {
     app_context: 'talent',
     is_active: true,
   };
-  const { data, error } = await insertSelectWithFallback(supabaseAdmin, 'scheduling_staff_profiles', staffRow, [
-    ['tenant_id'],
-    ['tenant_id', 'app_context'],
-    ['tenant_id', 'app_context', 'is_active'],
-    ['tenant_id', 'app_context', 'is_active', 'user_id'],
-  ], 'id, email, full_name, timezone');
+  const { data, error } = await supabaseAdmin
+    .from('scheduling_staff_profiles')
+    .insert(staffRow)
+    .select('id, email, full_name, timezone')
+    .single();
   if (error) throw new Error(`staff_profile_create_failed: ${error.message}`);
   return data;
 }
 
-async function ensureTalentInterviewMeetingType(supabaseAdmin: any, staffId: string, input: { durationMinutes: number }) {
+async function ensureTalentInterviewMeetingType(supabaseAdmin: any, staffId: string, input: { tenantId: string; durationMinutes: number }) {
   const slug = `talent-interview-${input.durationMinutes}`;
   const { data: existing, error: existingError } = await supabaseAdmin
     .from('scheduling_meeting_types')
@@ -289,22 +291,19 @@ async function ensureTalentInterviewMeetingType(supabaseAdmin: any, staffId: str
   if (existingError) throw new Error(`meeting_type_lookup_failed: ${existingError.message}`);
   if (existing?.id) return existing;
 
+  const meetingTypeRow = {
+    tenant_id: input.tenantId,
+    staff_id: staffId,
+    name: 'Talent Interview',
+    slug,
+    description: 'Recruiter-led JOBZCAFE® Talent interview request.',
+    duration_minutes: input.durationMinutes,
+    buffer_minutes_after: 0,
+    is_active: false,
+  };
   const { data, error } = await supabaseAdmin
     .from('scheduling_meeting_types')
-    .insert({
-      staff_id: staffId,
-      name: 'Talent Interview',
-      slug,
-      description: 'Recruiter-led JOBZCAFE® Talent interview request.',
-      duration_minutes: input.durationMinutes,
-      buffer_minutes_after: 0,
-      minimum_notice_hours: 0,
-      is_active: false,
-      location_type: 'virtual',
-      loft_video_enabled: true,
-      loft_business_context: 'interview',
-      loft_host_persona: 'recruiter',
-    })
+    .insert(meetingTypeRow)
     .select('id, duration_minutes')
     .single();
   if (error) throw new Error(`meeting_type_create_failed: ${error.message}`);
@@ -321,29 +320,23 @@ async function createRecruiterLedBooking(supabaseAdmin: any, input: any) {
       guest_phone: input.candidate.phone || null,
       guest_timezone: input.candidate.timezone || 'UTC',
       guest_notes: input.candidate.notes || null,
-      agenda_notes: input.candidate.notes || null,
       start_time: input.schedule.startAt,
       end_time: input.schedule.endAt,
       status: 'confirmed',
-      internal_notes: [
-        'Recruiter-led interview request created by Talent.',
-        'Candidate did not see recruiter availability.',
-        input.sourceRecordId ? `Talent source: ${input.sourceRecordTable || 'talent_interview_request'}:${input.sourceRecordId}` : '',
-      ].filter(Boolean).join('\n'),
   };
-  const { data, error } = await insertSelectWithFallback(supabaseAdmin, 'scheduling_bookings', bookingRow, [
-    ['tenant_id'],
-    ['tenant_id', 'agenda_notes'],
-    ['tenant_id', 'agenda_notes', 'internal_notes'],
-  ], 'id, start_time, end_time, status');
+  const { data, error } = await supabaseAdmin
+    .from('scheduling_bookings')
+    .insert(bookingRow)
+    .select('id, start_time, end_time, status')
+    .single();
   if (error) throw new Error(`booking_create_failed: ${error.message}`);
   return data;
 }
 
 async function upsertLoftVideoSession(payload: Record<string, unknown>) {
   const token = Deno.env.get('BOH_LOFT_EXTERNAL_ACCESS_TOKEN')?.trim();
-  const baseUrl = Deno.env.get('SUPABASE_URL') || Deno.env.get('BOH_SUPABASE_URL');
-  if (!token || !baseUrl) return { success: false, error: 'loft_bridge_not_configured' };
+  const baseUrl = Deno.env.get('SUPABASE_URL');
+  if (!token || !baseUrl) throw new Error('loft_bridge_not_configured');
   const response = await fetch(`${baseUrl.replace(/\/$/, '')}/functions/v1/loft-video-session-upsert`, {
     method: 'POST',
     headers: authHeaders(token),
@@ -421,15 +414,18 @@ async function enqueueSmsNotification(supabaseAdmin: any, input: any) {
 }
 
 async function sendCandidateEmail(input: any) {
-  const resendApiKey = Deno.env.get('RESEND_API_KEY') || Deno.env.get('SLOTZ_RESEND_API_KEY');
-  if (!resendApiKey) throw new Error('email_not_configured');
+  const resendApiKey = Deno.env.get('RESEND_API_KEY');
+  if (!resendApiKey) throw new Error('RESEND_API_KEY is not configured');
+  const from = Deno.env.get('EMAIL_FROM');
+  if (!from) throw new Error('EMAIL_FROM is not configured');
   const subject = `Interview request from ${input.recruiterName}`;
-  const html = `<p>Hi ${escapeHtml(input.candidateName)},</p><p>${escapeHtml(input.recruiterName)} has sent you a JOBZCAFE® Talent interview request.</p><p><a href="${input.joinUrl || input.manageUrl}">Open interview request</a></p><p>Need to make changes? Use your manage link: <a href="${input.manageUrl}">${input.manageUrl}</a>.</p>`;
+  if (!input.joinUrl || !input.manageUrl) throw new Error('email_requires_join_and_manage_urls');
+  const html = `<p>Hi ${escapeHtml(input.candidateName)},</p><p>${escapeHtml(input.recruiterName)} has sent you a JOBZCAFE® Talent interview request.</p><p><a href="${input.joinUrl}">Open interview request</a></p><p>Need to make changes? Use your manage link: <a href="${input.manageUrl}">${input.manageUrl}</a>.</p>`;
   const resp = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: authHeaders(resendApiKey),
     body: JSON.stringify({
-      from: Deno.env.get('EMAIL_FROM') || 'JOBZCAFE® <noreply@auth.jobzcafe.com>',
+      from,
       to: input.to,
       subject,
       html,
@@ -478,36 +474,6 @@ function splitName(fullName: string) {
   const parts = fullName.split(/\s+/).filter(Boolean);
   if (parts.length <= 1) return { firstName: fullName, lastName: '' };
   return { firstName: parts.slice(0, -1).join(' '), lastName: parts.at(-1) || '' };
-}
-
-async function insertSelectWithFallback(
-  supabaseAdmin: any,
-  table: string,
-  row: Record<string, unknown>,
-  fallbackDrops: string[][],
-  selectColumns: string,
-) {
-  const attempts = [[], ...fallbackDrops];
-  let lastResult: any = null;
-
-  for (const dropColumns of attempts) {
-    const candidate = { ...row };
-    for (const column of dropColumns) delete candidate[column];
-    const result = await supabaseAdmin
-      .from(table)
-      .insert(candidate)
-      .select(selectColumns)
-      .single();
-    if (!result.error || !isMissingColumnError(result.error)) return result;
-    lastResult = result;
-  }
-
-  return lastResult;
-}
-
-function isMissingColumnError(error: any) {
-  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
-  return error?.code === 'PGRST204' || message.includes('column') || message.includes('schema cache');
 }
 
 async function uniqueStaffSlug(supabaseAdmin: any, baseSlug: string) {

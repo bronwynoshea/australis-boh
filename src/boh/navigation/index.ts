@@ -22,6 +22,7 @@ export {
   keepNavConfig,
   loftNavConfig,
   cellarNavConfig,
+  assemblyNavConfig,
   getAppById,
   getAppByRoute,
 } from './appConfigs';

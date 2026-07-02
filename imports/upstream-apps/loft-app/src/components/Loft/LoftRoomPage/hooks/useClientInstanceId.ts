@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
+import type { MutableRefObject } from 'react';
 import { LOFT_CLIENT_INSTANCE_KEY } from '../utils/loftConstants';
 import { generateInstanceId } from '../utils/loftUtils';
 
-export function useClientInstanceId(clientInstanceIdRef: React.MutableRefObject<string | null>) {
+export function useClientInstanceId(clientInstanceIdRef: MutableRefObject<string | null>) {
   useEffect(() => {
     if (clientInstanceIdRef.current) return;
 

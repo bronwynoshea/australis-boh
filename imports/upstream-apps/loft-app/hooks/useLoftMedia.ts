@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import type { RefObject } from 'react';
 import type { DailyCall } from '@daily-co/daily-js';
 import { BACKGROUND_PRESETS } from '../constants/media';
 
@@ -8,8 +9,8 @@ type UseLoftMediaOptions = {
 };
 
 export const useLoftMedia = (
-  videoRef: React.RefObject<HTMLVideoElement | null>,
-  canvasRef: React.RefObject<HTMLCanvasElement | null>,
+  videoRef: RefObject<HTMLVideoElement | null>,
+  canvasRef: RefObject<HTMLCanvasElement | null>,
   options?: UseLoftMediaOptions
 ) => {
   const enabled = options?.enabled ?? true;

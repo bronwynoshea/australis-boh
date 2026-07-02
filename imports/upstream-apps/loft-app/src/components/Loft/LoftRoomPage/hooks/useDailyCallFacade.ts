@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { MutableRefObject } from 'react';
 import { DAILY_SINGLETON_KEY } from '../utils/loftConstants';
 
 export type DailyHandlers = {
@@ -10,8 +11,8 @@ export type DailyHandlers = {
 };
 
 interface UseDailyCallFacadeParams {
-  callObjectRef: React.MutableRefObject<any>;
-  handlersRef: React.MutableRefObject<DailyHandlers>;
+  callObjectRef: MutableRefObject<any>;
+  handlersRef: MutableRefObject<DailyHandlers>;
   createCallObject: () => any;
   shouldHaveCallObject: boolean;
 }

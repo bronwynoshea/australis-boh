@@ -1,7 +1,9 @@
+import type { PointerEvent } from 'react';
+
 export function DevElementInspector() {
   if (!(import.meta as any)?.env?.DEV) return null;
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const transportBar = document.getElementById('loft-transport-bar');
     const roomHeader = document.getElementById('loft-room-header');

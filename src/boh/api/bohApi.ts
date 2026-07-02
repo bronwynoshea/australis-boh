@@ -14,6 +14,9 @@ export interface BohApp {
   external_url?: string | null;
   is_active: boolean;
   type?: string;
+  app_kind?: 'boh' | 'external';
+  tenant_app_status?: 'enabled' | 'disabled' | 'trial' | 'coming_soon' | 'archived';
+  display_name?: string | null;
   boh_user_app?: BohAppUserApp[];
 }
 
@@ -116,6 +119,7 @@ export interface BohInviteAccept {
 
 export interface FetchBohAppRegistryOptions {
   onlyActive?: boolean;
+  statuses?: Array<'enabled' | 'coming_soon' | 'trial'>;
 }
 
 /**
@@ -123,35 +127,67 @@ export interface FetchBohAppRegistryOptions {
  * Always queries the registry table so both invites and manage-access share the same source of truth.
  */
 export async function fetchBohAppRegistry(options: FetchBohAppRegistryOptions = {}): Promise<BohApp[]> {
-  const { onlyActive = false } = options;
+  const { onlyActive = false, statuses = ['enabled', 'coming_soon'] } = options;
+  const currentUser = await getCurrentBohUserContext();
+
+  if (!currentUser) {
+    return [];
+  }
 
   let query = supabase
-    .from('boh_app')
+    .from('boh_tenant_app')
     .select(`
       id,
-      slug,
-      name,
-      description,
-      route,
+      status,
+      app_kind,
+      display_name,
+      launch_route,
       external_url,
-      type,
-      location,
-      is_active
+      app:boh_app!boh_tenant_app_app_id_fkey (
+        id,
+        slug,
+        name,
+        description,
+        route,
+        external_url,
+        type,
+        location,
+        is_active
+      )
     `)
-    .order('name', { ascending: true });
-
-  if (onlyActive) {
-    query = query.eq('is_active', true);
-  }
+    .eq('tenant_id', currentUser.tenant_id)
+    .in('status', statuses);
 
   const { data, error } = await query;
 
   if (error) {
-    console.error('[AccessAdmin] Error fetching BOH app registry:', error);
+    console.error('[AccessAdmin] Error fetching BOH tenant app registry:', error);
     throw error;
   }
 
-  return (data || []) as BohApp[];
+  const apps = ((data || []) as any[])
+    .map((tenantApp) => {
+      const app = Array.isArray(tenantApp.app) ? tenantApp.app[0] : tenantApp.app;
+      if (!app) return null;
+      if (onlyActive && app.is_active === false) return null;
+
+      return {
+        id: app.id,
+        slug: app.slug,
+        name: tenantApp.display_name || app.name,
+        description: app.description,
+        route: tenantApp.launch_route || app.route,
+        external_url: tenantApp.external_url || app.external_url,
+        is_active: app.is_active !== false,
+        type: tenantApp.app_kind === 'external' ? 'external_app' : app.type,
+        app_kind: tenantApp.app_kind,
+        tenant_app_status: tenantApp.status,
+        display_name: tenantApp.display_name,
+      } satisfies BohApp;
+    })
+    .filter(Boolean) as BohApp[];
+
+  return apps.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**

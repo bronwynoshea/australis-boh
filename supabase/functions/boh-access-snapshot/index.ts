@@ -26,6 +26,10 @@ Deno.serve(async (req: Request) => {
   }
 
   const { context, serviceClient: supabaseAdmin } = auth;
+  const currentTenantId = context.bohUser?.tenant_id;
+  if (!currentTenantId) {
+    return jsonResponse(req, { success: false, error: "Admin user is missing tenant context" }, 403);
+  }
   console.log("[boh-access-snapshot] Admin access by", context.authUser.email);
 
   try {
@@ -44,6 +48,7 @@ Deno.serve(async (req: Request) => {
           boh_user_role (
             id,
             role_id,
+            tenant_id,
             role:boh_role (
               id,
               code,
@@ -55,6 +60,7 @@ Deno.serve(async (req: Request) => {
             app_id,
             permission_level,
             app_context,
+            tenant_id,
             app:boh_app (
               id,
               slug,
@@ -63,6 +69,7 @@ Deno.serve(async (req: Request) => {
           )
         `)
         .eq("app_context", "boh")
+        .eq("tenant_id", currentTenantId)
         .order("full_name", { ascending: true }),
       supabaseAdmin
         .from("boh_invite")
@@ -81,12 +88,13 @@ Deno.serve(async (req: Request) => {
           accepted_at
         `)
         .eq("app_context", "boh")
+        .eq("tenant_id", currentTenantId)
         .order("created_at", { ascending: true }),
       supabaseAdmin
-        .from("boh_app")
-        .select("id, slug, name, description, route, external_url, type, is_active")
-        .eq("app_context", "boh")
-        .order("name", { ascending: true }),
+        .from("boh_tenant_app")
+        .select("app:boh_app!boh_tenant_app_app_id_fkey(id, slug, name, description, route, external_url, type, is_active)")
+        .eq("tenant_id", currentTenantId)
+        .in("status", ["enabled", "coming_soon"]),
       supabaseAdmin
         .from("boh_role")
         .select("id, code, label, description")
@@ -99,8 +107,10 @@ Deno.serve(async (req: Request) => {
     if (appsResult.error) throw appsResult.error;
     if (rolesResult.error) throw rolesResult.error;
 
-    const apps = appsResult.data ?? [];
-    const users = (usersResult.data ?? []).map((row) => mapAccessUserRow(row, apps));
+    const apps = (appsResult.data ?? [])
+      .map((row: any) => Array.isArray(row.app) ? row.app[0] : row.app)
+      .filter((app: any) => app?.is_active !== false);
+    const users = (usersResult.data ?? []).map((row) => mapAccessUserRow(row, apps, currentTenantId));
     const userLookup = new Map(users.map((user) => [user.id, user]));
     const invites = (invitesResult.data ?? []).map((row) => mapAccessInviteRow(row, userLookup));
     const roles = rolesResult.data ?? [];
@@ -128,34 +138,39 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-function mapAccessUserRow(row: any, apps: any[]) {
-  const roles = (row.boh_user_role ?? []).map((assignment: any) => ({
-    assignmentId: assignment.id,
-    role_id: assignment.role_id,
-    code: assignment.role?.code ?? "",
-    label: assignment.role?.label ?? assignment.role?.code ?? "Role",
-  }));
+function mapAccessUserRow(row: any, apps: any[], tenantId: string) {
+  const enabledAppIds = new Set(apps.map((app) => app.id));
+  const roles = (row.boh_user_role ?? [])
+    .filter((assignment: any) => assignment.tenant_id === tenantId)
+    .map((assignment: any) => ({
+      assignmentId: assignment.id,
+      role_id: assignment.role_id,
+      code: assignment.role?.code ?? "",
+      label: assignment.role?.label ?? assignment.role?.code ?? "Role",
+    }));
 
   const isSuperAdmin = roles.some((role) => role.code === "super_admin");
 
   let appGrants;
   if (isSuperAdmin) {
-    appGrants = apps
-      .filter((app) => app.is_active)
-      .map((app) => ({
-        assignmentId: `super_admin-${row.id}-${app.id}`,
-        app_id: app.id,
-        permission_level: "admin",
-        app: {
-          id: app.id,
-          slug: app.slug ?? "",
-          name: app.name ?? "Unknown app",
-        },
-        source: "super_admin",
-      }));
+    appGrants = apps.map((app) => ({
+      assignmentId: `super_admin-${row.id}-${app.id}`,
+      app_id: app.id,
+      permission_level: "admin",
+      app: {
+        id: app.id,
+        slug: app.slug ?? "",
+        name: app.name ?? "Unknown app",
+      },
+      source: "super_admin",
+    }));
   } else {
     appGrants = (row.boh_user_app ?? [])
-      .filter((assignment: any) => assignment.app_context === "boh")
+      .filter((assignment: any) =>
+        assignment.app_context === "boh" &&
+        assignment.tenant_id === tenantId &&
+        enabledAppIds.has(assignment.app?.id ?? assignment.app_id)
+      )
       .map((assignment: any) => ({
         assignmentId: assignment.id,
         app_id: assignment.app?.id ?? assignment.app_id,

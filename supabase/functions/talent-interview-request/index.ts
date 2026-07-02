@@ -101,7 +101,9 @@ serve(async (req: Request) => {
       },
     });
 
-    const manageUrl = absoluteUrl(Deno.env.get('SLOTZ_APP_URL'), `/#manage-${booking.id}`);
+    // Do not expose the Slotz manage/reschedule route for Talent-led interviews.
+    // Candidates should only receive the Talent/Loft session link selected by the recruiter.
+    const manageUrl = null;
     const joinUrl = loftResult.joinUrl ? absoluteUrl(Deno.env.get('BOH_APP_URL'), loftResult.joinUrl) : null;
     if (!joinUrl) throw new Error('loft_join_url_required');
     const candidateInviteUrl = joinUrl;
@@ -114,7 +116,6 @@ serve(async (req: Request) => {
         startAt: schedule.startAt,
         endAt: schedule.endAt,
         timezone: candidate.timezone,
-        manageUrl,
         joinUrl,
       });
     }
@@ -419,8 +420,8 @@ async function sendCandidateEmail(input: any) {
   const from = Deno.env.get('EMAIL_FROM');
   if (!from) throw new Error('EMAIL_FROM is not configured');
   const subject = `Interview request from ${input.recruiterName}`;
-  if (!input.joinUrl || !input.manageUrl) throw new Error('email_requires_join_and_manage_urls');
-  const html = `<p>Hi ${escapeHtml(input.candidateName)},</p><p>${escapeHtml(input.recruiterName)} has sent you a JOBZCAFE® Talent interview request.</p><p><a href="${input.joinUrl}">Open interview request</a></p><p>Need to make changes? Use your manage link: <a href="${input.manageUrl}">${input.manageUrl}</a>.</p>`;
+  if (!input.joinUrl) throw new Error('email_requires_join_url');
+  const html = `<p>Hi ${escapeHtml(input.candidateName)},</p><p>${escapeHtml(input.recruiterName)} has sent you a JOBZCAFE® Talent interview request.</p><p><a href="${input.joinUrl}">Open interview request</a></p><p>If you need to make changes, reply to the hiring team from your interview email.</p>`;
   const resp = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: authHeaders(resendApiKey),

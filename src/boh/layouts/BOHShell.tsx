@@ -68,15 +68,10 @@ const BOHShell: React.FC<BOHShellProps> = ({
   }, []);
 
   const handleBrandClick = useCallback(() => {
-    if (isPrimaryMenuExpanded) {
-      setIsMobileMenuOpen(false);
-      setIsAppMenuExpanded(false);
-      navigate(defaultHomeRoute);
-      return;
-    }
-
-    setIsAppMenuExpanded(true);
-  }, [defaultHomeRoute, isPrimaryMenuExpanded, navigate]);
+    setIsMobileMenuOpen(false);
+    setIsAppMenuExpanded(false);
+    navigate(defaultHomeRoute);
+  }, [defaultHomeRoute, navigate]);
 
   // Calculate the appropriate class for main content margin
   const getMainContentClass = () => {

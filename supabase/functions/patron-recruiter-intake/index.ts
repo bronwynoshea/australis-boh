@@ -51,6 +51,7 @@ interface PersonType {
 
 interface PipelineStage {
   id: string
+  tenant_id: string
   key: string
   label: string
   is_active: boolean
@@ -58,6 +59,7 @@ interface PipelineStage {
 
 interface Person {
   id: string
+  tenant_id: string
   first_name?: string
   last_name?: string
   email?: string
@@ -70,6 +72,7 @@ interface Person {
 
 interface Organisation {
   id: string
+  tenant_id: string
   name: string
   app_context: string
 }
@@ -97,6 +100,24 @@ function createSupabaseClient() {
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SB_SECRET_KEY')!
   )
+}
+
+async function getTargetTenantId(supabase: any): Promise<string> {
+  const explicitTenantId = Deno.env.get('BOH_TENANT_ID')?.trim()
+  if (explicitTenantId) return explicitTenantId
+
+  const tenantSlug = Deno.env.get('BOH_TENANT_SLUG')?.trim() || 'australis'
+  const { data, error } = await supabase
+    .from('boh_tenant')
+    .select('id')
+    .eq('slug', tenantSlug)
+    .single()
+
+  if (error || !data?.id) {
+    throw new Error(`Unable to resolve BOH tenant for Patron intake: ${tenantSlug}`)
+  }
+
+  return data.id
 }
 
 // Authentication middleware
@@ -127,6 +148,7 @@ async function authenticateRequest(req: Request): Promise<{ user: any | null; er
 // Validate lookup values
 async function validateLookupKeys(
   supabase: any,
+  tenantId: string,
   user_type_key: string,
   hiring_timeline_key: string,
   biggest_problem_key: string,
@@ -145,6 +167,7 @@ async function validateLookupKeys(
       .select('key, is_active')
       .eq('category', category)
       .eq('key', key)
+      .eq('tenant_id', tenantId)
       .eq('is_active', true)
       .single()
 
@@ -157,11 +180,12 @@ async function validateLookupKeys(
 }
 
 // Get lookup values by key
-async function getLookupByKey(supabase: any, table: string, key: string): Promise<any> {
+async function getLookupByKey(supabase: any, tenantId: string, table: string, key: string): Promise<any> {
   const { data, error } = await supabase
     .from(table)
     .select('*')
     .eq('key', key)
+    .eq('tenant_id', tenantId)
     .eq('is_active', true)
     .single()
 
@@ -175,6 +199,7 @@ async function getLookupByKey(supabase: any, table: string, key: string): Promis
 // Upsert person
 async function upsertPerson(
   supabase: any,
+  tenantId: string,
   payload: IntakePayload,
   pipelineStages: Record<string, PipelineStage>
 ): Promise<{ person: Person; isNew: boolean }> {
@@ -191,6 +216,7 @@ async function upsertPerson(
   const { data: existingPerson, error: findError } = await supabase
     .from('patron_person')
     .select('*')
+    .eq('tenant_id', tenantId)
     .eq('email', normalizedEmail)
     .single()
 
@@ -217,6 +243,7 @@ async function upsertPerson(
         .from('patron_person')
         .update(updates)
         .eq('id', existingPerson.id)
+        .eq('tenant_id', tenantId)
         .select()
         .single()
 
@@ -231,6 +258,7 @@ async function upsertPerson(
   } else {
     // Create new person
     const newPerson: Omit<Person, 'id'> = {
+      tenant_id: tenantId,
       first_name: first_name?.trim(),
       last_name: last_name?.trim(),
       email: normalizedEmail,
@@ -258,6 +286,7 @@ async function upsertPerson(
 // Upsert organisation
 async function upsertOrganisation(
   supabase: any,
+  tenantId: string,
   companyName: string,
   personId: string
 ): Promise<{ organisation: Organisation | null; isNew: boolean }> {
@@ -271,6 +300,7 @@ async function upsertOrganisation(
   const { data: existingOrg, error: findError } = await supabase
     .from('patron_organisation')
     .select('*')
+    .eq('tenant_id', tenantId)
     .ilike('name', trimmedName)
     .single()
 
@@ -285,6 +315,7 @@ async function upsertOrganisation(
   } else {
     // Create new organisation
     const newOrg: Omit<Organisation, 'id'> = {
+      tenant_id: tenantId,
       name: trimmedName,
       app_context: 'patron'
     }
@@ -306,6 +337,7 @@ async function upsertOrganisation(
   const { data: existingLink, error: linkFindError } = await supabase
     .from('patron_person_organisation')
     .select('*')
+    .eq('tenant_id', tenantId)
     .eq('person_id', personId)
     .eq('organisation_id', organisation.id)
     .single()
@@ -318,6 +350,7 @@ async function upsertOrganisation(
     const { error: linkCreateError } = await supabase
       .from('patron_person_organisation')
       .insert({
+        tenant_id: tenantId,
         person_id: personId,
         organisation_id: organisation.id
       })
@@ -380,6 +413,7 @@ function determineQualification(
 // Update person pipeline stage
 async function updatePersonPipelineStage(
   supabase: any,
+  tenantId: string,
   personId: string,
   stageKey: string,
   pipelineStages: Record<string, PipelineStage>
@@ -393,6 +427,7 @@ async function updatePersonPipelineStage(
     .from('patron_person')
     .update({ pipeline_stage_id: stage.id })
     .eq('id', personId)
+    .eq('tenant_id', tenantId)
 
   if (error) {
     throw new Error(`Error updating pipeline stage: ${error.message}`)
@@ -402,12 +437,14 @@ async function updatePersonPipelineStage(
 // Create intake record
 async function createIntakeRecord(
   supabase: any,
+  tenantId: string,
   payload: IntakePayload,
   personId: string,
   organisationId: string | null,
   qualification: { qualification_status_key: string; routed_to_key: string }
 ): Promise<string> {
   const intakeData = {
+    tenant_id: tenantId,
     patron_person_id: personId,
     patron_organisation_id: organisationId,
     source_page: payload.source_page,
@@ -441,6 +478,7 @@ async function createIntakeRecord(
 // Create activity note
 async function createActivityNote(
   supabase: any,
+  tenantId: string,
   personId: string,
   organisationId: string | null,
   payload: IntakePayload,
@@ -457,6 +495,7 @@ async function createActivityNote(
   const { error } = await supabase
     .from('patron_activity')
     .insert({
+      tenant_id: tenantId,
       person_id: personId,
       organisation_id: organisationId,
       type: 'note',
@@ -490,6 +529,13 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Method not allowed' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
+  }
+
   try {
     // Debug: Log config values
     console.log('🔧 Edge function config:', edgeFunctionConfig);
@@ -519,10 +565,12 @@ serve(async (req) => {
     }
 
     const supabase = createSupabaseClient()
+    const tenantId = await getTargetTenantId(supabase)
 
     // Validate lookup keys
     const { valid, error: validationError } = await validateLookupKeys(
       supabase,
+      tenantId,
       payload.user_type_key,
       payload.hiring_timeline_key,
       payload.biggest_problem_key,
@@ -538,32 +586,32 @@ serve(async (req) => {
 
     // Get pipeline stages
     const pipelineStages = {
-      new_recruiter_intake: await getLookupByKey(supabase, 'patron_pipeline_stage', 'new_recruiter_intake'),
-      qualified_recruiter: await getLookupByKey(supabase, 'patron_pipeline_stage', 'qualified_recruiter'),
-      nurture_recruiter: await getLookupByKey(supabase, 'patron_pipeline_stage', 'nurture_recruiter')
+      new_recruiter_intake: await getLookupByKey(supabase, tenantId, 'patron_pipeline_stage', 'new_recruiter_intake'),
+      qualified_recruiter: await getLookupByKey(supabase, tenantId, 'patron_pipeline_stage', 'qualified_recruiter'),
+      nurture_recruiter: await getLookupByKey(supabase, tenantId, 'patron_pipeline_stage', 'nurture_recruiter')
     }
 
     // Upsert person
-    const { person } = await upsertPerson(supabase, payload, pipelineStages)
+    const { person } = await upsertPerson(supabase, tenantId, payload, pipelineStages)
 
     // Upsert organisation
-    const { organisation } = await upsertOrganisation(supabase, payload.company_name || '', person.id)
+    const { organisation } = await upsertOrganisation(supabase, tenantId, payload.company_name || '', person.id)
 
     // Determine qualification
     const qualification = determineQualification(payload)
 
     // Update person pipeline stage based on qualification
     if (qualification.qualification_status_key === 'qualified') {
-      await updatePersonPipelineStage(supabase, person.id, 'qualified_recruiter', pipelineStages)
+      await updatePersonPipelineStage(supabase, tenantId, person.id, 'qualified_recruiter', pipelineStages)
     } else {
-      await updatePersonPipelineStage(supabase, person.id, 'nurture_recruiter', pipelineStages)
+      await updatePersonPipelineStage(supabase, tenantId, person.id, 'nurture_recruiter', pipelineStages)
     }
 
     // Create intake record
-    const intakeId = await createIntakeRecord(supabase, payload, person.id, organisation?.id || null, qualification)
+    const intakeId = await createIntakeRecord(supabase, tenantId, payload, person.id, organisation?.id || null, qualification)
 
     // Create activity note
-    await createActivityNote(supabase, person.id, organisation?.id || null, payload, qualification)
+    await createActivityNote(supabase, tenantId, person.id, organisation?.id || null, payload, qualification)
 
     // Build response
     const response: IntakeResponse = {

@@ -20,7 +20,7 @@ const BohSidebarHeader: React.FC<BohSidebarHeaderProps> = ({ currentAppName }) =
         className="logo-main text-sm md:text-base font-semibold tracking-tight text-boh-text-light dark:text-boh-text hover:text-boh-accent transition-colors text-left"
         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
       >
-        JOBZ CAFE®
+        Australis
       </button>
       {displayName && (
         <div className="text-xs md:text-sm font-medium text-boh-text-sub-light dark:text-boh-text-sub mt-0.5">

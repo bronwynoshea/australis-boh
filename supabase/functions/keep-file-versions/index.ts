@@ -65,6 +65,12 @@ async function handleGetVersions(req: Request) {
       return jsonResponse(req, { success: false, error: "Unauthorized" }, 401);
     }
 
+    const currentTenantId = keepAuth.bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-file-versions] GET authenticated BOH user has no tenant_id", { bohUserId: keepAuth.bohUser.id });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
+
     // 2. Parse query params
     const url = new URL(req.url);
     const fileId = url.searchParams.get("file_id");
@@ -81,8 +87,9 @@ async function handleGetVersions(req: Request) {
     // 3. Verify file exists and user has access
     const { data: fileRecord, error: fileError } = await keepAuth.serviceClient
       .from("keep_file")
-      .select("id, folder_id, area, lifecycle_status, is_active")
+      .select("id, folder_id, tenant_id, area, lifecycle_status, is_active")
       .eq("id", fileId)
+      .eq("tenant_id", currentTenantId)
       .single();
 
     if (fileError || !fileRecord) {
@@ -151,6 +158,11 @@ async function handleUploadVersion(req: Request) {
     }
 
     const userId = keepAuth.bohUser.id;
+    const currentTenantId = keepAuth.bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-file-versions] POST authenticated BOH user has no tenant_id", { bohUserId: userId });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
 
     // 2. Parse multipart form data
     const { file, fileId, reason } = await parseMultipartFormData(req);
@@ -174,6 +186,7 @@ async function handleUploadVersion(req: Request) {
       .select(`
         id,
         folder_id,
+        tenant_id,
         file_name,
         file_ext,
         storage_bucket,
@@ -184,6 +197,7 @@ async function handleUploadVersion(req: Request) {
         folder:keep_folder!inner(path, is_active, allow_user_created_children)
       `)
       .eq("id", fileId)
+      .eq("tenant_id", currentTenantId)
       .eq("is_current", true)
       .single();
 
@@ -302,6 +316,7 @@ async function handleUploadVersion(req: Request) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", fileId)
+      .eq("tenant_id", currentTenantId)
       .select()
       .single();
 

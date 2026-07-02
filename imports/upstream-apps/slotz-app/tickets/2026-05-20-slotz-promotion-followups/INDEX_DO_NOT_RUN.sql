@@ -1,0 +1,7 @@
+-- SLOTZ promotion follow-up ticket SQL.
+-- Do not run this file.
+-- Live BOH Counter latest ticket confirmed by Bronwyn: T-2098.
+-- Run order:
+-- 01_COMMENT_SLOTZ_PROMOTION_PROGRESS.sql
+-- 02_CREATE_SLOTZ_PROMOTION_FOLLOWUPS.sql
+-- 03_VERIFY_SLOTZ_PROMOTION_FOLLOWUPS.sql

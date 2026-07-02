@@ -16,7 +16,8 @@ const explainError = (value: string) => {
 };
 
 const PersonalRoomPublicJoinPage: React.FC = () => {
-  const { slug = '' } = useParams();
+  const { tenantSlug = '', slug = '' } = useParams();
+  const normalizedTenantSlug = useMemo(() => tenantSlug.toLowerCase().replace(/[^a-z0-9-_]/g, ''), [tenantSlug]);
   const normalizedSlug = useMemo(() => slug.toLowerCase().replace(/[^a-z0-9-_]/g, ''), [slug]);
   const [guestName, setGuestName] = useState('');
   const [joinResult, setJoinResult] = useState<PersonalRoomJoin | null>(null);
@@ -29,8 +30,14 @@ const PersonalRoomPublicJoinPage: React.FC = () => {
     setJoinResult(null);
     setIsJoining(true);
 
+    if (!normalizedTenantSlug) {
+      setError('This Loft link is missing its tenant. Ask the host for the tenant-specific link.');
+      setIsJoining(false);
+      return;
+    }
+
     try {
-      const result = await joinPersonalRoomBySlug(normalizedSlug, guestName.trim() || 'Guest');
+      const result = await joinPersonalRoomBySlug(normalizedSlug, guestName.trim() || 'Guest', normalizedTenantSlug);
       setJoinResult(result);
     } catch (err) {
       setError(explainError((err as Error).message));
@@ -42,13 +49,23 @@ const PersonalRoomPublicJoinPage: React.FC = () => {
   return (
     <main className="min-h-screen bg-boh-bg-light px-4 py-10 text-boh-text-light dark:bg-boh-bg dark:text-boh-text">
       <div className="mx-auto max-w-2xl rounded-3xl border border-boh-border-light bg-boh-card-light p-6 shadow-xl dark:border-boh-border dark:bg-boh-card sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-boh-primary-light dark:text-boh-primary">JOBZCAFE® Loft</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-boh-primary-light dark:text-boh-primary">Australis Loft</p>
         <h1 className="mt-3 text-3xl font-semibold">Join a Personal Room</h1>
         <p className="mt-3 text-sm leading-6 text-boh-text-sub-light dark:text-boh-text-sub">
           You are joining through the BOH-owned Loft guest route. Enter the name the host should see before requesting access to the room.
         </p>
 
         <form onSubmit={handleJoin} className="mt-8 space-y-5">
+          <div>
+            <label htmlFor="tenant" className="text-sm font-semibold">Tenant</label>
+            <input
+              id="tenant"
+              type="text"
+              value={normalizedTenantSlug || 'Missing tenant'}
+              readOnly
+              className="mt-2 w-full rounded-xl border border-boh-border-light bg-white/60 px-4 py-3 font-mono text-sm outline-none dark:border-boh-border dark:bg-white/5"
+            />
+          </div>
           <div>
             <label htmlFor="slug" className="text-sm font-semibold">Room code</label>
             <input
@@ -82,7 +99,7 @@ const PersonalRoomPublicJoinPage: React.FC = () => {
           )}
           <button
             type="submit"
-            disabled={isJoining || normalizedSlug.length < 3}
+            disabled={isJoining || normalizedSlug.length < 3 || !normalizedTenantSlug}
             className="w-full rounded-xl bg-boh-primary px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isJoining ? 'Requesting access…' : 'Join Personal Room'}

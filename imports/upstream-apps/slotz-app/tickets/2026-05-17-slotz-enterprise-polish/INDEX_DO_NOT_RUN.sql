@@ -1,0 +1,14 @@
+-- SLOTZ enterprise polish ticket SQL prepared on 2026-05-17.
+--
+-- Live BOH Counter latest ticket supplied by user:
+-- T-0296
+--
+-- Run order:
+-- 1. 01_COMMENT_T-0058_SLOTZ_OUTLOOK_TESTED.sql
+-- 2. 02_CREATE_T-0297_SLOTZ_ENTERPRISE_POLISH.sql
+-- 3. 03_VERIFY_SLOTZ_ENTERPRISE_POLISH.sql
+--
+-- Notes:
+-- 01 comments on the older Outlook hookup ticket without changing its status.
+-- 02 creates T-0297 for continuing the SLOTZ enterprise polish pass.
+-- 03 verifies the existing Outlook ticket comment and the new polish ticket.

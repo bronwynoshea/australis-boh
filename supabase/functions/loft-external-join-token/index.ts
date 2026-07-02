@@ -1,0 +1,174 @@
+// @ts-nocheck
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
+import { handleCors, jsonResponse } from "../_shared/cors.ts";
+import {
+  assertPatronInTenant,
+  createDailyMeetingToken,
+  displayNameForCaller,
+  ensureDailyRoom,
+  ensureExternalLoftProfile,
+  getServerConfig,
+  isPersonalRoom,
+  isRoomJoinableForExternal,
+  normalizeAppContext,
+  normalizePersona,
+  normalizeText,
+  resolveTenant,
+  validateServerBearer,
+} from "../_shared/loftExternalAccess.ts";
+
+serve(async (req: Request) => {
+  const cors = handleCors(req);
+  if (cors) return cors;
+  if (req.method !== 'POST') return jsonResponse(req, { success: false, error: 'method_not_allowed' }, 405);
+  if (!validateServerBearer(req)) return jsonResponse(req, { success: false, error: 'unauthorized' }, 401);
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { supabaseUrl, serviceRoleKey, dailyApiKey } = getServerConfig();
+    if (!dailyApiKey) return jsonResponse(req, { success: false, error: 'daily_not_configured' }, 500);
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+    const tenant = await resolveTenant(supabaseAdmin, { tenantId: body.tenantId, tenantSlug: body.tenantSlug });
+    const patronPersonId = normalizeText(body.patronPersonId);
+    if (!patronPersonId) return jsonResponse(req, { success: false, error: 'patron_person_required' }, 400);
+
+    const appContext = normalizeAppContext(body.appContext);
+    const persona = normalizePersona(body.persona);
+    const patron = await assertPatronInTenant(supabaseAdmin, tenant.id, patronPersonId);
+    const caller = {
+      tenantId: tenant.id,
+      tenantSlug: tenant.slug,
+      appContext,
+      persona,
+      patronPersonId,
+      patronOrganisationId: body.patronOrganisationId || null,
+      externalAuthUserId: body.externalAuthUserId || null,
+      externalProfileId: body.externalProfileId || null,
+      email: body.email || patron.email || null,
+      displayName: body.displayName || displayNameForCaller({}, patron),
+    };
+    const externalProfile = await ensureExternalLoftProfile(supabaseAdmin, caller, patron);
+
+    let videoSession: any = null;
+    let loftRoomId = normalizeText(body.loftRoomId);
+    const videoSessionId = normalizeText(body.videoSessionId);
+    let role: 'host' | 'listener' = 'listener';
+
+    if (videoSessionId) {
+      const { data: session, error: sessionError } = await supabaseAdmin
+        .from('loft_video_session')
+        .select('*')
+        .eq('id', videoSessionId)
+        .eq('tenant_id', tenant.id)
+        .maybeSingle();
+      if (sessionError) throw new Error(`session_lookup_failed: ${sessionError.message}`);
+      if (!session?.id) return jsonResponse(req, { success: false, error: 'session_not_found' }, 404);
+      if (['completed', 'cancelled', 'no_show'].includes(String(session.status))) return jsonResponse(req, { success: false, error: 'session_not_joinable' }, 403);
+      const isParticipant = session.patron_person_id === patronPersonId;
+      const isHost = session.host_patron_person_id === patronPersonId;
+      if (!isParticipant && !isHost) return jsonResponse(req, { success: false, error: 'session_access_denied' }, 403);
+      videoSession = session;
+      loftRoomId = session.loft_room_id;
+      role = isHost ? 'host' : 'listener';
+    }
+
+    if (!loftRoomId) return jsonResponse(req, { success: false, error: 'loft_room_required' }, 400);
+    const { data: room, error: roomError } = await supabaseAdmin
+      .from('loft_room')
+      .select('*')
+      .eq('id', loftRoomId)
+      .eq('tenant_id', tenant.id)
+      .maybeSingle();
+    if (roomError) throw new Error(`room_lookup_failed: ${roomError.message}`);
+    if (!room?.id) return jsonResponse(req, { success: false, error: 'room_not_found' }, 404);
+
+    if (!videoSession) {
+      const isVisibleBusinessRoom = ['public', 'unlisted'].includes(String(room.visibility || '')) && !isPersonalRoom(room);
+      const isOwnPersonalRoom = isPersonalRoom(room) && room.host_profile_id === externalProfile.profileId;
+      if (!isVisibleBusinessRoom && !isOwnPersonalRoom) return jsonResponse(req, { success: false, error: 'room_access_denied' }, 403);
+      if (isVisibleBusinessRoom && !isRoomJoinableForExternal(room)) return jsonResponse(req, { success: false, error: 'room_not_open_yet' }, 403);
+      if (isOwnPersonalRoom) role = 'host';
+    }
+
+    await ensureDailyRoom(dailyApiKey, room.daily_room_name);
+
+    if (role !== 'host') {
+      const configuredCapacity = Number(room.max_participants || 0);
+      const maxParticipants = Number.isFinite(configuredCapacity) && configuredCapacity > 0 ? configuredCapacity : 30;
+      const { data: existingMember } = await supabaseAdmin
+        .from('loft_room_member')
+        .select('id, is_active')
+        .eq('loft_room_id', room.id)
+        .eq('profile_id', externalProfile.profileId)
+        .maybeSingle();
+
+      if (!existingMember?.is_active) {
+      const { data: activeMembers, error: activeMembersError } = await supabaseAdmin
+        .from('loft_room_member')
+        .select('profile_id')
+        .eq('loft_room_id', room.id)
+        .eq('is_active', true);
+
+      if (activeMembersError) throw new Error(`capacity_lookup_failed: ${activeMembersError.message}`);
+      const activeProfileIds = new Set((activeMembers || []).map((row: any) => String(row.profile_id)).filter(Boolean));
+      const activeCount = activeProfileIds.size;
+      if (activeCount >= maxParticipants) {
+        return jsonResponse(req, { success: false, error: 'room_full', maxParticipants }, 403);
+      }
+
+      const { data: rsvpRows, error: rsvpRowsError } = await supabaseAdmin
+        .from('loft_room_rsvp')
+        .select('profile_id, status')
+        .eq('loft_room_id', room.id)
+        .eq('status', 'going');
+
+      if (rsvpRowsError) throw new Error(`rsvp_lookup_failed: ${rsvpRowsError.message}`);
+      const callerHasReservedSeat = (rsvpRows || []).some((row: any) => String(row.profile_id) === externalProfile.profileId);
+      const outstandingReservedSeats = (rsvpRows || []).filter((row: any) => {
+        const reservedProfileId = String(row.profile_id || '');
+        return reservedProfileId && reservedProfileId !== externalProfile.profileId && !activeProfileIds.has(reservedProfileId);
+      }).length;
+
+      if (!callerHasReservedSeat && activeCount + outstandingReservedSeats >= maxParticipants) {
+        return jsonResponse(req, { success: false, error: 'room_full_reserved', maxParticipants }, 403);
+      }
+      }
+    }
+
+    await supabaseAdmin.from('loft_room_member').upsert({ loft_room_id: room.id, profile_id: externalProfile.profileId, role, is_active: true, left_at: null }, { onConflict: 'loft_room_id,profile_id' });
+    if (videoSession?.id) {
+      const update: Record<string, unknown> = { status: 'joined' };
+      if (!videoSession.first_joined_at) update.first_joined_at = new Date().toISOString();
+      await supabaseAdmin.from('loft_video_session').update(update).eq('id', videoSession.id);
+    }
+
+    const tokenResult = await createDailyMeetingToken({
+      dailyApiKey,
+      roomName: room.daily_room_name,
+      userId: `patron:${patronPersonId}`,
+      userName: externalProfile.displayName,
+      isOwner: role === 'host',
+    });
+
+    return jsonResponse(req, {
+      success: true,
+      dailyRoomName: room.daily_room_name,
+      token: tokenResult.token,
+      role,
+      isRecorded: room.is_recorded !== false,
+      roomTitle: room.title,
+      videoSessionId: videoSession?.id || null,
+      loftRoomId: room.id,
+      currentUserProfile: {
+        profileId: externalProfile.profileId,
+        patronPersonId,
+        displayName: externalProfile.displayName,
+        isHost: role === 'host',
+      },
+    });
+  } catch (error) {
+    console.error('[loft-external-join-token] Error:', error);
+    return jsonResponse(req, { success: false, error: error instanceof Error ? error.message : 'unexpected_error' }, 400);
+  }
+});

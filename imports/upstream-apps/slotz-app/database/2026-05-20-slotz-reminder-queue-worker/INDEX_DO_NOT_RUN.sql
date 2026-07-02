@@ -1,0 +1,12 @@
+-- SLOTZ reminder queue worker cron repair.
+-- Do not run this index file.
+--
+-- Run in BOH-dev first, smoke test, then run the BOH/prod file only after approval.
+--
+-- BOH-dev project ref: lczzeiqmnegyjrwtgmsj
+-- BOH/prod project ref: gsidwiptqkyciexqdbyw
+--
+-- 01_FIX_REMINDER_QUEUE_CRONS_BOH_DEV.sql
+-- 02_VERIFY_REMINDER_QUEUE_WORKER.sql
+-- 03_FIX_REMINDER_QUEUE_CRONS_BOH_PROD.sql
+-- 02_VERIFY_REMINDER_QUEUE_WORKER.sql

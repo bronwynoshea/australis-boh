@@ -8,6 +8,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "http://127.0.0.1:5173", // Local Vite dev
   "https://boh.jobzcafe.com",
   "https://dev-boh.jobzcafe.com",
+  "https://dev-boh.australis.cloud",
   "https://boh.australis.cloud",
   "https://jobzcafe.com",
   "https://www.jobzcafe.com",
@@ -45,13 +46,25 @@ function resolveOrigin(req: Request): string {
   }
 
   try {
-    const hostname = new URL(origin).hostname;
+    const { protocol, hostname } = new URL(origin);
     if (
       hostname === "boh-ccm.pages.dev" ||
       hostname.endsWith(".boh-ccm.pages.dev") ||
       hostname === "australis-boh.pages.dev" ||
       hostname.endsWith(".australis-boh.pages.dev")
     ) {
+      return origin;
+    }
+
+    const isLocalDevHost =
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0" ||
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname);
+
+    if (protocol === "http:" && isLocalDevHost) {
       return origin;
     }
   } catch {
@@ -77,6 +90,13 @@ export function buildCorsHeaders(req: Request, options: CorsOptions = {}): Recor
   }
 
   return headers;
+}
+
+export function corsHeaders(origin: string | null = null, options: CorsOptions = {}): Record<string, string> {
+  const req = new Request("https://edge.local", {
+    headers: origin ? { origin } : {},
+  });
+  return buildCorsHeaders(req, options);
 }
 
 export function handleCors(req: Request, options: CorsOptions = {}): Response | null {

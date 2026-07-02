@@ -67,7 +67,7 @@ function sanitizePathSegments(path: string | null): string[] {
   return segments.map((segment) => segment.replace(/[<>:"|?*\x00-\x1F]/g, "_").substring(0, 100));
 }
 
-async function resolveDestinationFolder(serviceClient, baseFolder, relativePath: string | null) {
+async function resolveDestinationFolder(serviceClient, baseFolder, currentTenantId: string, relativePath: string | null) {
   const segments = sanitizePathSegments(relativePath);
   const folderSegments = segments.length > 1 ? segments.slice(0, -1) : [];
   let currentFolder = baseFolder;
@@ -82,7 +82,8 @@ async function resolveDestinationFolder(serviceClient, baseFolder, relativePath:
 
     const { data: existingFolder, error: existingError } = await serviceClient
       .from("keep_folder")
-      .select("id, name, area, path, allow_user_created_children, is_active")
+      .select("id, tenant_id, name, area, path, allow_user_created_children, is_active")
+      .eq("tenant_id", currentTenantId)
       .eq("parent_id", currentFolder.id)
       .eq("slug", slug)
       .eq("is_active", true)
@@ -101,6 +102,7 @@ async function resolveDestinationFolder(serviceClient, baseFolder, relativePath:
     const { data: siblingFolders, error: siblingError } = await serviceClient
       .from("keep_folder")
       .select("sort_order")
+      .eq("tenant_id", currentTenantId)
       .eq("parent_id", currentFolder.id)
       .order("sort_order", { ascending: false })
       .limit(1);
@@ -117,6 +119,7 @@ async function resolveDestinationFolder(serviceClient, baseFolder, relativePath:
     const { data: insertedFolder, error: insertError } = await serviceClient
       .from("keep_folder")
       .insert({
+        tenant_id: currentTenantId,
         parent_id: currentFolder.id,
         name: folderName,
         slug,
@@ -128,7 +131,7 @@ async function resolveDestinationFolder(serviceClient, baseFolder, relativePath:
         allow_user_created_children: true,
         is_active: true,
       })
-      .select("id, name, area, path, allow_user_created_children, is_active")
+      .select("id, tenant_id, name, area, path, allow_user_created_children, is_active")
       .single();
 
     if (insertError || !insertedFolder) {
@@ -181,7 +184,12 @@ Deno.serve(async (req) => {
     }
 
     const userId = bohUser.id;
-    console.debug("[keep-upload-file] Authenticated user:", { userId });
+    const currentTenantId = bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-upload-file] BOH user missing tenant_id", { userId });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
+    console.debug("[keep-upload-file] Authenticated user:", { userId, tenantId: currentTenantId });
 
     // 2. Parse multipart form data
     const { file, folderId, relativePath } = await parseMultipartFormData(req);
@@ -210,8 +218,9 @@ Deno.serve(async (req) => {
     // 5. Validate folder and get folder data
     const { data: folder, error: folderError } = await serviceClient
       .from("keep_folder")
-      .select("id, path, area, is_active, allow_user_created_children")
+      .select("id, tenant_id, path, area, is_active, allow_user_created_children")
       .eq("id", folderId)
+      .eq("tenant_id", currentTenantId)
       .single();
 
     if (folderError || !folder) {
@@ -239,7 +248,7 @@ Deno.serve(async (req) => {
 
     let destinationFolder;
     try {
-      destinationFolder = await resolveDestinationFolder(serviceClient, folder, relativePath);
+      destinationFolder = await resolveDestinationFolder(serviceClient, folder, currentTenantId, relativePath);
     } catch (pathError) {
       console.warn("[keep-upload-file] Invalid relative path:", { relativePath, error: pathError.message });
       return jsonResponse(req, { success: false, error: pathError.message || "Invalid relative path" }, 400);
@@ -265,6 +274,7 @@ Deno.serve(async (req) => {
     const { data: existingFile, error: duplicateCheckError } = await serviceClient
       .from("keep_file")
       .select("id, lifecycle_status")
+      .eq("tenant_id", currentTenantId)
       .eq("folder_id", destinationFolder.id)
       .eq("file_name", fileNameWithoutExt)
       .eq("file_ext", fileExt)
@@ -345,6 +355,7 @@ Deno.serve(async (req) => {
     const { data: fileRecord, error: fileInsertError } = await serviceClient
       .from("keep_file")
       .insert({
+        tenant_id: currentTenantId,
         folder_id: destinationFolder.id,
         file_name: fileNameWithoutExt,
         file_ext: fileExt,

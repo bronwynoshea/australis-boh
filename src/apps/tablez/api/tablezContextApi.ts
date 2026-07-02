@@ -1,4 +1,5 @@
 import { supabase } from '../../../lib/supabase';
+import { getCurrentBohUserContext } from '../../../boh/api/bohApi';
 
 export type BohChair = {
   id: string;
@@ -50,6 +51,14 @@ type BohChairRoleRow = {
 
 let chairRoleLabelMapPromise: Promise<Map<string, string>> | null = null;
 
+async function getCurrentTenantId(): Promise<string> {
+  const context = await getCurrentBohUserContext();
+  if (!context?.tenant_id) {
+    throw new Error('No BOH tenant matched the current session.');
+  }
+  return context.tenant_id;
+}
+
 async function fetchChairRoleLabelMap(): Promise<Map<string, string>> {
   if (!chairRoleLabelMapPromise) {
     chairRoleLabelMapPromise = (async () => {
@@ -88,6 +97,7 @@ type BohUserLite = {
 };
 
 async function fetchBohUsersByIds(userIds: string[]): Promise<Map<string, BohUserLite>> {
+  const tenantId = await getCurrentTenantId();
   const result = new Map<string, BohUserLite>();
   const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
   if (uniqueIds.length === 0) return result;
@@ -95,6 +105,8 @@ async function fetchBohUsersByIds(userIds: string[]): Promise<Map<string, BohUse
   const { data, error } = await supabase
     .from('boh_user')
     .select('id, display_name, full_name, email')
+    .eq('tenant_id', tenantId)
+    .eq('app_context', 'boh')
     .in('id', uniqueIds);
 
   if (error) {
@@ -113,6 +125,7 @@ async function fetchBohUsersByIds(userIds: string[]): Promise<Map<string, BohUse
 }
 
 export async function fetchActiveChairsForUser(userId: string): Promise<BohChair[]> {
+  const tenantId = await getCurrentTenantId();
   console.debug('[tablezContextApi] fetchActiveChairsForUser', {
     table: 'boh_chair',
     filters: { user_id: userId, is_active: true },
@@ -121,6 +134,7 @@ export async function fetchActiveChairsForUser(userId: string): Promise<BohChair
     return await supabase
       .from('boh_chair')
       .select('id, table_id, user_id, is_primary, is_active, created_at, chair_role_id')
+      .eq('tenant_id', tenantId)
       .eq('user_id', bohUserId)
       .eq('is_active', true)
       .order('is_primary', { ascending: false })
@@ -144,6 +158,7 @@ export async function fetchActiveChairsForUser(userId: string): Promise<BohChair
       .from('boh_user')
       .select('id')
       .eq('auth_user_id', userId)
+      .eq('tenant_id', tenantId)
       .eq('app_context', 'boh')
       .maybeSingle();
 
@@ -188,10 +203,12 @@ export async function fetchActiveChairsForUser(userId: string): Promise<BohChair
 }
 
 export async function fetchTableForChairTableId(tableId: string): Promise<BohTable | null> {
+  const tenantId = await getCurrentTenantId();
   const { data, error } = await supabase
     .from('boh_table')
     .select('id, name')
     .eq('id', tableId)
+    .eq('tenant_id', tenantId)
     .maybeSingle();
 
   if (error) {
@@ -208,6 +225,7 @@ export async function fetchTableForChairTableId(tableId: string): Promise<BohTab
 }
 
 export async function fetchActiveTables(): Promise<BohTableOption[]> {
+  const tenantId = await getCurrentTenantId();
   console.debug('[tablezContextApi] fetchActiveTables', {
     table: 'boh_table',
     filters: { is_active: true },
@@ -216,6 +234,7 @@ export async function fetchActiveTables(): Promise<BohTableOption[]> {
   const { data: tables, error: tablesErr } = await supabase
     .from('boh_table')
     .select('id, name, section_id')
+    .eq('tenant_id', tenantId)
     .eq('is_active', true)
     .order('sort_order', { ascending: true })
     .order('name', { ascending: true });
@@ -237,6 +256,7 @@ export async function fetchActiveTables(): Promise<BohTableOption[]> {
     const { data: sections, error: sectionsErr } = await supabase
       .from('boh_section')
       .select('id, name')
+      .eq('tenant_id', tenantId)
       .in('id', sectionIds);
 
     if (sectionsErr) {
@@ -256,6 +276,7 @@ export async function fetchActiveTables(): Promise<BohTableOption[]> {
 }
 
 export async function fetchChairsForTable(tableId: string): Promise<BohChairWithUser[]> {
+  const tenantId = await getCurrentTenantId();
   console.debug('[tablezContextApi] fetchChairsForTable', {
     table: 'boh_chair',
     filters: { table_id: tableId, is_active: true },
@@ -263,6 +284,7 @@ export async function fetchChairsForTable(tableId: string): Promise<BohChairWith
   const { data, error } = await supabase
     .from('boh_chair')
     .select('id, table_id, user_id, is_primary, is_active, created_at, chair_role_id')
+    .eq('tenant_id', tenantId)
     .eq('is_active', true)
     .eq('table_id', tableId)
     .order('is_primary', { ascending: false })

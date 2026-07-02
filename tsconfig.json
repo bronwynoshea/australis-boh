@@ -18,18 +18,20 @@
     "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
+    "baseUrl": ".",
     "paths": {
       "@/*": [
-        "./*"
+        "imports/upstream-apps/loft-app/src/*"
       ]
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src"],
+  "include": ["src", "imports/upstream-apps/loft-app"],
   "exclude": [
     "node_modules",
     "dist",
+    "src/_archive",
     "boh-counter",
     "boh-marketing",
     "boh-results",

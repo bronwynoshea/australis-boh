@@ -1,0 +1,49 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="96" fill="#F4F6FB"/>
+  <rect x="82" y="74" width="348" height="364" rx="88" fill="url(#shellA)" filter="url(#shadowA)"/>
+  <rect x="111" y="103" width="290" height="306" rx="68" fill="url(#glassA)" stroke="url(#strokeA)" stroke-width="12"/>
+  <path d="M128 246C166 206 197 196 248 248" stroke="url(#lineA1)" stroke-width="20" stroke-linecap="round"/>
+  <path d="M384 210C337 208 304 220 263 252" stroke="url(#lineA2)" stroke-width="20" stroke-linecap="round"/>
+  <path d="M170 340C204 314 230 292 256 260" stroke="url(#lineA3)" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="46" fill="#1F6BFF" filter="url(#glowA)"/>
+  <circle cx="256" cy="256" r="21" fill="#F8FBFF"/>
+  <path d="M256 171V133" stroke="#67D6FF" stroke-width="12" stroke-linecap="round" opacity=".7"/>
+  <defs>
+    <linearGradient id="shellA" x1="82" y1="74" x2="430" y2="438" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#13205F"/>
+      <stop offset="1" stop-color="#071340"/>
+    </linearGradient>
+    <linearGradient id="glassA" x1="111" y1="103" x2="401" y2="409" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#223784" stop-opacity=".92"/>
+      <stop offset=".58" stop-color="#11205B" stop-opacity=".82"/>
+      <stop offset="1" stop-color="#07113B" stop-opacity=".96"/>
+    </linearGradient>
+    <linearGradient id="strokeA" x1="112" y1="103" x2="401" y2="409" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#64D9FF"/>
+      <stop offset=".5" stop-color="#2D6BFF"/>
+      <stop offset="1" stop-color="#7E8CFF"/>
+    </linearGradient>
+    <linearGradient id="lineA1" x1="128" y1="214" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5FD9FF" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#5FD9FF"/>
+    </linearGradient>
+    <linearGradient id="lineA2" x1="384" y1="210" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B93FF" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#8B93FF"/>
+    </linearGradient>
+    <linearGradient id="lineA3" x1="170" y1="340" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#27C7E6" stop-opacity=".15"/>
+      <stop offset="1" stop-color="#27C7E6"/>
+    </linearGradient>
+    <filter id="shadowA" x="42" y="44" width="428" height="444" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="20" stdDeviation="22" flood-color="#071340" flood-opacity=".22"/>
+    </filter>
+    <filter id="glowA" x="174" y="174" width="164" height="164" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+</svg>

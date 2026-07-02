@@ -1,0 +1,29 @@
+[functions.cellar_verify_access_code]
+verify_jwt = false
+
+[functions.cellar_check_verified_access_email]
+verify_jwt = false
+
+[functions.cellar_list_assets]
+verify_jwt = false
+
+[functions.cellar_get_asset_url]
+verify_jwt = false
+
+[functions.cellar_send_presentation_to_colleague]
+verify_jwt = false
+
+[functions.cellar_send_investor_notes]
+verify_jwt = false
+
+[functions.cellar_manage_investor_message_thread]
+verify_jwt = false
+
+[functions.cellar_search_qa]
+verify_jwt = false
+
+[functions.cellar_resolve_workspace_access]
+verify_jwt = false
+
+[functions.cellar_create_boh_embed_handoff]
+verify_jwt = false

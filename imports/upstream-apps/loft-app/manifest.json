@@ -1,0 +1,22 @@
+{
+  "name": "Loft - JOBZ CAFE®",
+  "short_name": "Loft",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#635CCD",
+  "theme_color": "#635CCD",
+  "icons": [
+    {
+      "src": "/brand/loft-icon-signal-final-light.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/loft-icon-signal-final-dark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

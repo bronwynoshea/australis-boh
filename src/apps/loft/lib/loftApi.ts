@@ -38,31 +38,31 @@ async function invokeLoftFunction<T>(name: string, options: InvokeOptions = {}):
 }
 
 export const getOrCreatePersonalRoom = () =>
-  invokeLoftFunction<PersonalRoom>('get-or-create-personal-room');
+  invokeLoftFunction<PersonalRoom>('loft-get-or-create-personal-room');
 
 export const joinLoftRoom = (loftRoomId: string) =>
   invokeLoftFunction<LoftJoinToken>('loft-join-token', {
     body: { loftRoomId, appContext: 'cafe' },
   });
 
-export const joinPersonalRoomBySlug = (slug: string, guestName: string) =>
-  invokeLoftFunction<PersonalRoomJoin>('join-personal-room-by-slug', {
-    body: { slug, guestName },
+export const joinPersonalRoomBySlug = (slug: string, guestName: string, tenantSlug?: string) =>
+  invokeLoftFunction<PersonalRoomJoin>('loft-join-personal-room-by-slug', {
+    body: { slug, guestName, tenantSlug },
   });
 
 export const getPersonalRoomWaitlist = async (personalRoomId: string) => {
-  const response = await invokeLoftFunction<{ waitlist: WaitlistEntry[] }>('get-personal-room-waitlist', {
+  const response = await invokeLoftFunction<{ waitlist: WaitlistEntry[] }>('loft-get-personal-room-waitlist', {
     body: { personalRoomId },
   });
   return response.waitlist ?? [];
 };
 
 export const approveWaitlistEntry = (waitlistEntryId: string) =>
-  invokeLoftFunction<{ success: boolean; message?: string }>('approve-waitlist-entry', {
+  invokeLoftFunction<{ success: boolean; message?: string }>('loft-approve-waitlist-entry', {
     body: { waitlistEntryId },
   });
 
 export const rejectWaitlistEntry = (waitlistEntryId: string) =>
-  invokeLoftFunction<{ success: boolean; message?: string }>('reject-waitlist-entry', {
+  invokeLoftFunction<{ success: boolean; message?: string }>('loft-reject-waitlist-entry', {
     body: { waitlistEntryId },
   });

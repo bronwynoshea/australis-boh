@@ -13,8 +13,6 @@ import { supabase } from '../../../lib/supabase';
 import FileDetailModal from '../components/FileDetailModal';
 import type { KeepFile } from '../types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-
 interface FileWithDetails extends KeepFile {
   uploaded_by_name?: string;
   folder_name?: string;
@@ -96,61 +94,42 @@ export default function KeepReviewQueuePage() {
     setError(null);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token) {
-        throw new Error('Not authenticated');
-      }
-
-      if (!supabaseUrl) {
-        throw new Error('SUPABASE_URL not configured');
-      }
-
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/keep-files?area=gold_library&lifecycle_status=${activeTab}`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
+      const { data, error: filesError } = await supabase.functions.invoke(
+        `keep-files?area=gold_library&lifecycle_status=${activeTab}`,
+        { method: 'GET' },
       );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to fetch files: ${response.status}`);
+      if (filesError) {
+        throw new Error(filesError.message || 'Failed to fetch files');
       }
-
-      const data = await response.json();
 
       if (!data?.success) {
         throw new Error(data?.error || 'Failed to fetch files');
       }
 
+      const queueFiles = data.files || [];
+      if (queueFiles.length === 0) {
+        setFiles([]);
+        return;
+      }
+
       const filesWithApprovalCount = await Promise.all(
-        (data.files || []).map(async (file: FileWithDetails) => {
+        queueFiles.map(async (file: FileWithDetails) => {
           try {
-            const approvalResponse = await fetch(
-              `${supabaseUrl}/functions/v1/keep-file-approval?file_id=${file.id}`,
-              {
-                method: 'GET',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                },
-              }
+            const { data: approvalData, error: approvalError } = await supabase.functions.invoke(
+              `keep-file-approval?file_id=${file.id}`,
+              { method: 'GET' },
             );
 
-            if (approvalResponse.ok) {
-              const approvalData = await approvalResponse.json();
-              const approvedCount = approvalData.approvals?.filter(
+            if (!approvalError && approvalData?.success !== false) {
+              const approvedCount = approvalData?.approvals?.filter(
                 (a: any) => a.decision === 'approved'
               ).length || 0;
               return {
                 ...file,
                 approval_count: approvedCount,
-                required_approval_count: approvalData.status?.requiredApprovalCount || 2,
-                can_publish_immediately: Boolean(approvalData.status?.canPublishImmediately),
+                required_approval_count: approvalData?.status?.requiredApprovalCount || 2,
+                can_publish_immediately: Boolean(approvalData?.status?.canPublishImmediately),
               };
             }
           } catch (err) {
@@ -296,7 +275,7 @@ export default function KeepReviewQueuePage() {
             <div className="text-center">
               <FileTextIcon className="w-12 h-12 text-boh-text-sub-light dark:text-boh-text-sub mx-auto mb-4" />
               <h3 className="text-lg font-medium text-boh-text-light dark:text-boh-text mb-2">
-                No files found
+                Nothing to review
               </h3>
               <p className="text-sm text-boh-text-sub-light dark:text-boh-text-sub">
                 {activeTab === 'pending_review'

@@ -586,7 +586,7 @@ const AllTicketsPage: React.FC<AllTicketsPageProps> = ({ agents, onUpdateTicket 
               <p className="mt-1 text-md text-boh-text-sub-light dark:text-boh-text-sub">
                 {selectedTicketIds.size > 0
                   ? `${selectedTicketIds.size} selected - assign release, reassign, or archive without deleting records.`
-                  : 'Open tickets across JOBZ CAFE apps. Use filters to include closed tickets.'}
+                  : 'Open tickets across Australis apps. Use filters to include closed tickets.'}
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-start overflow-hidden rounded-lg border border-boh-border-light bg-boh-surface-light dark:border-boh-border dark:bg-boh-surface xl:justify-end">

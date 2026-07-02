@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../../../lib/supabase";
-import { getCurrentBohUserId } from "../../../../boh/api/bohApi";
+import { getCurrentBohUserContext } from "../../../../boh/api/bohApi";
 
 interface SoundbyteProfileRow {
   id?: string;
@@ -60,12 +60,22 @@ const SoundbyteManagerPage: React.FC = () => {
       setError(null);
       try {
         let row: any = null;
+        const currentUser = await getCurrentBohUserContext();
+        if (!currentUser?.id || !currentUser?.tenant_id) {
+          setError("Unable to determine BOH tenant context.");
+          if (mounted) {
+            setSoundbyte({ ...emptySoundbyte, owner_user_id: null, app_context: "boh" });
+          }
+          return;
+        }
 
         if (soundbyteId) {
           const { data, error: byIdError } = await supabase
             .from("soundbyte_profiles")
             .select("*")
             .eq("id", soundbyteId)
+            .eq("tenant_id", currentUser.tenant_id)
+            .eq("app_context", "boh")
             .maybeSingle();
 
           if (byIdError) {
@@ -79,20 +89,12 @@ const SoundbyteManagerPage: React.FC = () => {
         }
 
         if (!row) {
-          const ownerId = await getCurrentBohUserId();
-          if (!ownerId) {
-            setError("Unable to determine BOH user.");
-            if (mounted) {
-              setSoundbyte({ ...emptySoundbyte, owner_user_id: null, app_context: "boh" });
-            }
-            return;
-          }
-
           const { data, error: fetchError } = await supabase
             .from("soundbyte_profiles")
             .select("*")
+            .eq("tenant_id", currentUser.tenant_id)
             .eq("app_context", "boh")
-            .eq("owner_user_id", ownerId)
+            .eq("owner_user_id", currentUser.id)
             .order("created_at", { ascending: true });
 
           if (fetchError) {
@@ -101,7 +103,7 @@ const SoundbyteManagerPage: React.FC = () => {
           } else if (data && data.length > 0) {
             row = data[0];
           } else {
-            row = { ...emptySoundbyte, owner_user_id: ownerId, app_context: "boh" };
+            row = { ...emptySoundbyte, owner_user_id: currentUser.id, app_context: "boh" };
           }
         }
 
@@ -153,13 +155,16 @@ const SoundbyteManagerPage: React.FC = () => {
     setSaveMessage(null);
 
     try {
-      const ownerId = soundbyte.owner_user_id ?? (await getCurrentBohUserId());
-      if (!ownerId) {
-        setError("Unable to determine BOH user.");
+      const currentUser = await getCurrentBohUserContext();
+      if (!currentUser?.id || !currentUser?.tenant_id) {
+        setError("Unable to determine BOH tenant context.");
         return;
       }
 
+      const ownerId = soundbyte.owner_user_id ?? currentUser.id;
+
       const payload: any = {
+        tenant_id: currentUser.tenant_id,
         owner_user_id: ownerId,
         app_context: soundbyte.app_context ?? "boh",
         name: soundbyte.name,
@@ -187,6 +192,7 @@ const SoundbyteManagerPage: React.FC = () => {
           .from("soundbyte_profiles")
           .update(payload)
           .eq("id", soundbyte.id)
+          .eq("tenant_id", currentUser.tenant_id)
           .select("*")
           .single();
       } else {
@@ -249,7 +255,7 @@ const SoundbyteManagerPage: React.FC = () => {
           Soundbyte Strategy
         </h1>
         <p className="text-sm text-boh-text-sub-light dark:text-boh-text-sub">
-          Define the core message structure for JOBZ CAFE using the PPR and PEACE models.
+          Define the core message structure for Australis using the PPR and PEACE models.
         </p>
       </header>
 

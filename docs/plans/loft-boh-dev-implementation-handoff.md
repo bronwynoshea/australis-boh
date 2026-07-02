@@ -12,7 +12,7 @@ No secret values were read, copied, printed, or deployed. No production Supabase
 - BOH navigation now treats Loft as an internal BOH module at `/loft` rather than an external `dev-loft` / `loft.jobzcafe.com` launch.
 - The BOH dashboard routes Loft internally and places it with BOH internal apps instead of hybrid/external apps.
 - `/loft` now renders a functional BOH Loft module shell around the existing BOH Loft Edge Functions:
-  - prepare/reuse a Personal Room through `get-or-create-personal-room`
+  - prepare/reuse a Personal Room through `loft-get-or-create-personal-room`
   - open the host room and issue a Daily token through `loft-join-token`
   - display Personal Room IDs, invite code, Daily room name, and BOH join route
   - load and moderate waitlist entries through existing waitlist functions
@@ -71,12 +71,12 @@ supabase secrets set \
   SB_SECRET_KEY=<boh-dev-service-role-or-secret-key> \
   SUPABASE_ANON_KEY=<boh-dev-anon-or-publishable-key> \
   DAILY_API_KEY=<daily-api-key>
-supabase functions deploy get-or-create-personal-room --project-ref <BOH_DEV_PROJECT_REF>
+supabase functions deploy loft-get-or-create-personal-room --project-ref <BOH_DEV_PROJECT_REF>
 supabase functions deploy loft-join-token --project-ref <BOH_DEV_PROJECT_REF>
-supabase functions deploy join-personal-room-by-slug --project-ref <BOH_DEV_PROJECT_REF>
-supabase functions deploy get-personal-room-waitlist --project-ref <BOH_DEV_PROJECT_REF>
-supabase functions deploy approve-waitlist-entry --project-ref <BOH_DEV_PROJECT_REF>
-supabase functions deploy reject-waitlist-entry --project-ref <BOH_DEV_PROJECT_REF>
+supabase functions deploy loft-join-personal-room-by-slug --project-ref <BOH_DEV_PROJECT_REF>
+supabase functions deploy loft-get-personal-room-waitlist --project-ref <BOH_DEV_PROJECT_REF>
+supabase functions deploy loft-approve-waitlist-entry --project-ref <BOH_DEV_PROJECT_REF>
+supabase functions deploy loft-reject-waitlist-entry --project-ref <BOH_DEV_PROJECT_REF>
 ```
 
 ## Remaining known gaps
@@ -84,4 +84,4 @@ supabase functions deploy reject-waitlist-entry --project-ref <BOH_DEV_PROJECT_R
 - The complete standalone Loft frontend/source repo was not located in this task. The current BOH UI consumes the existing BOH functions and does not attempt to recreate the full Daily call experience.
 - The UI intentionally does not print Daily tokens. The next frontend step is wiring an approved Daily call component/embed to consume the returned token and room name.
 - Existing waitlist functions do not currently perform host authorization checks; because they use `SB_SECRET_KEY`, tighten authorization before broad production exposure.
-- `get-personal-room-by-slug` still has verbose logging/detail behavior noted by the inventory; the new public route uses `join-personal-room-by-slug` instead.
+- `loft-get-personal-room-by-slug` still has verbose logging/detail behavior noted by the inventory; the new public route uses `loft-join-personal-room-by-slug` instead.

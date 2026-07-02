@@ -1,0 +1,5 @@
+-- Run order for SLOTZ booking confirmation finalizer.
+-- Do not run this index file.
+--
+-- 01_BOOKING_CONFIRMATION_TRIGGER.sql
+-- 02_VERIFY_BOOKING_CONFIRMATION_TRIGGER.sql

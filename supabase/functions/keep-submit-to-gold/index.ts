@@ -37,6 +37,7 @@ async function getNextSortOrder(serviceClient, parentId: string): Promise<number
 }
 
 async function ensureGoldChildFolder(keepAuth, parentFolder, folderName: string, folderCache: Map<string, any>) {
+  const currentTenantId = keepAuth.bohUser.tenant_id;
   const trimmedName = folderName.trim();
   const cacheKey = buildFolderCacheKey(parentFolder.id, trimmedName);
   const cachedFolder = folderCache.get(cacheKey);
@@ -49,8 +50,9 @@ async function ensureGoldChildFolder(keepAuth, parentFolder, folderName: string,
 
   const { data: existingFolder, error: existingError } = await keepAuth.serviceClient
     .from("keep_folder")
-    .select("id, parent_id, name, slug, area, folder_type, path, sort_order, is_system_folder, allow_user_created_children, is_active")
+    .select("id, parent_id, tenant_id, name, slug, area, folder_type, path, sort_order, is_system_folder, allow_user_created_children, is_active")
     .eq("parent_id", parentFolder.id)
+    .eq("tenant_id", currentTenantId)
     .eq("slug", slug)
     .eq("area", "gold_library")
     .eq("is_active", true)
@@ -68,6 +70,7 @@ async function ensureGoldChildFolder(keepAuth, parentFolder, folderName: string,
 
   const newFolder = {
     parent_id: parentFolder.id,
+    tenant_id: currentTenantId,
     name: trimmedName,
     slug,
     area: "gold_library",
@@ -82,7 +85,7 @@ async function ensureGoldChildFolder(keepAuth, parentFolder, folderName: string,
   const { data: insertedFolder, error: insertError } = await keepAuth.serviceClient
     .from("keep_folder")
     .insert(newFolder)
-    .select("id, parent_id, name, slug, area, folder_type, path, sort_order, is_system_folder, allow_user_created_children, is_active")
+    .select("id, parent_id, tenant_id, name, slug, area, folder_type, path, sort_order, is_system_folder, allow_user_created_children, is_active")
     .single();
 
   if (insertError || !insertedFolder) {
@@ -107,10 +110,12 @@ async function ensureGoldChildFolder(keepAuth, parentFolder, folderName: string,
 }
 
 async function duplicateGoldFileExists(keepAuth, targetFolderId: string, sourceFile): Promise<boolean> {
+  const currentTenantId = keepAuth.bohUser.tenant_id;
   let duplicateQuery = keepAuth.serviceClient
     .from("keep_file")
     .select("id")
     .eq("folder_id", targetFolderId)
+    .eq("tenant_id", currentTenantId)
     .eq("file_name", sourceFile.file_name)
     .eq("area", "gold_library")
     .eq("is_active", true);
@@ -130,6 +135,7 @@ async function duplicateGoldFileExists(keepAuth, targetFolderId: string, sourceF
 }
 
 async function submitOneFileToGold(keepAuth, sourceFile, destinationFolder, batchMetadata = {}) {
+  const currentTenantId = keepAuth.bohUser.tenant_id;
   if (sourceFile.area !== "workspace") {
     throw new Error("Only Workspace files can be submitted to Gold Library");
   }
@@ -180,6 +186,7 @@ async function submitOneFileToGold(keepAuth, sourceFile, destinationFolder, batc
     .from("keep_file")
     .insert({
       folder_id: destinationFolder.id,
+      tenant_id: currentTenantId,
       file_name: sourceFile.file_name,
       file_ext: sourceFile.file_ext,
       mime_type: sourceFile.mime_type,
@@ -287,6 +294,12 @@ Deno.serve(async (req) => {
       return jsonResponse(req, { success: false, error: "Unauthorized" }, 401);
     }
 
+    const currentTenantId = keepAuth.bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-submit-to-gold] Authenticated BOH user has no tenant_id", { bohUserId: keepAuth.bohUser.id });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
+
     let body;
     try {
       body = await req.json();
@@ -308,8 +321,9 @@ Deno.serve(async (req) => {
 
     const { data: destinationFolder, error: folderError } = await keepAuth.serviceClient
       .from("keep_folder")
-      .select("id, parent_id, name, slug, area, folder_type, path, sort_order, is_system_folder, allow_user_created_children, is_active")
+      .select("id, parent_id, tenant_id, name, slug, area, folder_type, path, sort_order, is_system_folder, allow_user_created_children, is_active")
       .eq("id", destinationFolderId)
+      .eq("tenant_id", currentTenantId)
       .eq("area", "gold_library")
       .eq("is_active", true)
       .single();
@@ -321,8 +335,9 @@ Deno.serve(async (req) => {
     if (fileId) {
       const { data: sourceFile, error: sourceError } = await keepAuth.serviceClient
         .from("keep_file")
-        .select("id, folder_id, file_name, file_ext, mime_type, file_size_bytes, storage_bucket, storage_path, area, lifecycle_status, uploaded_by, is_current, is_active")
+        .select("id, folder_id, tenant_id, file_name, file_ext, mime_type, file_size_bytes, storage_bucket, storage_path, area, lifecycle_status, uploaded_by, is_current, is_active")
         .eq("id", fileId)
+        .eq("tenant_id", currentTenantId)
         .maybeSingle();
 
       if (sourceError) {
@@ -344,8 +359,9 @@ Deno.serve(async (req) => {
 
     const { data: sourceFolder, error: sourceFolderError } = await keepAuth.serviceClient
       .from("keep_folder")
-      .select("id, parent_id, name, slug, area, folder_type, path, sort_order, is_system_folder, allow_user_created_children, is_active")
+      .select("id, parent_id, tenant_id, name, slug, area, folder_type, path, sort_order, is_system_folder, allow_user_created_children, is_active")
       .eq("id", folderId)
+      .eq("tenant_id", currentTenantId)
       .eq("area", "workspace")
       .eq("is_active", true)
       .maybeSingle();
@@ -361,7 +377,8 @@ Deno.serve(async (req) => {
 
     const { data: workspaceFolders, error: workspaceFoldersError } = await keepAuth.serviceClient
       .from("keep_folder")
-      .select("id, parent_id, name, slug, area, path, is_active")
+      .select("id, parent_id, tenant_id, name, slug, area, path, is_active")
+      .eq("tenant_id", currentTenantId)
       .eq("area", "workspace")
       .eq("is_active", true);
 
@@ -377,8 +394,9 @@ Deno.serve(async (req) => {
 
     const { data: sourceFiles, error: sourceFilesError } = await keepAuth.serviceClient
       .from("keep_file")
-      .select("id, folder_id, file_name, file_ext, mime_type, file_size_bytes, storage_bucket, storage_path, area, lifecycle_status, uploaded_by, is_current, is_active")
+      .select("id, folder_id, tenant_id, file_name, file_ext, mime_type, file_size_bytes, storage_bucket, storage_path, area, lifecycle_status, uploaded_by, is_current, is_active")
       .in("folder_id", descendantIds)
+      .eq("tenant_id", currentTenantId)
       .eq("area", "workspace")
       .eq("is_active", true)
       .eq("is_current", true)

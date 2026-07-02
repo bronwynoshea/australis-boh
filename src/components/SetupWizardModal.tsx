@@ -14,8 +14,8 @@ const SetupWizardModal: React.FC<SetupWizardModalProps> = ({ isOpen, onClose, on
   const roles = ['Support', 'Advisor', 'Operations', 'Marketing'];
   const apps = [
     { value: 'counter', label: 'Counter' },
-    { value: 'careerStudio', label: 'Career Studio' },
-    { value: 'talent', label: 'Talent' }
+    { value: 'menu', label: 'Menu' },
+    { value: 'patron', label: 'Patron' }
   ];
 
   const handleRoleToggle = (role: string) => {

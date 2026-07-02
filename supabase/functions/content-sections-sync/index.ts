@@ -44,18 +44,19 @@ async function getServiceClient() {
   return createClient(supabaseUrl, secretKey, { auth: { persistSession: false } });
 }
 
-async function getBohUserId(serviceClient: any, authUserId: string) {
+async function getBohUserContext(serviceClient: any, authUserId: string) {
   const { data, error } = await serviceClient
     .from("boh_user")
-    .select("id")
+    .select("id, tenant_id")
     .eq("auth_user_id", authUserId)
+    .eq("app_context", "boh")
     .maybeSingle();
 
-  if (error || !data?.id) {
-    throw error ?? new Error("Unable to resolve boh_user for auth user");
+  if (error || !data?.id || !data?.tenant_id) {
+    throw error ?? new Error("Unable to resolve BOH user tenant context for auth user");
   }
 
-  return data.id as string;
+  return { id: data.id as string, tenantId: data.tenant_id as string };
 }
 
 function normalizeLabel(input: unknown): string {
@@ -116,12 +117,15 @@ Deno.serve(async (req: Request) => {
     }
 
     const serviceClient = await getServiceClient();
-    const bohUserId = await getBohUserId(serviceClient, user.id);
+    const bohContext = await getBohUserContext(serviceClient, user.id);
+    const bohUserId = bohContext.id;
+    const currentTenantId = bohContext.tenantId;
 
     const { data: project, error: projectError } = await serviceClient
       .from("content_projects")
-      .select("id, owner_user_id")
+      .select("id, owner_user_id, tenant_id")
       .eq("id", project_id)
+      .eq("tenant_id", currentTenantId)
       .maybeSingle();
 
     if (projectError || !project) {
@@ -135,7 +139,8 @@ Deno.serve(async (req: Request) => {
     const { data: existingSections, error: sectionsError } = await serviceClient
       .from("content_sections")
       .select("id, section_index, label, status")
-      .eq("project_id", project_id);
+      .eq("project_id", project_id)
+      .eq("tenant_id", currentTenantId);
 
     if (sectionsError) {
       console.error("[content-sections-sync] Failed to load content_sections", sectionsError);
@@ -166,7 +171,8 @@ Deno.serve(async (req: Request) => {
             status: "active",
             updated_at: new Date().toISOString(),
           })
-          .eq("id", existing.id);
+          .eq("id", existing.id)
+          .eq("tenant_id", currentTenantId);
 
         if (updateError) {
           console.error("[content-sections-sync] Update error", updateError);
@@ -176,6 +182,7 @@ Deno.serve(async (req: Request) => {
         const { data: inserted, error: insertError } = await serviceClient
           .from("content_sections")
           .insert({
+            tenant_id: currentTenantId,
             project_id,
             section_index: next.section_index,
             label: next.label,
@@ -203,7 +210,8 @@ Deno.serve(async (req: Request) => {
       const { error: archiveError } = await serviceClient
         .from("content_sections")
         .update({ status: "archived", updated_at: new Date().toISOString() })
-        .eq("id", row.id);
+        .eq("id", row.id)
+        .eq("tenant_id", currentTenantId);
 
       if (archiveError) {
         console.error("[content-sections-sync] Archive error", archiveError);
@@ -215,6 +223,7 @@ Deno.serve(async (req: Request) => {
       .from("content_sections")
       .select("*")
       .eq("project_id", project_id)
+      .eq("tenant_id", currentTenantId)
       .order("section_index", { ascending: true });
 
     if (refreshError) {

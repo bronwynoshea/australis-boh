@@ -219,7 +219,7 @@ const BohSettingsProfilePage: React.FC = () => {
             Settings
           </h1>
           <p className="text-sm text-boh-text-sub-light dark:text-boh-text-sub">
-            Profile diagnostics for JOBZ CAFE Back of House.
+            Profile diagnostics for Australis Back of House.
           </p>
         </header>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchPatronActivities } from '../api/patronApiMock';
+import { fetchPatronActivities } from '../api/patronApi';
 import type { PatronActivity } from '../types';
 
 interface UsePatronActivitiesFilters {

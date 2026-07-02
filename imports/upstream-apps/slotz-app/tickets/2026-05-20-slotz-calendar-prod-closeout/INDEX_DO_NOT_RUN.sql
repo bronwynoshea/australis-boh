@@ -1,0 +1,6 @@
+-- SLOTZ calendar prod smoke closeout ticket SQL.
+-- Do not run this file.
+-- Uses existing BOH Counter tickets from the confirmed T-2099/T-2100/T-2101 pack.
+-- Run order:
+-- 01_COMMENT_SLOTZ_CALENDAR_PROD_CLOSEOUT.sql
+-- 02_VERIFY_SLOTZ_CALENDAR_PROD_CLOSEOUT.sql

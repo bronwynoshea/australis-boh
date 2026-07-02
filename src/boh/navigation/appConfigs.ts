@@ -8,6 +8,7 @@ const getExternalAppUrl = (prodUrl: string, devUrl: string) => {
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
     hostname === 'dev-boh.jobzcafe.com' ||
+    hostname === 'dev-boh.australis.cloud' ||
     hostname === 'boh.australis.cloud';
 
   return isDev ? devUrl : prodUrl;
@@ -79,9 +80,9 @@ export const patronNavConfig: AppNavConfig = {
   baseRoute: '/patron',
   defaultRoute: '/patron/dashboard',
   sidebarItems: [
+    { key: 'dashboard', label: 'Dashboard', to: '/patron/dashboard' },
     { key: 'people', label: 'People', to: '/patron/people' },
     { key: 'organisations', label: 'Organisations', to: '/patron/organisations' },
-    { key: 'activity', label: 'Activity', to: '/patron/activity' },
     { key: 'pipeline', label: 'Pipeline', to: '/patron/pipeline' },
   ],
 };
@@ -96,9 +97,11 @@ export const counterNavConfig: AppNavConfig = {
   sidebarItems: [
     { key: 'dashboard', label: 'Dashboard', to: '/counter/dashboard' },
     { key: 'inbox', label: 'Inbox', to: '/counter/inbox' },
+    { key: 'my', label: 'My Tickets', to: '/counter/my' },
     { key: 'all', label: 'All Tickets', to: '/counter/all' },
+    { key: 'new', label: 'New Ticket', to: '/counter/new' },
     { key: 'agents', label: 'Agents', to: '/counter/agents' },
-    { key: 'reports', label: 'Reports', to: '/counter/reports' },
+    { key: 'settings', label: 'Settings', to: '/counter/settings' },
   ],
 };
 
@@ -198,18 +201,6 @@ export const talentNavConfig: AppNavConfig = {
   ],
 };
 
-// Central App Navigation Config
-export const centralNavConfig: AppNavConfig = {
-  appId: 'central',
-  appLabel: 'Central',
-  appIcon: DefaultIcons.Central,
-  baseRoute: '/central',
-  defaultRoute: '/central',
-  sidebarItems: [
-    { key: 'overview', label: 'Agent Engagement', to: '/central' },
-  ],
-};
-
 // Slotz App Navigation Config
 export const slotzNavConfig: AppNavConfig = {
   appId: 'slotz',
@@ -258,11 +249,11 @@ export const loftNavConfig: AppNavConfig = {
   appId: 'loft',
   appLabel: 'Loft',
   appIcon: DefaultIcons.Loft,
-  baseRoute: '/loft',
-  defaultRoute: '/loft',
+  baseRoute: '/apps/loft',
+  defaultRoute: '/apps/loft',
   sidebarItems: [
-    { key: 'overview', label: 'Overview', to: '/loft' },
-    { key: 'personal-room', label: 'Personal Room', to: '/loft/personal-room' },
+    { key: 'overview', label: 'Overview', to: '/apps/loft' },
+    { key: 'personal-room', label: 'Personal Room', to: '/apps/loft#/personal-room' },
   ],
 };
 
@@ -301,17 +292,7 @@ export const bohApps: BohAppDefinition[] = [
     navConfig: cellarNavConfig,
     category: 'internal',
   },
-  {
-    id: 'central',
-    slug: 'central',
-    name: 'Central',
-    route: '/central',
-    icon: DefaultIcons.Central,
-    navConfig: centralNavConfig,
-    isExternal: true,
-    externalUrl: 'https://central.jobz.cafe',
-    category: 'internal',
-  },
+
   {
     id: 'chatz',
     slug: 'chatz',
@@ -381,7 +362,7 @@ export const bohApps: BohAppDefinition[] = [
     id: 'loft',
     slug: 'loft',
     name: 'Loft',
-    route: '/loft',
+    route: '/apps/loft',
     icon: DefaultIcons.Loft,
     navConfig: loftNavConfig,
     category: 'internal',
@@ -411,19 +392,7 @@ export const bohApps: BohAppDefinition[] = [
     route: '/apps/slotz',
     icon: DefaultIcons.Slotz,
     navConfig: slotzNavConfig,
-    isExternal: true,
-    externalUrl: 'https://slotz.jobz.cafe',
-    category: 'hybrid',
-  },
-  {
-    id: 'studio',
-    slug: 'studio',
-    name: 'Studio',
-    route: '',
-    icon: DefaultIcons.Studio,
-    isExternal: true,
-    externalUrl: getExternalAppUrl('https://app.jobzcafe.com', 'https://dev-app.jobzcafe.com'),
-    category: 'customer',
+    category: 'internal',
   },
   {
     id: 'tablez',
@@ -433,16 +402,6 @@ export const bohApps: BohAppDefinition[] = [
     icon: DefaultIcons.Tablez,
     navConfig: tablezNavConfig,
     category: 'internal',
-  },
-  {
-    id: 'talent',
-    slug: 'talent',
-    name: 'Talent',
-    route: '',
-    icon: DefaultIcons.Talent,
-    isExternal: true,
-    externalUrl: getExternalAppUrl('https://talent.jobzcafe.com', 'https://dev-talent.jobzcafe.com'),
-    category: 'customer',
   },
   {
     id: 'website',

@@ -1,0 +1,46 @@
+project_id = "jmjrgthqnrebzflythvj"
+
+[functions.loft-get-or-create-personal-room]
+verify_jwt = true
+
+[functions.loft-get-personal-room-by-slug]
+verify_jwt = false
+
+[functions.loft-request-personal-room-access]
+verify_jwt = false
+
+[functions.loft-check-guest-waitlist-status]
+verify_jwt = false
+
+[functions.loft-clear-room-waitlist]
+verify_jwt = true
+
+[functions.loft-update-guest-leave-status]
+verify_jwt = true
+
+[functions.loft-join-token]
+verify_jwt = true
+
+[functions.loft-current-profile]
+verify_jwt = true
+
+[functions.loft-leave-room]
+verify_jwt = true
+
+[functions.loft-end-room]
+verify_jwt = true
+
+[functions.loft-public-join-token]
+verify_jwt = false
+
+[functions.loft-toggle-recording]
+verify_jwt = true
+
+[functions.loft-admin-list-personal-tables]
+verify_jwt = true
+
+[functions.loft-admin-manage-personal-table]
+verify_jwt = true
+
+[functions.loft-review-host-application]
+verify_jwt = true

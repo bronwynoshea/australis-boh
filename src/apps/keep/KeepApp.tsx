@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { BOHShell, bohApps } from '../../boh/navigation';
 import { useBohAccess } from '../../shared/hooks/useBohAccess';
-import { isBohLoggedIn } from '../../lib/bohAuth';
 import KeepSidebar from './components/KeepSidebar';
 import KeepBrowserPage from './pages/KeepBrowserPage';
 import KeepAdminPage from './pages/KeepAdminPage';
@@ -52,12 +51,6 @@ const KeepApp: React.FC<KeepAppProps> = ({ isAdmin = false }) => {
   // Track active root folder for sidebar highlighting
   const [activeRootFolderId, setActiveRootFolderId] = useState<string | null>(null);
   const currentFolderId = urlFolderId || activeRootFolderId;
-
-  useEffect(() => {
-    if (!isBohLoggedIn()) {
-      navigate('/login');
-    }
-  }, [navigate]);
 
   const handleNavigate = (area: 'workspace' | 'gold_library', folderId: string, folderName: string, rootFolderId?: string) => {
     const encodedName = encodeURIComponent(folderName);

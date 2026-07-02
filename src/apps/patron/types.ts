@@ -1,5 +1,6 @@
 export interface PatronPipelineStage {
   id: string;
+  tenant_id?: string;
   key: string;
   label: string;
   description: string | null;
@@ -11,6 +12,7 @@ export interface PatronPipelineStage {
 
 export interface PatronPerson {
   id: string;
+  tenant_id?: string;
   first_name: string | null;
   last_name: string | null;
   email: string | null;
@@ -25,6 +27,7 @@ export interface PatronPerson {
 
 export interface PatronOrganisation {
   id: string;
+  tenant_id?: string;
   name: string;
   website: string | null;
   industry: string | null;
@@ -45,6 +48,7 @@ export type PatronActivityType =
 
 export interface PatronActivity {
   id: string;
+  tenant_id?: string;
   person_id: string | null;
   organisation_id: string | null;
   type: PatronActivityType;

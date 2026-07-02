@@ -39,8 +39,8 @@ const LoftDashboardPage: React.FC = () => {
   const [notice, setNotice] = useState<string | null>(null);
 
   const inviteUrl = useMemo(() => {
-    if (!personalRoom?.inviteCode) return '';
-    return `${window.location.origin}/loft/join/${personalRoom.inviteCode.toLowerCase()}`;
+    if (!personalRoom?.inviteCode || !personalRoom?.tenantSlug) return '';
+    return `${window.location.origin}/t/${personalRoom.tenantSlug.toLowerCase()}/loft/join/${personalRoom.inviteCode.toLowerCase()}`;
   }, [personalRoom]);
 
   const refreshWaitlist = async (roomId: string) => {

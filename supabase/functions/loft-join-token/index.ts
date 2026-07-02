@@ -15,6 +15,12 @@ function json(req: Request, data: unknown, status = 200) {
   });
 }
 
+function isDailyRoomAlreadyExists(resp: Response, body: unknown) {
+  if (resp.status === 409) return true;
+  const bodyText = typeof body === 'string' ? body : JSON.stringify(body || {});
+  return resp.status === 400 && /room named .* already exists/i.test(bodyText);
+}
+
 function normalizeAppContext(raw: unknown): string {
   const v = String(raw || "cafe").toLowerCase();
   if (v === "journey" || v === "coach" || v === "mentor" || v === "cafe") return v;
@@ -65,6 +71,36 @@ async function createDailyMeetingToken(params: {
   return jsonBody;
 }
 
+async function ensureDailyRoom(params: {
+  dailyApiKey: string;
+  name: string;
+}) {
+  const { dailyApiKey, name } = params;
+
+  const resp = await fetch("https://api.daily.co/v1/rooms", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${dailyApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name,
+      privacy: "private",
+    }),
+  });
+
+  const jsonBody = await resp.json().catch(() => ({}));
+  if (isDailyRoomAlreadyExists(resp, jsonBody)) return { name };
+
+  if (!resp.ok) {
+    throw new Error(
+      `daily_room_create_error_${resp.status}: ${JSON.stringify(jsonBody)}`,
+    );
+  }
+
+  return jsonBody;
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders(req.headers.get('origin')) });
 
@@ -106,7 +142,7 @@ serve(async (req: Request) => {
 
     let roomQuery = supabaseAdmin
       .from("loft_room")
-      .select("id, app_context, host_profile_id, title, daily_room_name, is_recorded, visibility, status, scheduled_start_at, started_at, is_open, opened_at")
+      .select("id, app_context, tenant_id, host_profile_id, title, daily_room_name, is_recorded, visibility, status, scheduled_start_at, started_at, is_open, opened_at, max_participants, tags")
       .eq("id", loftRoomId);
 
     if (appContext) {
@@ -138,19 +174,44 @@ serve(async (req: Request) => {
       return json(req, { error: "profile_not_found" }, 400);
     }
 
+    const { data: bohUser, error: bohUserError } = await supabaseAdmin
+      .from("boh_user")
+      .select("id, tenant_id")
+      .eq("auth_user_id", authedUser.id)
+      .eq("app_context", "boh")
+      .maybeSingle();
+
+    if (bohUserError || !bohUser?.tenant_id) {
+      return json(req, { error: "tenant_not_found" }, 403);
+    }
+
+    const tenantId = String(bohUser.tenant_id);
+    const roomTenantId = (room as any)?.tenant_id ? String((room as any).tenant_id) : "";
+
+    if (!roomTenantId || roomTenantId !== tenantId) {
+      return json(req, { error: "room_not_found" }, 404);
+    }
+
     const profileId = String((profile as any)?.id || "");
     const hostProfileId = String((room as any)?.host_profile_id || "");
     const isOwner = !!profileId && !!hostProfileId && profileId === hostProfileId;
 
+    const configuredCapacity = Number((room as any)?.max_participants || 0);
+    const maxParticipants = Number.isFinite(configuredCapacity) && configuredCapacity > 0 ? configuredCapacity : 30;
+
     let memberRole: string | null = null;
+    let memberId: string | null = null;
+    let memberIsActive = false;
     if (!isOwner) {
       const { data: memberRow } = await supabaseAdmin
         .from('loft_room_member')
-        .select('role')
+        .select('id, role, is_active')
         .eq('loft_room_id', room.id)
         .eq('profile_id', profile.id)
         .maybeSingle();
+      memberId = memberRow?.id ? String(memberRow.id) : null;
       memberRole = memberRow?.role ? String(memberRow.role) : null;
+      memberIsActive = !!memberRow?.is_active;
     }
 
     let isRoomOpen = !!(room as any)?.is_open;
@@ -218,6 +279,84 @@ serve(async (req: Request) => {
       }
     }
 
+    if (!isOwner && !memberIsActive) {
+      const { data: activeMembers, error: activeMembersError } = await supabaseAdmin
+        .from('loft_room_member')
+        .select('profile_id')
+        .eq('loft_room_id', room.id)
+        .eq('is_active', true);
+
+      if (activeMembersError) {
+        return json(req, { error: 'capacity_lookup_failed', details: activeMembersError }, 500);
+      }
+
+      const activeProfileIds = new Set((activeMembers || []).map((row: any) => String(row.profile_id)).filter(Boolean));
+      const activeCount = activeProfileIds.size;
+
+      if (activeCount >= maxParticipants) {
+        return json(req, {
+          error: 'room_full',
+          message: 'This Loft room has reached capacity.',
+          maxParticipants,
+        }, 403);
+      }
+
+      const { data: rsvpRows, error: rsvpRowsError } = await supabaseAdmin
+        .from('loft_room_rsvp')
+        .select('profile_id, status')
+        .eq('loft_room_id', room.id)
+        .eq('status', 'going');
+
+      if (rsvpRowsError) {
+        return json(req, { error: 'rsvp_lookup_failed', details: rsvpRowsError }, 500);
+      }
+
+      const callerHasReservedSeat = (rsvpRows || []).some((row: any) => String(row.profile_id) === profileId);
+      const outstandingReservedSeats = (rsvpRows || []).filter((row: any) => {
+        const reservedProfileId = String(row.profile_id || '');
+        return reservedProfileId && reservedProfileId !== profileId && !activeProfileIds.has(reservedProfileId);
+      }).length;
+
+      if (!callerHasReservedSeat && activeCount + outstandingReservedSeats >= maxParticipants) {
+        return json(req, {
+          error: 'room_full_reserved',
+          message: 'This Loft room has reached capacity including reserved RSVP seats.',
+          maxParticipants,
+        }, 403);
+      }
+
+      if (memberId) {
+        const { error: reactivateError } = await supabaseAdmin
+          .from('loft_room_member')
+          .update({ is_active: true, left_at: null })
+          .eq('id', memberId);
+
+        if (reactivateError) {
+          return json(req, { error: 'member_reactivate_failed', details: reactivateError }, 500);
+        }
+      } else {
+        const { data: insertedMember, error: insertMemberError } = await supabaseAdmin
+          .from('loft_room_member')
+          .insert({
+            loft_room_id: room.id,
+            profile_id: profile.id,
+            role: 'listener',
+            is_active: true,
+          })
+          .select('id, role')
+          .single();
+
+        if (insertMemberError) {
+          const code = (insertMemberError as any)?.code;
+          if (code !== '23505') {
+            return json(req, { error: 'member_insert_failed', code, details: insertMemberError }, 500);
+          }
+        }
+        memberId = insertedMember?.id ? String(insertedMember.id) : memberId;
+        memberRole = insertedMember?.role ? String(insertedMember.role) : (memberRole || 'listener');
+      }
+    }
+
     const { data: memberRows, error: memberRowsError } = await supabaseAdmin
       .from('loft_room_member')
       .select(`
@@ -276,6 +415,11 @@ serve(async (req: Request) => {
       avatarUrl: profile?.avatar_url || null,
       isHost: isOwner,
     };
+
+    await ensureDailyRoom({
+      dailyApiKey,
+      name: room.daily_room_name,
+    });
 
     const tokenResp = await createDailyMeetingToken({
       dailyApiKey,

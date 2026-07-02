@@ -25,6 +25,10 @@ Deno.serve(async (req: Request) => {
   }
 
   const { context, serviceClient: supabaseAdmin } = auth;
+  const currentTenantId = context.bohUser?.tenant_id;
+  if (!currentTenantId) {
+    return jsonResponse(req, { success: false, error: "Admin user is missing tenant context" }, 403);
+  }
   console.log("[boh-save-access] Admin saving access:", context.authUser.email);
 
   let payload;
@@ -45,11 +49,42 @@ Deno.serve(async (req: Request) => {
     const roleIds: string[] = input.roleIds;
     const appGrants: Array<{ app_id: string; permission_level: string }> = input.appGrants;
 
+    const { data: targetUser, error: targetUserError } = await supabaseAdmin
+      .from("boh_user")
+      .select("id, tenant_id")
+      .eq("id", targetUserId)
+      .eq("tenant_id", currentTenantId)
+      .eq("app_context", "boh")
+      .maybeSingle();
+
+    if (targetUserError) throw targetUserError;
+    if (!targetUser) {
+      return jsonResponse(req, { success: false, error: "Target user not found in current tenant" }, 404);
+    }
+
+    if (appGrants.length > 0) {
+      const requestedAppIds = Array.from(new Set(appGrants.map((grant) => grant.app_id)));
+      const { data: enabledTenantApps, error: tenantAppsError } = await supabaseAdmin
+        .from("boh_tenant_app")
+        .select("app_id")
+        .eq("tenant_id", currentTenantId)
+        .in("status", ["enabled", "coming_soon"])
+        .in("app_id", requestedAppIds);
+
+      if (tenantAppsError) throw tenantAppsError;
+      const enabledIds = new Set((enabledTenantApps ?? []).map((row: any) => row.app_id));
+      const disabledRequest = requestedAppIds.find((appId) => !enabledIds.has(appId));
+      if (disabledRequest) {
+        return badRequest(req, "Requested app is not enabled for current tenant");
+      }
+    }
+
     // Replace boh_user_role entries
     const { error: deleteRolesError } = await supabaseAdmin
       .from("boh_user_role")
       .delete()
       .eq("user_id", targetUserId)
+      .eq("tenant_id", currentTenantId)
       .eq("app_context", "boh");
 
     if (deleteRolesError) throw deleteRolesError;
@@ -58,6 +93,7 @@ Deno.serve(async (req: Request) => {
       const roleRows = roleIds.map((roleId) => ({
         user_id: targetUserId,
         role_id: roleId,
+        tenant_id: currentTenantId,
         app_context: "boh",
       }));
 
@@ -82,6 +118,7 @@ Deno.serve(async (req: Request) => {
         .from("boh_user_app")
         .delete()
         .eq("user_id", targetUserId)
+        .eq("tenant_id", currentTenantId)
         .eq("app_context", "boh");
       if (deleteAppsError) throw deleteAppsError;
     } else {
@@ -89,6 +126,7 @@ Deno.serve(async (req: Request) => {
         .from("boh_user_app")
         .delete()
         .eq("user_id", targetUserId)
+        .eq("tenant_id", currentTenantId)
         .eq("app_context", "boh");
       if (deleteAppsError) throw deleteAppsError;
 
@@ -97,6 +135,7 @@ Deno.serve(async (req: Request) => {
           user_id: targetUserId,
           app_id: grant.app_id,
           permission_level: grant.permission_level,
+          tenant_id: currentTenantId,
           app_context: "boh",
         }));
 
@@ -115,11 +154,12 @@ Deno.serve(async (req: Request) => {
     const { error: updateUserError } = await supabaseAdmin
       .from("boh_user")
       .update({ primary_role_hint: nextPrimaryHint })
-      .eq("id", targetUserId);
+      .eq("id", targetUserId)
+      .eq("tenant_id", currentTenantId);
 
     if (updateUserError) throw updateUserError;
 
-    const refreshedUserData = await fetchEffectiveUserRecord(supabaseAdmin, targetUserId);
+    const refreshedUserData = await fetchEffectiveUserRecord(supabaseAdmin, targetUserId, currentTenantId);
 
     return successResponse(req, { user: refreshedUserData });
   } catch (error) {
@@ -128,7 +168,7 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-async function fetchEffectiveUserRecord(client: any, userId: string) {
+async function fetchEffectiveUserRecord(client: any, userId: string, tenantId: string) {
   const { data, error } = await client
     .from("boh_user")
     .select(`
@@ -162,6 +202,7 @@ async function fetchEffectiveUserRecord(client: any, userId: string) {
       )
     `)
     .eq("id", userId)
+    .eq("tenant_id", tenantId)
     .eq("app_context", "boh")
     .maybeSingle();
 
@@ -170,16 +211,20 @@ async function fetchEffectiveUserRecord(client: any, userId: string) {
   }
 
   const { data: appsData, error: appsError } = await client
-    .from("boh_app")
-    .select("id, slug, name, is_active")
-    .eq("app_context", "boh")
-    .eq("is_active", true);
+    .from("boh_tenant_app")
+    .select("app:boh_app!boh_tenant_app_app_id_fkey(id, slug, name, is_active)")
+    .eq("tenant_id", tenantId)
+    .in("status", ["enabled", "coming_soon"]);
 
   if (appsError) {
     throw appsError;
   }
 
-  return mapAccessUserRow(data, appsData ?? []);
+  const enabledApps = (appsData ?? [])
+    .map((row: any) => Array.isArray(row.app) ? row.app[0] : row.app)
+    .filter((app: any) => app?.is_active !== false);
+
+  return mapAccessUserRow(data, enabledApps);
 }
 
 function mapAccessUserRow(row: any, apps: any[]) {

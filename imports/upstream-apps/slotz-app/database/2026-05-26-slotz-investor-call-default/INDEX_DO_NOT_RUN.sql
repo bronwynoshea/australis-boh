@@ -1,0 +1,11 @@
+-- SLOTZ Investor Call default meeting type
+--
+-- Run order:
+-- 1. 01_ADD_INVESTOR_CALL_MEETING_TYPE.sql
+-- 2. 02_VERIFY_INVESTOR_CALL_MEETING_TYPE.sql
+--
+-- BOH-dev project ref: lczzeiqmnegyjrwtgmsj
+-- BOH/prod project ref: gsidwiptqkyciexqdbyw
+--
+-- These files are SQL-only for the Supabase SQL Editor.
+-- Do not run in BOH/prod until Bronwyn explicitly approves production data changes.

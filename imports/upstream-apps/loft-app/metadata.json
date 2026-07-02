@@ -1,0 +1,9 @@
+{
+  "name": "Loft",
+  "description": "A live video drop-in audio/video platform module for JOBZ CAFE®.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "display-capture"
+  ]
+}

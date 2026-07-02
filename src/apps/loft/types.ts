@@ -9,6 +9,7 @@ export type PersonalRoom = {
   dailyRoomName: string;
   title: string;
   inviteCode: string;
+  tenantSlug: string;
   isNew: boolean;
 };
 

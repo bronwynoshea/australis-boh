@@ -49,6 +49,11 @@ Deno.serve(async (req) => {
     }
 
     const userId = bohUser.id;
+    const currentTenantId = bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-file-download] BOH user missing tenant_id", { userId });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
     console.log("[keep-file-download] Authenticated user:", { authUserId: authUser.id, bohUserId: userId });
 
     // 2. Parse request body
@@ -76,6 +81,7 @@ Deno.serve(async (req) => {
       .select(`
         id,
         folder_id,
+        tenant_id,
         file_name,
         file_ext,
         mime_type,
@@ -89,6 +95,7 @@ Deno.serve(async (req) => {
         folder:keep_folder!inner(area, is_active, allow_user_created_children)
       `)
       .eq("id", fileId)
+      .eq("tenant_id", currentTenantId)
       .eq("is_current", true)
       .single();
 

@@ -32,18 +32,19 @@ async function getServiceClient() {
   return createClient(supabaseUrl, secretKey, { auth: { persistSession: false } });
 }
 
-async function getBohUserId(serviceClient: any, authUserId: string) {
+async function getBohUserContext(serviceClient: any, authUserId: string) {
   const { data, error } = await serviceClient
     .from("boh_user")
-    .select("id")
+    .select("id, tenant_id")
     .eq("auth_user_id", authUserId)
+    .eq("app_context", "boh")
     .maybeSingle();
 
-  if (error || !data?.id) {
-    throw error ?? new Error("Unable to resolve boh_user for auth user");
+  if (error || !data?.id || !data?.tenant_id) {
+    throw error ?? new Error("Unable to resolve BOH user tenant context for auth user");
   }
 
-  return data.id as string;
+  return { id: data.id as string, tenantId: data.tenant_id as string };
 }
 
 Deno.serve(async (req: Request) => {
@@ -73,13 +74,16 @@ Deno.serve(async (req: Request) => {
     } = body ?? {};
 
     const serviceClient = await getServiceClient();
-    const bohUserId = await getBohUserId(serviceClient, user.id);
+    const bohContext = await getBohUserContext(serviceClient, user.id);
+    const bohUserId = bohContext.id;
+    const currentTenantId = bohContext.tenantId;
 
     if (project_id) {
       const { data: existing, error: loadError } = await serviceClient
         .from("content_projects")
-        .select("id, owner_user_id")
+        .select("id, owner_user_id, tenant_id")
         .eq("id", project_id)
+        .eq("tenant_id", currentTenantId)
         .maybeSingle();
 
       if (loadError || !existing) {
@@ -108,6 +112,7 @@ Deno.serve(async (req: Request) => {
         .from("content_projects")
         .update(updatePayload)
         .eq("id", project_id)
+        .eq("tenant_id", currentTenantId)
         .select("*")
         .single();
 
@@ -128,6 +133,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const insertPayload: any = {
+      tenant_id: currentTenantId,
       owner_user_id: bohUserId,
       app_context: "boh",
       content_type,

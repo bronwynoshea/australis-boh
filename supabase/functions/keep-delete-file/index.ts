@@ -46,6 +46,11 @@ Deno.serve(async (req) => {
     }
 
     const userId = bohUser.id;
+    const currentTenantId = bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-delete-file] BOH user missing tenant_id", { userId });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
 
     // 5. Parse request body
     const body = await req.json();
@@ -63,8 +68,9 @@ Deno.serve(async (req) => {
     // 6. Fetch file record
     const { data: fileRecord, error: fileError } = await serviceClient
       .from("keep_file")
-      .select("id, folder_id, storage_bucket, storage_path, file_name, uploaded_by, area, lifecycle_status")
+      .select("id, folder_id, tenant_id, storage_bucket, storage_path, file_name, uploaded_by, area, lifecycle_status")
       .eq("id", fileId)
+      .eq("tenant_id", currentTenantId)
       .eq("is_current", true)
       .single();
 
@@ -99,7 +105,8 @@ Deno.serve(async (req) => {
         is_current: false,
         updated_at: new Date().toISOString()
       })
-      .eq("id", fileId);
+      .eq("id", fileId)
+      .eq("tenant_id", currentTenantId);
 
     if (updateError) {
       console.error("[keep-delete-file] Failed to mark file as deleted:", updateError);

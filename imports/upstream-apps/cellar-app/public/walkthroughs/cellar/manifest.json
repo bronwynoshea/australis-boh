@@ -1,0 +1,89 @@
+{
+  "generatedFor": "CELLAR enterprise video and guide refresh",
+  "sourceSite": "https://dev-cellar.jobzcafe.com",
+  "branding": {
+    "visualBrand": "JOBZ CAFE®",
+    "ttsPronunciation": "Jobs Café"
+  },
+  "investorOverview": {
+    "title": "CELLAR investor overview",
+    "durationSeconds": 155,
+    "path": "/walkthroughs/cellar/cellar-investor-overview-current.mp4",
+    "notes": [
+      "Under three minutes.",
+      "Includes current dev-cellar Suggested next steps UI.",
+      "Includes Download presentation and Send pitch to colleague features.",
+      "Request access and Book a call screens use clean 1920x1080 full-height drawer captures."
+    ]
+  },
+  "staffLibrary": {
+    "reviewReel": "/walkthroughs/cellar/staff/cellar-staff-library-review-reel.mp4",
+    "verificationContactSheet": "/walkthroughs/cellar/staff/staff-video-midframe-contact-sheet.jpg",
+    "sourceScreenContactSheet": "/walkthroughs/cellar/staff/dev-staff-screen-contact-sheet.jpg",
+    "modules": [
+      {
+        "id": "staff-dashboard",
+        "title": "Staff dashboard",
+        "durationSeconds": 18,
+        "path": "/walkthroughs/cellar/staff/01-staff-dashboard.mp4",
+        "description": "Monitor verified investors, approvals, invitation conversion, and action items from one operating view."
+      },
+      {
+        "id": "investor-requests",
+        "title": "Investor requests",
+        "durationSeconds": 14,
+        "path": "/walkthroughs/cellar/staff/02-investor-requests.mp4",
+        "description": "Review verified-access requests before approving deeper investor workspace access."
+      },
+      {
+        "id": "investor-contacts",
+        "title": "Investor contacts",
+        "durationSeconds": 16,
+        "path": "/walkthroughs/cellar/staff/03-investor-contacts.mp4",
+        "description": "Maintain investor records with ownership, access status, and recent relationship context."
+      },
+      {
+        "id": "investor-messages",
+        "title": "Investor messages",
+        "durationSeconds": 15,
+        "path": "/walkthroughs/cellar/staff/04-investor-messages.mp4",
+        "description": "Keep private investor correspondence tied to the correct contact and staff workflow."
+      },
+      {
+        "id": "presentations",
+        "title": "Presentations",
+        "durationSeconds": 17,
+        "path": "/walkthroughs/cellar/staff/05-presentations.mp4",
+        "description": "Review presentation details, then open slide narratives to update the investor-facing story."
+      },
+      {
+        "id": "qa-library",
+        "title": "Questions and answers",
+        "durationSeconds": 14,
+        "path": "/walkthroughs/cellar/staff/06-qa-library.mp4",
+        "description": "Prepare consistent answers by topic, audience, source, and status."
+      },
+      {
+        "id": "invites",
+        "title": "Investor invitations",
+        "durationSeconds": 16,
+        "path": "/walkthroughs/cellar/staff/07-invites.mp4",
+        "description": "Prepare controlled investor access invitations from the updated aligned form."
+      },
+      {
+        "id": "access-management",
+        "title": "Access management",
+        "durationSeconds": 14,
+        "path": "/walkthroughs/cellar/staff/08-access-management.mp4",
+        "description": "Manage the active shared access code and staff-controlled entry points."
+      },
+      {
+        "id": "team-access",
+        "title": "Team access",
+        "durationSeconds": 13,
+        "path": "/walkthroughs/cellar/staff/09-team-access.mp4",
+        "description": "Review internal staff access and keep investor operations owned by the right people."
+      }
+    ]
+  }
+}

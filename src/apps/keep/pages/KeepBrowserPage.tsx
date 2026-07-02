@@ -89,7 +89,12 @@ export default function KeepBrowserPage({
       ? '00-GOLD-LIBRARY'
       : 'Workspace'
     : undefined;
-  const { folders: childFolders, loading: foldersLoading, refetch: refetchFolders } = useSupabaseFolders({
+  const {
+    folders: childFolders,
+    loading: foldersLoading,
+    error: foldersError,
+    refetch: refetchFolders,
+  } = useSupabaseFolders({
     area,
     parentId: isRootLevel ? undefined : folderId, // Don't use parentId when finding system folder
     systemFolderName,
@@ -749,6 +754,12 @@ export default function KeepBrowserPage({
                       Array.from({ length: 10 }).map((_, i) => (
                         <div key={i} className="h-16 rounded-lg bg-boh-bg-light dark:bg-boh-bg animate-pulse" />
                       ))
+                    ) : foldersError ? (
+                      <div className="col-span-2 py-12 text-center">
+                        <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                          {foldersError}
+                        </p>
+                      </div>
                     ) : topLevelFolders.length === 0 ? (
                       <div className="col-span-2 py-12 text-center">
                         <p className="text-sm text-boh-text-sub-light dark:text-boh-text-sub">
@@ -806,6 +817,10 @@ export default function KeepBrowserPage({
                         <div key={i} className="h-12 rounded-lg bg-boh-surface-light dark:bg-boh-surface animate-pulse" />
                       ))}
                     </div>
+                  ) : foldersError ? (
+                    <p className="text-sm text-red-600 dark:text-red-400">
+                      {foldersError}
+                    </p>
                   ) : topLevelFolders.length === 0 ? (
                     <p className="text-sm text-boh-text-sub-light dark:text-boh-text-sub">
                       No folders available

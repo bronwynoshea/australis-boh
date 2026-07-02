@@ -1,0 +1,75 @@
+# Supabase Configuration
+project_id = "lczzeiqmnegyjrwtgmsj"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173", "https://localhost:5173"]
+jwt_expiry = 3600
+
+[edge_runtime]
+enabled = true
+
+[functions.slotz-get-managed-booking]
+verify_jwt = false
+
+[functions.slotz-reschedule-booking]
+verify_jwt = false
+
+[functions.slotz-cancel-booking]
+verify_jwt = false
+
+[functions.slotz-get-reschedule-context]
+verify_jwt = false
+
+[functions.slotz-send-booking-confirmation]
+verify_jwt = false
+
+[functions.slotz-send-daily-guest-reminders]
+verify_jwt = false
+
+[functions.slotz-send-daily-staff-reminders]
+verify_jwt = false
+
+[functions.slotz-outlook-connect]
+verify_jwt = false
+
+[functions.slotz-outlook-callback]
+verify_jwt = false
+
+[functions.slotz-google-connect]
+verify_jwt = false
+
+[functions.slotz-google-status]
+verify_jwt = false
+
+[functions.slotz-google-disconnect]
+verify_jwt = false
+
+[functions.slotz-google-callback]
+verify_jwt = false
+
+[functions.slotz-bootstrap-staff]
+verify_jwt = false
+
+[analytics]
+enabled = false

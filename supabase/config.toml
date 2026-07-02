@@ -49,6 +49,12 @@ verify_jwt = false
 [functions.get-campaign-bonus-tiers]
 verify_jwt = false
 
+[functions.loft-daily-join-hook]
+verify_jwt = false
+
+[functions.loft-video-session-upsert]
+verify_jwt = false
+
 [functions.get-hero-campaign]
 verify_jwt = false
 
@@ -153,7 +159,7 @@ verify_jwt = false
 verify_jwt = false
 
 # Downloaded BOH production functions - Pattern B authentication
-[functions.approve-waitlist-entry]
+[functions.loft-approve-waitlist-entry]
 verify_jwt = false
 
 [functions.calendar-sync]
@@ -255,16 +261,16 @@ verify_jwt = false
 [functions.create-outlook-event]
 verify_jwt = false
 
-[functions.get-or-create-personal-room]
+[functions.loft-get-or-create-personal-room]
 verify_jwt = false
 
-[functions.get-personal-room-by-slug]
+[functions.loft-get-personal-room-by-slug]
 verify_jwt = false
 
-[functions.get-personal-room-waitlist]
+[functions.loft-get-personal-room-waitlist]
 verify_jwt = false
 
-[functions.join-personal-room-by-slug]
+[functions.loft-join-personal-room-by-slug]
 verify_jwt = false
 
 [functions.lessons-learned]
@@ -279,7 +285,7 @@ verify_jwt = false
 [functions.patron-recruiter-intake]
 verify_jwt = false
 
-[functions.reject-waitlist-entry]
+[functions.loft-reject-waitlist-entry]
 verify_jwt = false
 
 [functions.send-booking-confirmation]
@@ -301,4 +307,105 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-staff-notification]
+verify_jwt = false
+
+[functions.loft-check-guest-waitlist-status]
+verify_jwt = false
+
+[functions.loft-clear-room-waitlist]
+verify_jwt = false
+
+[functions.loft-update-guest-leave-status]
+verify_jwt = false
+
+[functions.loft-current-profile]
+verify_jwt = false
+
+[functions.loft-leave-room]
+verify_jwt = false
+
+[functions.loft-end-room]
+verify_jwt = false
+
+[functions.loft-public-join-token]
+verify_jwt = false
+
+[functions.loft-toggle-recording]
+verify_jwt = false
+
+[functions.loft-admin-list-personal-tables]
+verify_jwt = false
+
+[functions.loft-admin-manage-personal-table]
+verify_jwt = false
+
+[functions.loft-review-host-application]
+verify_jwt = false
+
+[functions.loft-request-personal-room-access]
+verify_jwt = false
+
+[functions.loft-cleanup-ended-rooms]
+verify_jwt = false
+
+[functions.gemini-model-healthcheck]
+verify_jwt = false
+
+[functions.loft-get-personal-room-access]
+verify_jwt = false
+
+[functions.loft-get-room-summary]
+verify_jwt = false
+
+[functions.loft-create-room]
+verify_jwt = false
+
+[functions.loft-delete-room]
+verify_jwt = false
+
+[functions.loft-get-room-roles]
+verify_jwt = false
+
+[functions.loft-list-hand-raises]
+verify_jwt = false
+
+[functions.loft-list-rooms]
+verify_jwt = false
+
+[functions.loft-open-room]
+verify_jwt = false
+
+[functions.loft-raise-hand]
+verify_jwt = false
+
+[functions.loft-rsvp]
+verify_jwt = false
+
+[functions.loft-sadie-room-create]
+verify_jwt = false
+
+[functions.loft-set-member-role]
+verify_jwt = false
+
+[functions.loft-update-room]
+verify_jwt = false
+
+[functions.loft-submit-host-application]
+verify_jwt = false
+
+[functions.loft-update-invite-code]
+verify_jwt = false
+[functions.loft-external-personal-room]
+verify_jwt = false
+
+[functions.talent-interview-request]
+verify_jwt = false
+
+[functions.boh-notification-enqueue]
+verify_jwt = false
+
+[functions.boh-notification-dispatch]
+verify_jwt = false
+
+[functions.boh-sms-webhook]
 verify_jwt = false

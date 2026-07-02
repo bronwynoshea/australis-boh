@@ -6,7 +6,7 @@ import { SearchIcon } from '../components/Icons';
 
 import { StatusBadge, PriorityBadge } from '../components/Badges';
 import { fetchTicketsForView, fetchTicketLookups } from '../api/counterTicketsApi';
-import { supabase } from '../../../../lib/supabase';
+import { getCurrentBohUserContext } from '../../../../boh/api/bohApi';
 
 interface MyTicketsPageProps {
   agents: Agent[];
@@ -74,36 +74,17 @@ const MyTicketsPage: React.FC<MyTicketsPageProps> = ({ onTicketSelect }) => {
   useEffect(() => {
     const loadUserAndTickets = async () => {
       try {
-        // Get current auth user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          setTickets([]);
-          return;
-        }
-
-        // Resolve BOH user id for this auth user so we can match created_by / assigned_to
-        const { data: bohUser, error: bohUserError } = await supabase
-          .from('boh_user')
-          .select('id')
-          .eq('auth_user_id', user.id)
-          .maybeSingle();
-
-        if (bohUserError) {
-          console.error('Error loading boh_user for My Tickets:', bohUserError);
-          setTickets([]);
-          return;
-        }
-
-        if (!bohUser?.id) {
+        const bohContext = await getCurrentBohUserContext();
+        if (!bohContext?.id) {
           // No BOH user row; user will not have any Counter tickets yet.
           setTickets([]);
           return;
         }
 
-        setBohUserId(bohUser.id);
+        setBohUserId(bohContext.id);
 
         setIsLoading(true);
-        const { tickets: myTickets } = await fetchTicketsForView('my', { bohUserId: bohUser.id });
+        const { tickets: myTickets } = await fetchTicketsForView('my', { bohUserId: bohContext.id });
         setAllMyTickets(myTickets);
         setTickets(myTickets);
       } catch (error) {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchPatronStages } from '../api/patronApiMock';
+import { fetchPatronStages } from '../api/patronApi';
 import type { PatronPipelineStage } from '../types';
 
 export function usePatronStages() {

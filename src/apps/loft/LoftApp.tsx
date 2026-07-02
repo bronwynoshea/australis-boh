@@ -2,7 +2,8 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { BOHShell } from '../../boh/navigation';
 import { bohApps } from '../../boh/navigation/appConfigs';
-import LoftDashboardPage from './pages/LoftDashboardPage';
+import UpstreamLoftApp from '../../../imports/upstream-apps/loft-app/App';
+import '../../../imports/upstream-apps/loft-app/index.css';
 
 interface LoftAppProps {
   isAdmin?: boolean;
@@ -10,11 +11,17 @@ interface LoftAppProps {
 
 const LoftApp: React.FC<LoftAppProps> = ({ isAdmin = false }) => {
   return (
-    <BOHShell apps={bohApps} isAdmin={isAdmin}>
+    <BOHShell apps={bohApps} isAdmin={isAdmin} showContextualSidebar={false} flushContent>
       <Routes>
-        <Route index element={<LoftDashboardPage />} />
-        <Route path="personal-room" element={<LoftDashboardPage />} />
-        <Route path="*" element={<Navigate to="/loft" replace />} />
+        <Route path="personal-room" element={<Navigate to="/apps/loft#/personal-room" replace />} />
+        <Route
+          path="*"
+          element={(
+            <div className="boh-native-loft-frame">
+              <UpstreamLoftApp />
+            </div>
+          )}
+        />
       </Routes>
     </BOHShell>
   );

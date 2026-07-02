@@ -14,7 +14,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage }) => {
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-boh-surface-light dark:bg-boh-surface border-r border-boh-border-light dark:border-boh-border">
       <div className="flex flex-col items-start px-6 py-5">
-        <h1 className="text-2xl font-bold text-boh-text-light dark:text-boh-text">JOBZ CAFE®</h1>
+        <h1 className="text-2xl font-bold text-boh-text-light dark:text-boh-text">Australis</h1>
         <p className="text-lg text-boh-text-sub-light dark:text-boh-text-sub">Counter</p>
       </div>
       <nav className="flex-1 px-4 py-4 space-y-2">

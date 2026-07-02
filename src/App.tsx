@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import type { Theme, Section } from './types';
 import Login from './components/Login';
@@ -23,6 +22,7 @@ import CrewApp from './apps/crew/CrewApp';
 import CentralApp from './apps/central/CentralApp';
 import KeepApp from './apps/keep/KeepApp';
 import LoftApp from './apps/loft/LoftApp';
+import DailyRedirectPage from './apps/loft/pages/DailyRedirectPage';
 import PersonalRoomPublicJoinPage from './apps/loft/pages/PersonalRoomPublicJoinPage';
 import CellarApp from './apps/cellar/CellarApp';
 import ChatzApp from './apps/chatz/App';
@@ -36,9 +36,6 @@ import { getBohTheme, setBohTheme } from './lib/bohAuth';
 import { useBohAccess } from './shared/hooks/useBohAccess';
 import { supabase } from './lib/supabase';
 import { SidebarProvider } from './contexts/SidebarContext';
-
-// Create a client
-const queryClient = new QueryClient();
 
 function App() {
   const navigate = useNavigate();
@@ -343,7 +340,6 @@ function App() {
 
   return (
     <SidebarProvider>
-      <QueryClientProvider client={queryClient}>
       <Routes>
       <Route path="/boh/cookbook/slow-cook/:projectType/new" element={renderProtectedRoute(<StoryboardPage mode="create" />)} />
       <Route path="/boh/cookbook/slow-cook/:projectType" element={renderProtectedRoute(<StoryboardPage mode="edit" />)} />
@@ -355,7 +351,10 @@ function App() {
       <Route path="/crew/*" element={renderProtectedRoute(<CrewApp isAdmin={isSuperAdmin} />)} />
       <Route path="/central/*" element={renderProtectedRoute(<CentralApp isAdmin={isSuperAdmin} />)} />
       <Route path="/keep/*" element={renderProtectedRoute(<KeepApp isAdmin={isSuperAdmin} />)} />
+      <Route path="/daily-redirect" element={<DailyRedirectPage />} />
+      <Route path="/t/:tenantSlug/loft/join/:slug" element={<PersonalRoomPublicJoinPage />} />
       <Route path="/loft/join/:slug" element={<PersonalRoomPublicJoinPage />} />
+      <Route path="/apps/loft/*" element={renderProtectedRoute(<LoftApp isAdmin={isSuperAdmin} />)} />
       <Route path="/loft/*" element={renderProtectedRoute(<LoftApp isAdmin={isSuperAdmin} />)} />
       <Route path="/cellar/*" element={renderProtectedRoute(<CellarApp isAdmin={isSuperAdmin} />)} />
       <Route path="/apps/chatz/*" element={renderProtectedRoute(<ChatzApp isAdmin={isSuperAdmin} />)} />
@@ -395,7 +394,6 @@ function App() {
         },
       }}
     />
-    </QueryClientProvider>
     </SidebarProvider>
   );
 }

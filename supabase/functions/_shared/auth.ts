@@ -107,7 +107,7 @@ export async function resolveBohUser(
 ): Promise<{ bohUser: any; error: null } | { bohUser: null; error: string }> {
   const { data: bohUserData, error: bohUserError } = await serviceClient
     .from("boh_user")
-    .select("id, auth_user_id, primary_role_hint, app_context")
+    .select("id, auth_user_id, tenant_id, primary_role_hint, app_context")
     .eq("auth_user_id", authUserId)
     .eq("app_context", "boh")
     .maybeSingle();
@@ -126,21 +126,24 @@ export async function resolveBohUser(
 export async function checkSuperAdmin(
   serviceClient: ReturnType<typeof createClient>,
   bohUserId: string,
+  tenantId?: string | null,
   primaryRoleHint?: string
 ): Promise<boolean> {
-  // Quick check via primary_role_hint
-  if (primaryRoleHint === "super_admin") {
-    return true;
+  if (!tenantId) {
+    return false;
   }
 
-  // Full role table check
+  // Super-admin is tenant-scoped. Do not let primary_role_hint become a
+  // cross-tenant bypass; verify the role assignment inside the current tenant.
   const { data: roleData } = await serviceClient
     .from("boh_user_role")
     .select("role:boh_role(code)")
     .eq("user_id", bohUserId)
+    .eq("tenant_id", tenantId)
     .eq("app_context", "boh");
 
-  return roleData?.some((r: any) => r.role?.code === "super_admin") ?? false;
+  const hasScopedRole = roleData?.some((r: any) => r.role?.code === "super_admin") ?? false;
+  return hasScopedRole;
 }
 
 // ============================================================================
@@ -185,7 +188,12 @@ export async function requireUser(req: Request): Promise<AuthResultType> {
 
   // Step 4: Check super_admin status (optional info for protected functions)
   const isSuperAdmin = bohResult.bohUser
-    ? await checkSuperAdmin(serviceClient, bohResult.bohUser.id, bohResult.bohUser.primary_role_hint)
+    ? await checkSuperAdmin(
+        serviceClient,
+        bohResult.bohUser.id,
+        bohResult.bohUser.tenant_id,
+        bohResult.bohUser.primary_role_hint
+      )
     : false;
 
   return {
@@ -289,6 +297,7 @@ export async function requireAdmin(req: Request): Promise<AuthResultType> {
   const isSuperAdmin = await checkSuperAdmin(
     serviceClient,
     bohResult.bohUser.id,
+    bohResult.bohUser.tenant_id,
     bohResult.bohUser.primary_role_hint
   );
 

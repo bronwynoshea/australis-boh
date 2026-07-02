@@ -32,6 +32,11 @@ Deno.serve(async (req) => {
     }
 
     const userId = keepAuth.bohUser.id;
+    const currentTenantId = keepAuth.bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-create-folder] Authenticated BOH user has no tenant_id", { bohUserId: userId });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
 
     console.debug("[keep-create-folder] Authenticated user:", {
       bohUserId: userId,
@@ -68,8 +73,9 @@ Deno.serve(async (req) => {
     // 3. Validate parent folder
     const { data: parentFolder, error: parentError } = await keepAuth.serviceClient
       .from("keep_folder")
-      .select("id, name, area, path, allow_user_created_children, is_active")
+      .select("id, tenant_id, name, area, path, allow_user_created_children, is_active")
       .eq("id", parent_id)
+      .eq("tenant_id", currentTenantId)
       .maybeSingle();
 
     if (parentError) {
@@ -108,6 +114,7 @@ Deno.serve(async (req) => {
       .from("keep_folder")
       .select("sort_order")
       .eq("parent_id", parent_id)
+      .eq("tenant_id", currentTenantId)
       .order("sort_order", { ascending: false })
       .limit(1);
 
@@ -125,6 +132,7 @@ Deno.serve(async (req) => {
       .from("keep_folder")
       .select("id")
       .eq("parent_id", parent_id)
+      .eq("tenant_id", currentTenantId)
       .eq("slug", slug)
       .maybeSingle();
 
@@ -140,6 +148,7 @@ Deno.serve(async (req) => {
     // 8. Insert new folder
     const newFolder = {
       parent_id,
+      tenant_id: currentTenantId,
       name: trimmedName,
       slug,
       area: parentFolder.area,

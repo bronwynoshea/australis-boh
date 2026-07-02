@@ -5,14 +5,64 @@ import { handleCors, jsonResponse } from "../_shared/cors.ts";
 
 type UpsertPayload = {
   source?: string;
+
   full_name?: string;
   work_email?: string;
   company_name?: string;
   role_title?: string;
   consent_given?: boolean;
   consent_at?: string;
+
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  display_name?: string;
+  lifecycle?: string;
+  person_type_key?: string;
+  external_user_id?: string;
+  external_profile_id?: string;
+  external_app_context?: string;
+
   metadata?: Record<string, unknown>;
 };
+
+type NormalizedPayload = {
+  source: string;
+  email: string;
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  companyName: string;
+  roleTitle: string;
+  consentGiven: boolean;
+  consentAt: string;
+  personTypeKey: string;
+  externalUserId: string;
+  externalProfileId: string;
+  externalAppContext: string;
+  lifecycle: string;
+  metadata: Record<string, unknown>;
+  requiresOrganisation: boolean;
+  activityKind: "talent_demo" | "talent_recruiter" | "jobzcafe_job_seeker";
+};
+
+const ALLOWED_SOURCES = new Set([
+  "talent_demo_request",
+  "talent_recruiter_onboarding",
+  "talent_recruiter_access_request",
+  "talent_recruiter_manual_setup",
+]);
+
+const TALENT_RECRUITER_SOURCES = new Set([
+  "talent_recruiter_onboarding",
+  "talent_recruiter_access_request",
+  "talent_recruiter_manual_setup",
+]);
+
+function isJobzcafeSource(source: string) {
+  return /^jobzcafe_[a-z0-9_]{1,80}$/.test(source);
+}
 
 function normalizeText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -32,6 +82,10 @@ function splitName(fullName: string) {
     firstName: parts.slice(0, -1).join(" "),
     lastName: parts.at(-1) ?? "",
   };
+}
+
+function compactName(...parts: string[]) {
+  return parts.map(normalizeText).filter(Boolean).join(" ");
 }
 
 function validateBearer(req: Request) {
@@ -59,41 +113,137 @@ function createServiceClient() {
   });
 }
 
-function validatePayload(body: UpsertPayload) {
+async function getTargetTenantId(supabase: any): Promise<string> {
+  const explicitTenantId = Deno.env.get("BOH_TENANT_ID")?.trim();
+  if (explicitTenantId) return explicitTenantId;
+
+  const tenantSlug = Deno.env.get("BOH_TENANT_SLUG")?.trim() || "australis";
+  const { data, error } = await supabase
+    .from("boh_tenant")
+    .select("id")
+    .eq("slug", tenantSlug)
+    .single();
+
+  if (error || !data?.id) {
+    throw new Error(`Unable to resolve BOH tenant for Patron upsert: ${tenantSlug}`);
+  }
+
+  return data.id;
+}
+
+function validatePayload(body: UpsertPayload): NormalizedPayload {
   const source = normalizeText(body.source) || "talent_demo_request";
-  const fullName = normalizeText(body.full_name);
-  const workEmail = normalizeEmail(body.work_email);
+  if (!ALLOWED_SOURCES.has(source) && !isJobzcafeSource(source)) {
+    throw new Error("Unsupported source.");
+  }
+
+  const metadata = body.metadata && typeof body.metadata === "object" ? body.metadata : {};
+  const explicitFirstName = normalizeText(body.first_name);
+  const explicitLastName = normalizeText(body.last_name);
+  const explicitDisplayName = normalizeText(body.display_name);
+  const fullNameFromParts = compactName(explicitFirstName, explicitLastName);
+  const fullName = normalizeText(body.full_name) || explicitDisplayName || fullNameFromParts;
+  const split = splitName(fullName);
+  const firstName = explicitFirstName || split.firstName;
+  const lastName = explicitLastName || split.lastName;
+  const displayName = explicitDisplayName || fullName || normalizeText(body.email) || normalizeText(body.work_email);
+  const email = normalizeEmail(body.work_email || body.email);
   const companyName = normalizeText(body.company_name);
   const roleTitle = normalizeText(body.role_title);
   const consentGiven = body.consent_given === true;
   const consentAt = normalizeText(body.consent_at) || new Date().toISOString();
+  const externalUserId = normalizeText(body.external_user_id);
+  const externalProfileId = normalizeText(body.external_profile_id);
+  const lifecycle = normalizeText(body.lifecycle);
 
-  if (source !== "talent_demo_request") {
-    throw new Error("Unsupported source.");
+  if (source === "talent_demo_request") {
+    if (!fullName) throw new Error("Name is required.");
+    if (!email || !email.includes("@")) throw new Error("A valid work email is required.");
+    if (!companyName) throw new Error("Company is required.");
+    if (!roleTitle) throw new Error("Role is required.");
+    if (!consentGiven) throw new Error("Consent is required.");
+
+    return {
+      source,
+      email,
+      fullName,
+      firstName,
+      lastName,
+      displayName,
+      companyName,
+      roleTitle,
+      consentGiven,
+      consentAt,
+      personTypeKey: normalizeText(body.person_type_key) || "recruiter_prospect",
+      externalUserId,
+      externalProfileId,
+      externalAppContext: normalizeText(body.external_app_context) || "talent",
+      lifecycle,
+      metadata,
+      requiresOrganisation: true,
+      activityKind: "talent_demo",
+    };
   }
 
-  if (!fullName) throw new Error("Name is required.");
-  if (!workEmail || !workEmail.includes("@")) throw new Error("A valid work email is required.");
-  if (!companyName) throw new Error("Company is required.");
-  if (!roleTitle) throw new Error("Role is required.");
-  if (!consentGiven) throw new Error("Consent is required.");
+  if (TALENT_RECRUITER_SOURCES.has(source)) {
+    if (!email || !email.includes("@")) throw new Error("A valid recruiter email is required.");
+    if (!displayName) throw new Error("Recruiter name or display name is required.");
 
-  return {
-    source,
-    fullName,
-    workEmail,
-    companyName,
-    roleTitle,
-    consentGiven,
-    consentAt,
-    metadata: body.metadata && typeof body.metadata === "object" ? body.metadata : {},
-  };
+    return {
+      source,
+      email,
+      fullName: fullName || displayName,
+      firstName,
+      lastName,
+      displayName,
+      companyName,
+      roleTitle: roleTitle || "Recruiter",
+      consentGiven,
+      consentAt,
+      personTypeKey: normalizeText(body.person_type_key) || "recruiter",
+      externalUserId,
+      externalProfileId,
+      externalAppContext: normalizeText(body.external_app_context) || "talent",
+      lifecycle,
+      metadata,
+      requiresOrganisation: Boolean(companyName),
+      activityKind: "talent_recruiter",
+    };
+  }
+
+  if (isJobzcafeSource(source)) {
+    if (!email || !email.includes("@")) throw new Error("A valid email is required.");
+
+    return {
+      source,
+      email,
+      fullName: fullName || displayName || email,
+      firstName,
+      lastName,
+      displayName: displayName || fullName || email,
+      companyName,
+      roleTitle,
+      consentGiven,
+      consentAt,
+      personTypeKey: normalizeText(body.person_type_key) || "job_seeker",
+      externalUserId,
+      externalProfileId,
+      externalAppContext: normalizeText(body.external_app_context) || "cafe",
+      lifecycle,
+      metadata,
+      requiresOrganisation: Boolean(companyName),
+      activityKind: "jobzcafe_job_seeker",
+    };
+  }
+
+  throw new Error("Unsupported source.");
 }
 
-async function getRecruiterPipelineStageId(supabase: any) {
+async function getRecruiterPipelineStageId(supabase: any, tenantId: string) {
   const { data, error } = await supabase
     .from("patron_pipeline_stage")
     .select("id")
+    .eq("tenant_id", tenantId)
     .eq("key", "new_recruiter_intake")
     .eq("is_active", true)
     .maybeSingle();
@@ -105,19 +255,25 @@ async function getRecruiterPipelineStageId(supabase: any) {
   return data?.id ?? null;
 }
 
-async function upsertPerson(supabase: any, payload: ReturnType<typeof validatePayload>) {
-  const { firstName, lastName } = splitName(payload.fullName);
-  const pipelineStageId = await getRecruiterPipelineStageId(supabase);
+async function upsertPerson(supabase: any, tenantId: string, payload: NormalizedPayload) {
+  const pipelineStageId = payload.personTypeKey.includes("recruiter")
+    ? await getRecruiterPipelineStageId(supabase, tenantId)
+    : null;
 
-  const { data: existing, error: lookupError } = await supabase
+  const { data: existingMatches, error: lookupError } = await supabase
     .from("patron_person")
     .select("*")
-    .eq("email", payload.workEmail)
-    .maybeSingle();
+    .eq("tenant_id", tenantId)
+    .ilike("email", payload.email)
+    .limit(10);
 
   if (lookupError) {
     throw new Error(`Could not lookup Patron contact: ${lookupError.message}`);
   }
+
+  const existing = (existingMatches || []).find(
+    (person: Record<string, unknown>) => normalizeEmail(person.email) === payload.email,
+  );
 
   if (existing?.id) {
     const updates: Record<string, unknown> = {
@@ -125,16 +281,18 @@ async function upsertPerson(supabase: any, payload: ReturnType<typeof validatePa
       app_context: "patron",
     };
 
-    if (!existing.first_name && firstName) updates.first_name = firstName;
-    if (!existing.last_name && lastName) updates.last_name = lastName;
-    if (!existing.display_name) updates.display_name = payload.fullName;
-    if (!existing.person_type_key) updates.person_type_key = "recruiter_prospect";
+    if (!existing.first_name && payload.firstName) updates.first_name = payload.firstName;
+    if (!existing.last_name && payload.lastName) updates.last_name = payload.lastName;
+    if (!existing.display_name) updates.display_name = payload.displayName || payload.fullName || payload.email;
+    if (!existing.person_type_key) updates.person_type_key = payload.personTypeKey;
     if (!existing.pipeline_stage_id && pipelineStageId) updates.pipeline_stage_id = pipelineStageId;
+    if (payload.externalAppContext) updates.external_app_context = payload.externalAppContext;
 
     const { data: updated, error: updateError } = await supabase
       .from("patron_person")
       .update(updates)
       .eq("id", existing.id)
+      .eq("tenant_id", tenantId)
       .select("*")
       .single();
 
@@ -145,18 +303,22 @@ async function upsertPerson(supabase: any, payload: ReturnType<typeof validatePa
     return { person: updated, createdOrUpdated: "updated" };
   }
 
+  const insertRow: Record<string, unknown> = {
+    tenant_id: tenantId,
+    first_name: payload.firstName || null,
+    last_name: payload.lastName || null,
+    email: payload.email,
+    display_name: payload.displayName || payload.fullName || payload.email,
+    source: payload.source,
+    person_type_key: payload.personTypeKey,
+    pipeline_stage_id: pipelineStageId,
+    app_context: "patron",
+  };
+  if (payload.externalAppContext) insertRow.external_app_context = payload.externalAppContext;
+
   const { data: created, error: createError } = await supabase
     .from("patron_person")
-    .insert({
-      first_name: firstName || null,
-      last_name: lastName || null,
-      email: payload.workEmail,
-      display_name: payload.fullName,
-      source: payload.source,
-      person_type_key: "recruiter_prospect",
-      pipeline_stage_id: pipelineStageId,
-      app_context: "patron",
-    })
+    .insert(insertRow)
     .select("*")
     .single();
 
@@ -167,10 +329,13 @@ async function upsertPerson(supabase: any, payload: ReturnType<typeof validatePa
   return { person: created, createdOrUpdated: "created" };
 }
 
-async function upsertOrganisation(supabase: any, companyName: string, personId: string) {
+async function upsertOrganisation(supabase: any, tenantId: string, companyName: string, personId: string) {
+  if (!companyName) return null;
+
   const { data: existingOrg, error: lookupError } = await supabase
     .from("patron_organisation")
     .select("*")
+    .eq("tenant_id", tenantId)
     .ilike("name", companyName)
     .maybeSingle();
 
@@ -184,6 +349,7 @@ async function upsertOrganisation(supabase: any, companyName: string, personId: 
     const { data: createdOrg, error: createError } = await supabase
       .from("patron_organisation")
       .insert({
+        tenant_id: tenantId,
         name: companyName,
         app_context: "patron",
       })
@@ -200,6 +366,7 @@ async function upsertOrganisation(supabase: any, companyName: string, personId: 
   const { data: existingLink, error: linkLookupError } = await supabase
     .from("patron_person_organisation")
     .select("person_id")
+    .eq("tenant_id", tenantId)
     .eq("person_id", personId)
     .eq("organisation_id", organisation.id)
     .maybeSingle();
@@ -212,6 +379,7 @@ async function upsertOrganisation(supabase: any, companyName: string, personId: 
     const { error: linkError } = await supabase
       .from("patron_person_organisation")
       .insert({
+        tenant_id: tenantId,
         person_id: personId,
         organisation_id: organisation.id,
       });
@@ -226,24 +394,43 @@ async function upsertOrganisation(supabase: any, companyName: string, personId: 
 
 async function recordActivity(
   supabase: any,
+  tenantId: string,
   personId: string,
   organisationId: string | null,
-  payload: ReturnType<typeof validatePayload>,
+  payload: NormalizedPayload,
 ) {
   const talentRequestId = normalizeText(payload.metadata?.talent_demo_request_id);
-  const body = [
-    "Talent demo request captured.",
-    `Contact: ${payload.fullName} <${payload.workEmail}>`,
-    `Company: ${payload.companyName}`,
-    `Role: ${payload.roleTitle}`,
-    `Consent: given at ${payload.consentAt}`,
-    talentRequestId ? `Talent request ID: ${talentRequestId}` : "",
-    "Follow-up: send/monitor Talent prospect demo invite.",
-  ].filter(Boolean).join("\n");
 
+  const bodyByKind = {
+    talent_demo: [
+      "Talent demo request captured.",
+      `Contact: ${payload.fullName} <${payload.email}>`,
+      payload.companyName ? `Company: ${payload.companyName}` : "",
+      payload.roleTitle ? `Role: ${payload.roleTitle}` : "",
+      `Consent: given at ${payload.consentAt}`,
+      talentRequestId ? `Talent request ID: ${talentRequestId}` : "",
+      "Follow-up: send/monitor Talent prospect demo invite.",
+    ],
+    talent_recruiter: [
+      "Talent recruiter identity linked.",
+      `Contact: ${payload.fullName} <${payload.email}>`,
+      payload.companyName ? `Company: ${payload.companyName}` : "",
+      payload.roleTitle ? `Role: ${payload.roleTitle}` : "",
+      `Source: ${payload.source}`,
+    ],
+    jobzcafe_job_seeker: [
+      "JOBZCAFE® job seeker identity linked.",
+      `Contact: ${payload.fullName} <${payload.email}>`,
+      `Source: ${payload.source}`,
+      payload.lifecycle ? `Lifecycle: ${payload.lifecycle}` : "",
+    ],
+  };
+
+  const body = bodyByKind[payload.activityKind].filter(Boolean).join("\n");
   const { error } = await supabase
     .from("patron_activity")
     .insert({
+      tenant_id: tenantId,
       person_id: personId,
       organisation_id: organisationId,
       type: "note",
@@ -252,7 +439,7 @@ async function recordActivity(
     });
 
   if (error) {
-    throw new Error(`Could not record Patron activity: ${error.message}`);
+    console.warn("[boh-patron-upsert] Could not record Patron activity:", error.message);
   }
 }
 
@@ -271,17 +458,21 @@ serve(async (req: Request) => {
   try {
     const payload = validatePayload(await req.json().catch(() => ({})));
     const supabase = createServiceClient();
-    const { person, createdOrUpdated } = await upsertPerson(supabase, payload);
-    const organisation = await upsertOrganisation(supabase, payload.companyName, person.id);
-    await recordActivity(supabase, person.id, organisation?.id ?? null, payload);
+    const tenantId = await getTargetTenantId(supabase);
+    const { person, createdOrUpdated } = await upsertPerson(supabase, tenantId, payload);
+    const organisation = payload.requiresOrganisation
+      ? await upsertOrganisation(supabase, tenantId, payload.companyName, person.id)
+      : null;
+    await recordActivity(supabase, tenantId, person.id, organisation?.id ?? null, payload);
 
     return jsonResponse(req, {
       success: true,
       crm_contact_id: person.id,
       crm_company_id: organisation?.id ?? null,
       created_or_updated: createdOrUpdated,
-      normalized_email: payload.workEmail,
-      normalized_company_name: organisation?.name ?? payload.companyName,
+      normalized_email: payload.email,
+      normalized_company_name: organisation?.name ?? payload.companyName ?? null,
+      boh_tenant_id: tenantId,
     });
   } catch (error) {
     console.error("[boh-patron-upsert] Error:", error);

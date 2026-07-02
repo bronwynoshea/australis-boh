@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Loft Icon Preview</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #eef2fb;
+        color: #10163a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 40px;
+        background:
+          radial-gradient(circle at top left, rgba(31, 107, 255, 0.16), transparent 34rem),
+          #eef2fb;
+      }
+
+      header {
+        max-width: 1180px;
+        margin: 0 auto 28px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(34px, 5vw, 64px);
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+      }
+
+      p {
+        margin: 14px 0 0;
+        max-width: 660px;
+        color: rgba(16, 22, 58, 0.62);
+        font-size: 16px;
+        line-height: 1.6;
+      }
+
+      .grid {
+        max-width: 1180px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        background: rgba(255, 255, 255, 0.84);
+        border: 1px solid rgba(16, 22, 58, 0.1);
+        border-radius: 28px;
+        padding: 20px;
+        box-shadow: 0 24px 70px rgba(16, 22, 58, 0.1);
+      }
+
+      .stage {
+        display: grid;
+        place-items: center;
+        min-height: 240px;
+        border-radius: 22px;
+        border: 1px solid rgba(16, 22, 58, 0.08);
+      }
+
+      .stage.light {
+        background: #f7f9ff;
+      }
+
+      .stage.dark {
+        background: #10163a;
+      }
+
+      img {
+        display: block;
+        width: min(180px, 70%);
+        height: auto;
+      }
+
+      .meta {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .tag {
+        color: rgba(16, 22, 58, 0.5);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .small-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .small-row span {
+        display: grid;
+        place-items: center;
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        border: 1px solid rgba(16, 22, 58, 0.08);
+      }
+
+      .small-row img {
+        width: 34px;
+      }
+
+      @media (max-width: 900px) {
+        body {
+          padding: 24px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Loft Icon Directions</h1>
+      <p>Second-pass simplified marks for light and dark theme use. The small-size row shows how each option reads closer to app-icon scale.</p>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <div class="stage light">
+          <img src="./loft-icon-v2-signal-light.svg" alt="Signal light icon" />
+        </div>
+        <div class="meta">
+          <h2>Signal</h2>
+          <span class="tag">Light</span>
+        </div>
+        <div class="small-row">
+          <span><img src="./loft-icon-v2-signal-light.svg" alt="" /></span>
+          <span><img src="./loft-icon-v2-signal-light.svg" alt="" style="width: 24px" /></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="stage light">
+          <img src="./loft-icon-v2-window-light.svg" alt="Window light icon" />
+        </div>
+        <div class="meta">
+          <h2>Window</h2>
+          <span class="tag">Light</span>
+        </div>
+        <div class="small-row">
+          <span><img src="./loft-icon-v2-window-light.svg" alt="" /></span>
+          <span><img src="./loft-icon-v2-window-light.svg" alt="" style="width: 24px" /></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="stage light">
+          <img src="./loft-icon-v2-mark-light.svg" alt="Mark light icon" />
+        </div>
+        <div class="meta">
+          <h2>Mark</h2>
+          <span class="tag">Light</span>
+        </div>
+        <div class="small-row">
+          <span><img src="./loft-icon-v2-mark-light.svg" alt="" /></span>
+          <span><img src="./loft-icon-v2-mark-light.svg" alt="" style="width: 24px" /></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="stage dark">
+          <img src="./loft-icon-v2-signal-dark.svg" alt="Signal dark icon" />
+        </div>
+        <div class="meta">
+          <h2>Signal</h2>
+          <span class="tag">Dark</span>
+        </div>
+        <div class="small-row">
+          <span><img src="./loft-icon-v2-signal-dark.svg" alt="" /></span>
+          <span><img src="./loft-icon-v2-signal-dark.svg" alt="" style="width: 24px" /></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="stage dark">
+          <img src="./loft-icon-v2-window-dark.svg" alt="Window dark icon" />
+        </div>
+        <div class="meta">
+          <h2>Window</h2>
+          <span class="tag">Dark</span>
+        </div>
+        <div class="small-row">
+          <span><img src="./loft-icon-v2-window-dark.svg" alt="" /></span>
+          <span><img src="./loft-icon-v2-window-dark.svg" alt="" style="width: 24px" /></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="stage dark">
+          <img src="./loft-icon-v2-mark-dark.svg" alt="Mark dark icon" />
+        </div>
+        <div class="meta">
+          <h2>Mark</h2>
+          <span class="tag">Dark</span>
+        </div>
+        <div class="small-row">
+          <span><img src="./loft-icon-v2-mark-dark.svg" alt="" /></span>
+          <span><img src="./loft-icon-v2-mark-dark.svg" alt="" style="width: 24px" /></span>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

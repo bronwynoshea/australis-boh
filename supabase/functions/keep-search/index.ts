@@ -20,6 +20,12 @@ Deno.serve(async (req) => {
       return jsonResponse(req, { success: false, error: "Unauthorized" }, 401);
     }
 
+    const currentTenantId = keepAuth.bohUser.tenant_id;
+    if (!currentTenantId) {
+      console.warn("[keep-search] Authenticated BOH user has no tenant_id", { bohUserId: keepAuth.bohUser.id });
+      return jsonResponse(req, { success: false, error: "Tenant context unavailable" }, 403);
+    }
+
     const url = new URL(req.url);
     const area = url.searchParams.get("area");
     const rawQuery = (url.searchParams.get("q") || "").trim();
@@ -37,7 +43,8 @@ Deno.serve(async (req) => {
 
     const { data: folders, error: foldersError } = await keepAuth.serviceClient
       .from("keep_folder")
-      .select("id, parent_id, name, slug, area, folder_type, path, sort_order, is_system_folder, allow_user_created_children, is_active")
+      .select("id, parent_id, tenant_id, name, slug, area, folder_type, path, sort_order, is_system_folder, allow_user_created_children, is_active")
+      .eq("tenant_id", currentTenantId)
       .eq("area", area)
       .eq("is_active", true)
       .or(`name.ilike.${pattern},path.ilike.${pattern}`)
@@ -55,6 +62,7 @@ Deno.serve(async (req) => {
       .select(`
         id,
         folder_id,
+        tenant_id,
         file_name,
         file_ext,
         mime_type,
@@ -66,6 +74,7 @@ Deno.serve(async (req) => {
         updated_at,
         uploader:boh_user!uploaded_by(full_name, email)
       `)
+      .eq("tenant_id", currentTenantId)
       .eq("area", area)
       .eq("is_active", true)
       .eq("is_current", true)

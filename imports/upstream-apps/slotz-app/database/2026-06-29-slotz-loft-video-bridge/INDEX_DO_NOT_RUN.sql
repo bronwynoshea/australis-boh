@@ -1,0 +1,5 @@
+-- Slotz Loft video bridge SQL pack.
+-- Run files in order after review:
+-- 01_SLOTZ_LOFT_MEETING_TYPE_CONFIG.sql
+-- 02_SLOTZ_LOFT_VIDEO_SESSION_UNIQUE_LINK.sql
+-- 03_VERIFY_SLOTZ_LOFT_VIDEO_BRIDGE.sql

@@ -7,7 +7,6 @@ import PatronOrganisationsPage from './pages/PatronOrganisationsPage';
 import PatronPipelinePage from './pages/PatronPipelinePage';
 import PatronPersonDetailPage from './pages/PatronPersonDetailPage';
 import PatronOrganisationDetailPage from './pages/PatronOrganisationDetailPage';
-import { isBohLoggedIn } from '../../lib/bohAuth';
 import { supabase } from '../../lib/supabase';
 
 interface PatronAppProps {}
@@ -35,14 +34,8 @@ const PatronApp: React.FC<PatronAppProps> = () => {
   // Check authentication on mount and when location changes
   useEffect(() => {
     const checkAuth = async () => {
-      // Check BOH login state
-      const bohLoggedIn = isBohLoggedIn();
-      
-      // Check Supabase session
       const { data: { session } } = await supabase.auth.getSession();
-      
-      // Both must be true to be authenticated
-      const authenticated = bohLoggedIn && session !== null;
+      const authenticated = session !== null;
       setIsAuthenticated(authenticated);
       
       if (!authenticated) {
@@ -54,8 +47,7 @@ const PatronApp: React.FC<PatronAppProps> = () => {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const bohLoggedIn = isBohLoggedIn();
-      const authenticated = bohLoggedIn && session !== null;
+      const authenticated = session !== null;
       setIsAuthenticated(authenticated);
       
       if (!authenticated) {

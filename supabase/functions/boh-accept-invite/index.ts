@@ -84,6 +84,12 @@ Deno.serve(async (req: Request) => {
     return new Response("Invite expired", { status: 400, headers: corsHeaders });
   }
 
+  const inviteTenantId = invite.tenant_id as string | null;
+  if (!inviteTenantId) {
+    console.error("[boh-accept-invite] Invite is missing tenant_id", invite.id);
+    return new Response("Invite is missing tenant context", { status: 500, headers: corsHeaders });
+  }
+
   const {
     data: { user },
     error: authError,
@@ -109,6 +115,7 @@ Deno.serve(async (req: Request) => {
     .from("boh_user")
     .select("*")
     .eq("auth_user_id", user.id)
+    .eq("tenant_id", inviteTenantId)
     .eq("app_context", "boh")
     .maybeSingle();
 
@@ -132,6 +139,7 @@ Deno.serve(async (req: Request) => {
         full_name: fullNameFallback,
         status: "active",
         primary_role_hint: roleRow.code,
+        tenant_id: inviteTenantId,
         app_context: "boh",
       })
       .select()
@@ -165,7 +173,8 @@ Deno.serve(async (req: Request) => {
     const { error: updateUserError } = await admin
       .from("boh_user")
       .update(updatePayload)
-      .eq("id", bohUserId);
+      .eq("id", bohUserId)
+      .eq("tenant_id", inviteTenantId);
 
     if (updateUserError) {
       console.error("[boh-accept-invite] Failed to update boh_user", updateUserError);
@@ -178,14 +187,14 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    await ensureRoleAssignment(admin, bohUserId, roleRow.id);
+    await ensureRoleAssignment(admin, bohUserId, roleRow.id, inviteTenantId);
   } catch (roleAssignError) {
     console.error("[boh-accept-invite] Role assignment error", roleAssignError);
     return new Response("Failed to assign role", { status: 500, headers: corsHeaders });
   }
 
   try {
-    await applyAppGrants(admin, bohUserId, invite.apps ?? [], roleRow.code === "super_admin");
+    await applyAppGrants(admin, bohUserId, invite.apps ?? [], roleRow.code === "super_admin", inviteTenantId);
   } catch (appGrantError) {
     console.error("[boh-accept-invite] App grant error", appGrantError);
     return new Response("Failed to assign app access", { status: 500, headers: corsHeaders });
@@ -199,14 +208,15 @@ Deno.serve(async (req: Request) => {
       invited_user_id: bohUserId,
       accepted_at: nowIso,
     })
-    .eq("id", invite.id);
+    .eq("id", invite.id)
+    .eq("tenant_id", inviteTenantId);
 
   if (updateInviteError) {
     console.error("[boh-accept-invite] Failed to update invite", updateInviteError);
     return new Response("Failed to update invite status", { status: 500, headers: corsHeaders });
   }
 
-  await syncToPatron(admin, user, invite, bohUserId, names);
+  await syncToPatron(admin, user, invite, bohUserId, names, inviteTenantId);
 
   return new Response(
     JSON.stringify({
@@ -282,12 +292,13 @@ function buildFullName(first?: string | null, last?: string | null) {
   return [first, last].filter(Boolean).join(" ").trim() || null;
 }
 
-async function ensureRoleAssignment(client: any, userId: string, roleId: string) {
+async function ensureRoleAssignment(client: any, userId: string, roleId: string, tenantId: string) {
   const { data: existing, error: lookupError } = await client
     .from("boh_user_role")
     .select("id")
     .eq("user_id", userId)
     .eq("role_id", roleId)
+    .eq("tenant_id", tenantId)
     .eq("app_context", "boh")
     .maybeSingle();
 
@@ -299,6 +310,7 @@ async function ensureRoleAssignment(client: any, userId: string, roleId: string)
     const { error: insertError } = await client.from("boh_user_role").insert({
       user_id: userId,
       role_id: roleId,
+      tenant_id: tenantId,
       app_context: "boh",
     });
 
@@ -308,7 +320,7 @@ async function ensureRoleAssignment(client: any, userId: string, roleId: string)
   }
 }
 
-async function applyAppGrants(client: any, userId: string, appSlugs: string[], isSuperAdmin: boolean) {
+async function applyAppGrants(client: any, userId: string, appSlugs: string[], isSuperAdmin: boolean, tenantId: string) {
   const normalizedSlugs = Array.isArray(appSlugs)
     ? Array.from(new Set(appSlugs.filter((slug) => typeof slug === "string" && slug.trim().length > 0))).map((slug) => slug.trim())
     : [];
@@ -318,6 +330,7 @@ async function applyAppGrants(client: any, userId: string, appSlugs: string[], i
       .from("boh_user_app")
       .delete()
       .eq("user_id", userId)
+      .eq("tenant_id", tenantId)
       .eq("app_context", "boh");
     if (error) throw error;
     return;
@@ -328,16 +341,19 @@ async function applyAppGrants(client: any, userId: string, appSlugs: string[], i
   }
 
   const { data: apps, error: appsError } = await client
-    .from("boh_app")
-    .select("id, slug")
-    .eq("app_context", "boh")
-    .in("slug", normalizedSlugs);
+    .from("boh_tenant_app")
+    .select("app:boh_app!boh_tenant_app_app_id_fkey(id, slug)")
+    .eq("tenant_id", tenantId)
+    .in("status", ["enabled", "coming_soon"]);
 
   if (appsError) {
     throw appsError;
   }
 
-  const slugToAppId = new Map((apps ?? []).map((app) => [app.slug, app.id]));
+  const tenantApps = (apps ?? [])
+    .map((row: any) => Array.isArray(row.app) ? row.app[0] : row.app)
+    .filter(Boolean);
+  const slugToAppId = new Map(tenantApps.map((app) => [app.slug, app.id]));
   if (slugToAppId.size === 0) {
     return;
   }
@@ -346,6 +362,7 @@ async function applyAppGrants(client: any, userId: string, appSlugs: string[], i
     .from("boh_user_app")
     .select("app_id")
     .eq("user_id", userId)
+    .eq("tenant_id", tenantId)
     .eq("app_context", "boh");
 
   if (existingGrantsError) {
@@ -361,6 +378,7 @@ async function applyAppGrants(client: any, userId: string, appSlugs: string[], i
       user_id: userId,
       app_id: appId,
       permission_level: "edit",
+      tenant_id: tenantId,
       app_context: "boh",
     });
   }
@@ -371,7 +389,7 @@ async function applyAppGrants(client: any, userId: string, appSlugs: string[], i
   }
 }
 
-async function syncToPatron(client: any, user: any, invite: any, bohUserId: string, names: { first: string | null; last: string | null }) {
+async function syncToPatron(client: any, user: any, invite: any, bohUserId: string, names: { first: string | null; last: string | null }, tenantId: string) {
   try {
     const { error: patronError } = await client.functions.invoke("patron-sync", {
       body: {
@@ -393,6 +411,7 @@ async function syncToPatron(client: any, user: any, invite: any, bohUserId: stri
         .from("patron_person")
         .select("id, boh_user_id")
         .ilike("email", emailLower)
+        .eq("tenant_id", tenantId)
         .maybeSingle();
 
       if (personLookupError && personLookupError.code !== "PGRST116") {
@@ -402,7 +421,8 @@ async function syncToPatron(client: any, user: any, invite: any, bohUserId: stri
           const { error: updatePersonError } = await client
             .from("patron_person")
             .update({ boh_user_id: bohUserId })
-            .eq("id", existingPerson.id);
+            .eq("id", existingPerson.id)
+            .eq("tenant_id", tenantId);
 
           if (updatePersonError) {
             console.error("[boh-accept-invite] patron_person update error", updatePersonError);
@@ -414,6 +434,7 @@ async function syncToPatron(client: any, user: any, invite: any, bohUserId: stri
           .insert({
             email: emailLower,
             boh_user_id: bohUserId,
+            tenant_id: tenantId,
             source: "boh_invite_accepted",
             created_by: bohUserId,
           });

@@ -166,9 +166,8 @@ const AppRail: React.FC<AppRailProps> = ({
       .sort((a, b) => a.name.localeCompare(b.name));
 
     return {
-      internal: visibleApps.filter((app) => (app.category ?? 'internal') === 'internal'),
-      hybrid: visibleApps.filter((app) => app.category === 'hybrid'),
-      customer: visibleApps.filter((app) => app.category === 'customer'),
+      suite: visibleApps.filter((app) => (app.category ?? 'internal') !== 'customer'),
+      links: visibleApps.filter((app) => app.category === 'customer'),
     };
   }, [apps]);
 
@@ -226,9 +225,8 @@ const AppRail: React.FC<AppRailProps> = ({
         {/* App List */}
         <nav className="boh-dashboard-apps" aria-label="BOH Applications">
           {[
-            { key: 'internal', label: 'Internal Apps', apps: groupedApps.internal },
-            { key: 'hybrid', label: 'Hybrid Apps', apps: groupedApps.hybrid },
-            { key: 'customer', label: 'Customer Apps', apps: groupedApps.customer },
+            { key: 'suite', label: 'BOH Suite', apps: groupedApps.suite },
+            { key: 'links', label: 'Workspace Links', apps: groupedApps.links },
           ].map((group) => group.apps.length > 0 && (
             <div key={group.key} className="boh-dashboard-app-group">
               <div className="boh-dashboard-section-label">{group.label}</div>
@@ -245,7 +243,7 @@ const AppRail: React.FC<AppRailProps> = ({
                 aria-current={isActive ? 'page' : undefined}
               >
                 <IconComponent className="boh-dashboard-app-icon" />
-                <span className="boh-dashboard-app-name">{app.name}</span>
+                <span className="boh-dashboard-app-name">{app.name}{app.disabled ? ' · Planned' : ''}</span>
               </Link>
             );
               })}
@@ -326,12 +324,12 @@ const AppRail: React.FC<AppRailProps> = ({
               to={app.route || '#'}
               className={`boh-rail-item ${isActive ? 'active' : ''} ${app.disabled ? 'disabled' : ''}`}
               onClick={(e) => handleAppClick(app, e)}
-              onMouseEnter={(e) => showTooltip(app.name, e)}
-              onFocus={(e) => showTooltip(app.name, e)}
+              onMouseEnter={(e) => showTooltip(app.disabled ? `${app.name} · Planned` : app.name, e)}
+              onFocus={(e) => showTooltip(app.disabled ? `${app.name} · Planned` : app.name, e)}
               onMouseLeave={hideTooltip}
               onBlur={hideTooltip}
-              title={app.name}
-              aria-label={app.name}
+              title={app.disabled ? `${app.name} · Planned` : app.name}
+              aria-label={app.disabled ? `${app.name} · Planned` : app.name}
               aria-current={isActive ? 'page' : undefined}
             >
               <IconComponent className="boh-rail-icon" />

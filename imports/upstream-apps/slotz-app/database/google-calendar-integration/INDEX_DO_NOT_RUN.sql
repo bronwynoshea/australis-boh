@@ -1,0 +1,6 @@
+-- SLOTZ Google Calendar Integration SQL Run Order
+-- Do not run this file.
+--
+-- 1. 001_google_calendar_tables.sql
+-- 2. 002_external_event_provider_columns.sql
+-- 3. 003_verify_google_calendar_schema.sql

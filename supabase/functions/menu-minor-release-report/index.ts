@@ -2,8 +2,8 @@
 // Provides detailed report for a minor release
 // @ts-nocheck
 
-import { createClient } from "jsr:@supabase/supabase-js@2";
 import { buildCorsHeaders } from "../_shared/cors.ts";
+import { requireUser } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = buildCorsHeaders(req);
@@ -19,35 +19,16 @@ Deno.serve(async (req) => {
     });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const publishableKey = Deno.env.get('SB_PUBLISHABLE_KEY');
-  const secretKey = Deno.env.get('SB_SECRET_KEY');
-
-  if (!supabaseUrl || !publishableKey || !secretKey) {
-    console.error('[menu-minor-release-report] Missing Supabase env vars');
-    return new Response('Server misconfiguration', {
-      status: 500,
-      headers: corsHeaders,
-    });
+  const auth = await requireUser(req);
+  if (!auth.success) {
+    return new Response(JSON.stringify({ success: false, error: auth.error }), { status: auth.status, headers: corsHeaders });
   }
 
-  // Create user client for auth verification
-  const supabaseUserClient = createClient(supabaseUrl, publishableKey, {
-    auth: { persistSession: false },
-    global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
-  });
+  const supabaseAdmin = auth.serviceClient;
+  const tenantId = auth.context.bohUser?.tenant_id;
 
-  // Create admin client for database operations
-  const supabaseAdmin = createClient(supabaseUrl, secretKey, {
-    auth: { persistSession: false },
-  });
-
-  // Verify the user is logged in
-  const { data: { user }, error: userError } = await supabaseUserClient.auth.getUser();
-
-  if (userError || !user) {
-    console.error('[menu-minor-release-report] Unauthorized', userError);
-    return new Response('Unauthorized', { status: 401, headers: corsHeaders });
+  if (!tenantId) {
+    return new Response(JSON.stringify({ success: false, error: 'Forbidden - Tenant context required' }), { status: 403, headers: corsHeaders });
   }
 
   try {
@@ -78,6 +59,7 @@ Deno.serve(async (req) => {
         )
       `)
       .eq('id', release_id)
+      .eq('tenant_id', tenantId)
       .eq('release_tier', 'minor')
       .single();
 
@@ -117,6 +99,7 @@ Deno.serve(async (req) => {
           )
         )
       `)
+      .eq('tenant_id', tenantId)
       .eq('release_id', release_id);
 
     if (irError) {
@@ -146,6 +129,7 @@ Deno.serve(async (req) => {
           title
         )
       `)
+      .eq('tenant_id', tenantId)
       .eq('release_version_id', release_id)
       .order('created_at', { ascending: false });
 
@@ -168,6 +152,7 @@ Deno.serve(async (req) => {
         )
       `)
       .eq('target_release_id', release_id)
+      .eq('tenant_id', tenantId)
       .eq('is_archived', false);
 
     if (storiesError) {

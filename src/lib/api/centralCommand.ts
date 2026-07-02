@@ -1,3 +1,4 @@
+import { getCurrentBohUserContext } from '../../boh/api/bohApi';
 import { supabase } from '../supabase';
 import type { Task } from '../../types/product';
 
@@ -49,6 +50,28 @@ export interface CentralCommandTask extends Task {
 
 const lookupSelect = 'id, key, label, description, sort_order, is_active';
 
+async function getCurrentTenantId(): Promise<string> {
+  const context = await getCurrentBohUserContext();
+  if (!context?.tenant_id) {
+    throw new Error('No BOH tenant matched the current session.');
+  }
+  return context.tenant_id;
+}
+
+async function assertBohUserInTenant(userId: string | null | undefined, tenantId: string, label = 'Selected user'): Promise<void> {
+  if (!userId) return;
+  const { data, error } = await supabase
+    .from('boh_user')
+    .select('id')
+    .eq('id', userId)
+    .eq('tenant_id', tenantId)
+    .eq('app_context', 'boh')
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error(`${label} is not part of the current BOH tenant.`);
+}
+
 export async function fetchCentralCommandLookups(): Promise<CentralCommandLookups> {
   const [taskStatuses, engagementTypes, engagementStatuses, capabilities] = await Promise.all([
     supabase
@@ -92,6 +115,7 @@ export async function fetchCentralCommandLookups(): Promise<CentralCommandLookup
 }
 
 export async function fetchCentralCommandTasks(): Promise<CentralCommandTask[]> {
+  const tenantId = await getCurrentTenantId();
   const { data, error } = await supabase
     .from('boh_task')
     .select(`
@@ -117,6 +141,7 @@ export async function fetchCentralCommandTasks(): Promise<CentralCommandTask[]> 
         )
       )
     `)
+    .eq('tenant_id', tenantId)
     .order('updated_at', { ascending: false })
     .limit(200);
 
@@ -139,6 +164,9 @@ export async function updateCentralCommandTask(
     | 'status'
   >
 ): Promise<CentralCommandTask> {
+  const tenantId = await getCurrentTenantId();
+  await assertBohUserInTenant(patch.assigned_to, tenantId, 'Selected assignee');
+
   const readyPatch = patch.agent_engagement_status_id
     ? await buildAgentReadyPatch(patch.agent_engagement_status_id)
     : {};
@@ -151,6 +179,7 @@ export async function updateCentralCommandTask(
       updated_at: new Date().toISOString(),
     })
     .eq('id', taskId)
+    .eq('tenant_id', tenantId)
     .select(`
       *,
       assigned_user:boh_user!boh_task_assigned_to_fkey(id, full_name, email, status),

@@ -27,7 +27,7 @@ const StaffSettingsPage: React.FC<StaffSettingsPageProps> = ({ navigate, setFeed
     const setActiveTab = setInitialTab;
 
     return (
-        <div className="hidden w-full max-w-5xl flex-grow animate-fade-in flex-col px-4 md:mx-auto md:flex md:h-[calc(100vh-4.5rem)] md:px-8 md:pb-4 md:pt-5">
+        <div className="hidden w-full flex-grow animate-fade-in flex-col px-4 md:flex md:h-[calc(100vh-4.5rem)] md:px-8 md:pb-4 md:pt-5">
             <div className="flex min-h-0 flex-1 flex-col">
                 <div className="mb-4 flex flex-col justify-between gap-4 md:flex-row md:items-center">
                     <h1 className="text-3xl md:text-4xl font-semibold tracking-tight leading-none text-[var(--text-secondary)] dark:text-white">Settings</h1>

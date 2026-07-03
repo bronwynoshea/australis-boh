@@ -614,7 +614,7 @@ const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ setFeedback, na
     };
 
     return (
-        <div className="w-full max-w-7xl mx-auto pt-4 px-4 md:px-8 animate-fade-in pb-8 flex flex-col flex-grow">
+        <div className="w-full pt-4 px-4 md:px-8 animate-fade-in pb-8 flex flex-col flex-grow">
             <BookingDetailModal isOpen={isDetailModalOpen} booking={selectedBooking} onClose={handleCloseModal} onCancelBooking={handleCancelBooking} onRescheduleBooking={handleRescheduleBooking} />
             <ManualBookingModal 
                 isOpen={isManualBookingOpen} 

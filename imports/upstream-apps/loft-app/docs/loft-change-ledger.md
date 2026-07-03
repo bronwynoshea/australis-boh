@@ -41,7 +41,7 @@
 - Updated the Loft frontend to require `VITE_SUPABASE_PUBLISHABLE_KEY` instead of `VITE_SUPABASE_ANON_KEY`.
 - Updated `.env.example`, Vite build-time env presence checks, frontend Supabase client setup, and Edge Function browser-call headers to use the publishable key variable.
 - Updated the local `.env` variable name without changing or printing the value.
-- Purpose: align `dev-loft.jobzcafe.com` deployment variables with the Supabase publishable key naming used by JOBZCAFE-dev.
+- Purpose: align BOH-native Loft deployment variables with the Supabase publishable key naming used by the target BOH environment.
 - Database migration: none in this change. No table, RLS, storage, or schema mutation was made.
 
 ## 2026-05-06 - Edge Function CORS moved to explicit Loft origin config
@@ -49,7 +49,7 @@
 - Removed hardcoded browser origin allowlists and wildcard `Access-Control-Allow-Origin` values from Loft Edge Functions.
 - Updated all touched functions to use `supabase/functions/_shared/cors.ts`.
 - Made `LOFT_ALLOWED_ORIGINS` the single required CORS source of truth, with no fallback origin and no alias fallback.
-- Updated `.env.example` with local `8081`, Vite `5173`, `https://dev-loft.jobzcafe.com`, and `https://loft.jobzcafe.com` as the expected dev configuration values.
+- Updated `.env.example` with local Vite origins and BOH production origins as the expected configuration values; `/apps/loft` remains the explicit app route.
 - Updated the no-silent-fallback guardrail to explicitly prohibit Edge Function CORS fallback origins.
 - Removed Gemini model fallback/retry defaults from touched Loft Edge Functions; missing model config now fails explicitly.
 - Auth boundary: no `--no-verify-jwt` change was made.

@@ -9,10 +9,10 @@ This is the lightweight user walkthrough for JOBZCAFE® Loft. Internal release s
 Use the correct Loft link for the environment being tested:
 
 - Local testing: `http://localhost:8081`
-- Dev testing: `https://dev-loft.jobzcafe.com`
-- Registered Loft site: `https://loft.jobzcafe.com`
+- Dev testing: `http://localhost:5189/apps/loft`
+- Production testing: `https://boh.australis.cloud/apps/loft`
 
-The registered Loft app is separate from `app.jobzcafe.com`.
+Loft is a BOH-native app route, not a standalone JOBZCAFE® app hostname.
 
 ## Test Accounts
 

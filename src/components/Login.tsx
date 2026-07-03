@@ -307,9 +307,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         <section className="login-panel" aria-label="Back of House access">
           <div className="login-box">
-            <div className="login-brand" aria-label="Australis">
-              <img src="/Assets/australis-logo-mark.png" alt="" aria-hidden="true" />
-              <span className="logo-main">Australis</span>
+            <div className="login-brand login-brand-boh" aria-label="Back of House">
+              <img src="/assets/brand/boh-refined-mark.png" alt="" aria-hidden="true" />
+              <span className="logo-main">BOH</span>
+              <span className="logo-sub">Back of House</span>
             </div>
             <h1>{authMode === 'create' ? 'Create your BOH account' : 'Sign in to Back of House'}</h1>
 

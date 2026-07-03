@@ -5,7 +5,7 @@ import { invokeStaffFunction } from './services/slotzFunctions';
 import { outlook } from './services/outlookService';
 import { SchedulingBooking, SchedulingMeetingType } from './types';
 import { SettingsIcon, EyeIcon, LogOutIcon, ClockIcon, TagIcon, Share2Icon, MoonIcon, SunIcon } from './components/Icons';
-import { setTheme, type SlotzTheme } from './theme';
+import { getDocumentTheme, setTheme, syncSlotzThemeTokens, type SlotzTheme } from './theme';
 import AngledLogo from './components/AngledLogo';
 import HomePage from './pages/HomePage';
 import BookingPage from './pages/BookingPage';
@@ -104,7 +104,18 @@ const App: React.FC = () => {
   const [activeSettingsView, setActiveSettingsView] = useState<SettingsPage | null>(null);
   const [initialSettingsTab, setInitialSettingsTab] = useState<SettingsPage>('availability');
   const [integrationMessage, setIntegrationMessage] = useState<string | null>(null);
-  const [theme, setThemeState] = useState<SlotzTheme>(() => document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  const [theme, setThemeState] = useState<SlotzTheme>(() => syncSlotzThemeTokens(getDocumentTheme()));
+
+  useEffect(() => {
+    const applyCurrentDocumentTheme = () => {
+      setThemeState(syncSlotzThemeTokens(getDocumentTheme()));
+    };
+
+    applyCurrentDocumentTheme();
+    const observer = new MutationObserver(applyCurrentDocumentTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   const handleToggleTheme = () => {
     const nextTheme: SlotzTheme = theme === 'dark' ? 'light' : 'dark';
@@ -586,8 +597,8 @@ const App: React.FC = () => {
       )}
 
       {showHeader && (
-        <nav className="sticky top-0 z-50 border-b border-primary-border/50 bg-white/90 py-3 backdrop-blur-xl dark:border-primary/20 dark:!bg-[#151024]/95">
-          <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 md:px-8">
+        <nav className="sticky top-0 z-50 border-b border-primary-border/50 bg-[var(--bg-secondary)]/90 py-3 backdrop-blur-xl dark:border-primary/20 dark:bg-[var(--bg-secondary)]/95">
+          <div className="flex w-full items-center justify-between px-4 md:px-8">
             <button type="button" onClick={() => isStaff ? navigate('staff-dashboard') : navigate('book')} aria-label={isStaff ? 'Go to staff calendar' : 'Go to booking page'} className="flex cursor-pointer items-center gap-2 group rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
               <AngledLogo size="xs" />
               <span className="text-[2rem] font-semibold leading-none text-primary tracking-tight group-hover:text-primary-dark dark:group-hover:text-white transition-colors active:scale-95">SLOTZ</span>

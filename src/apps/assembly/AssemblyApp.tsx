@@ -85,6 +85,53 @@ const SecondaryButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> =
   />
 );
 
+const assemblyFieldClass = 'w-full rounded-xl border border-boh-border-light bg-boh-surface-light px-3 py-2 text-sm text-boh-text-light shadow-sm outline-none transition-colors placeholder:text-boh-text-sub-light focus:border-boh-primary focus:ring-2 focus:ring-boh-primary/20 dark:border-boh-border dark:bg-boh-card dark:text-boh-text dark:placeholder:text-boh-text-sub dark:focus:border-boh-accent dark:focus:ring-boh-accent/20';
+const assemblySelectButtonClass = `${assemblyFieldClass} flex items-center justify-between gap-3 text-left`;
+
+type AssemblySelectOption = { value: string; label: string };
+
+const ThemedSelect: React.FC<{
+  value: string;
+  options: AssemblySelectOption[];
+  onChange: (value: string) => void;
+  label?: string;
+  className?: string;
+}> = ({ value, options, onChange, label = 'Select option', className = '' }) => {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value);
+
+  return (
+    <div className={`relative ${className}`} onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+    }}>
+      <button type="button" className={assemblySelectButtonClass} aria-haspopup="listbox" aria-expanded={open} aria-label={label} onClick={() => setOpen((next) => !next)}>
+        <span className={selected ? '' : 'text-boh-text-sub-light dark:text-boh-text-sub'}>{selected?.label ?? label}</span>
+        <span aria-hidden="true" className="text-boh-text-sub-light dark:text-boh-text-sub">⌄</span>
+      </button>
+      {open && (
+        <div role="listbox" className="absolute z-50 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-boh-border-light bg-boh-surface-light p-1 text-sm shadow-xl shadow-slate-900/10 dark:border-boh-border dark:bg-boh-card dark:shadow-black/30">
+          {options.map((option) => {
+            const active = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={active}
+                className={`w-full rounded-lg px-3 py-2 text-left transition-colors ${active ? 'bg-boh-primary text-white' : 'text-boh-text-light hover:bg-boh-bg-light dark:text-boh-text dark:hover:bg-boh-surface'}`}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => { onChange(option.value); setOpen(false); }}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 function currentTab(pathname: string): TabKey {
   if (pathname.includes('/memos')) return 'memos';
   if (pathname.includes('/meetings')) return 'meetings';
@@ -245,22 +292,14 @@ const MemosPage: React.FC<{ data: AssemblyDashboard; refresh: () => Promise<void
       <Card>
         <h2 className="text-lg font-semibold text-boh-text-light dark:text-boh-text">Submit memo</h2>
         <form className="mt-4 space-y-4" onSubmit={submitMemo}>
-          <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Memo title" className="w-full rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text" />
+          <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Memo title" className={assemblyFieldClass} />
           {(['what_text', 'how_text', 'now_text'] as const).map((field) => (
-            <textarea key={field} required rows={4} value={form[field]} onChange={(e) => setForm({ ...form, [field]: e.target.value })} placeholder={field === 'what_text' ? 'What is the problem, opportunity, or decision?' : field === 'how_text' ? 'How should the options, risks, and tradeoffs be understood?' : 'Now what recommendation, decision, or next step is needed?'} className="w-full rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text" />
+            <textarea key={field} required rows={4} value={form[field]} onChange={(e) => setForm({ ...form, [field]: e.target.value })} placeholder={field === 'what_text' ? 'What is the problem, opportunity, or decision?' : field === 'how_text' ? 'How should the options, risks, and tradeoffs be understood?' : 'Now what recommendation, decision, or next step is needed?'} className={assemblyFieldClass} />
           ))}
-          <textarea rows={3} value={form.requested_decision} onChange={(e) => setForm({ ...form, requested_decision: e.target.value })} placeholder="Requested decision" className="w-full rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text" />
+          <textarea rows={3} value={form.requested_decision} onChange={(e) => setForm({ ...form, requested_decision: e.target.value })} placeholder="Requested decision" className={assemblyFieldClass} />
           <div className="grid grid-cols-2 gap-3">
-            <select value={form.memo_type} onChange={(e) => setForm({ ...form, memo_type: e.target.value as typeof form.memo_type })} className="rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text">
-              <option value="operating">Operating</option>
-              <option value="governance">Governance</option>
-              <option value="review">Review</option>
-            </select>
-            <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as typeof form.priority })} className="rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text">
-              <option value="normal">Normal priority</option>
-              <option value="high">High priority</option>
-              <option value="low">Low priority</option>
-            </select>
+            <ThemedSelect value={form.memo_type} label="Memo type" onChange={(value) => setForm({ ...form, memo_type: value as typeof form.memo_type })} options={[{ value: 'operating', label: 'Operating' }, { value: 'governance', label: 'Governance' }, { value: 'review', label: 'Review' }]} />
+            <ThemedSelect value={form.priority} label="Priority" onChange={(value) => setForm({ ...form, priority: value as typeof form.priority })} options={[{ value: 'normal', label: 'Normal priority' }, { value: 'high', label: 'High priority' }, { value: 'low', label: 'Low priority' }]} />
           </div>
           <PrimaryButton disabled={isSaving} type="submit">Submit memo</PrimaryButton>
         </form>
@@ -291,7 +330,7 @@ const MeetingsPage: React.FC<{ data: AssemblyDashboard; refresh: () => Promise<v
     <div className="space-y-6">
       <Card>
         <form onSubmit={createMeeting} className="flex flex-col gap-3 md:flex-row">
-          <input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="New meeting title" className="min-w-0 flex-1 rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text" />
+          <input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="New meeting title" className={`${assemblyFieldClass} min-w-0 flex-1`} />
           <PrimaryButton type="submit">Create meeting</PrimaryButton>
         </form>
       </Card>
@@ -311,7 +350,7 @@ const MeetingsPage: React.FC<{ data: AssemblyDashboard; refresh: () => Promise<v
                 {agenda.map((item) => <div key={item.id} className="rounded-xl bg-boh-bg-light p-3 text-sm dark:bg-boh-card"><span className="font-medium text-boh-text-light dark:text-boh-text">{item.sort_order}. {item.title}</span><span className="ml-2 text-boh-text-sub-light dark:text-boh-text-sub">{statusLabel(item.purpose)}</span></div>)}
                 {agenda.length === 0 && <p className="text-sm text-boh-text-sub-light dark:text-boh-text-sub">Accept memos to build this agenda.</p>}
               </div>
-              <textarea rows={4} value={minutesByMeeting[meeting.id] ?? meeting.minutes_summary ?? ''} onChange={(e) => setMinutesByMeeting({ ...minutesByMeeting, [meeting.id]: e.target.value })} placeholder="Record minutes and discussion summary" className="mt-4 w-full rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text" />
+              <textarea rows={4} value={minutesByMeeting[meeting.id] ?? meeting.minutes_summary ?? ''} onChange={(e) => setMinutesByMeeting({ ...minutesByMeeting, [meeting.id]: e.target.value })} placeholder="Record minutes and discussion summary" className={`${assemblyFieldClass} mt-4`} />
               <SecondaryButton onClick={() => void saveMinutes(meeting)}>Save minutes</SecondaryButton>
             </Card>
           );
@@ -386,21 +425,12 @@ const OutcomesPage: React.FC<{ data: AssemblyDashboard; refresh: () => Promise<v
       <Card>
         <h2 className="text-lg font-semibold text-boh-text-light dark:text-boh-text">Record outcome</h2>
         <form className="mt-4 space-y-4" onSubmit={createOutcome}>
-          <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Outcome title" className="w-full rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text" />
-          <textarea required rows={4} value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} placeholder="Decision, action, approval, or deferral summary" className="w-full rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text" />
-          <select value={form.outcome_type} onChange={(e) => setForm({ ...form, outcome_type: e.target.value as typeof form.outcome_type })} className="w-full rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text">
-            <option value="action">Action</option><option value="decision">Decision</option><option value="approval">Approval</option><option value="deferral">Deferral</option><option value="escalation">Escalation</option><option value="resolution">Resolution</option>
-          </select>
-          <select value={form.owner_id} onChange={(e) => setForm({ ...form, owner_id: e.target.value })} className="w-full rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text">
-            <option value="">Select owner</option>
-            {data.users.map((user) => <option key={user.id} value={user.id}>{user.full_name || user.email}</option>)}
-          </select>
-          <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className="w-full rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text" />
-          <select value={form.handoff_target} onChange={(e) => setForm({ ...form, handoff_target: e.target.value as typeof form.handoff_target })} className="w-full rounded-xl border border-boh-border-light bg-white px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-card dark:text-boh-text">
-            <option value="tablez">Owner task in Tablez & Chairz</option>
-            <option value="menu_review">Menu initiative review task</option>
-            <option value="none">Record only</option>
-          </select>
+          <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Outcome title" className={assemblyFieldClass} />
+          <textarea required rows={4} value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} placeholder="Decision, action, approval, or deferral summary" className={assemblyFieldClass} />
+          <ThemedSelect value={form.outcome_type} label="Outcome type" onChange={(value) => setForm({ ...form, outcome_type: value as typeof form.outcome_type })} options={[{ value: 'action', label: 'Action' }, { value: 'decision', label: 'Decision' }, { value: 'approval', label: 'Approval' }, { value: 'deferral', label: 'Deferral' }, { value: 'escalation', label: 'Escalation' }, { value: 'resolution', label: 'Resolution' }]} />
+          <ThemedSelect value={form.owner_id} label="Select owner" onChange={(value) => setForm({ ...form, owner_id: value })} options={[{ value: '', label: 'Select owner' }, ...data.users.map((user) => ({ value: user.id, label: user.full_name || user.email }))]} />
+          <input type="text" inputMode="numeric" pattern="\\d{4}-\\d{2}-\\d{2}" placeholder="YYYY-MM-DD" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} className={assemblyFieldClass} />
+          <ThemedSelect value={form.handoff_target} label="Follow-up target" onChange={(value) => setForm({ ...form, handoff_target: value as typeof form.handoff_target })} options={[{ value: 'tablez', label: 'Owner task in Tablez & Chairz' }, { value: 'menu_review', label: 'Menu initiative review task' }, { value: 'none', label: 'Record only' }]} />
           <PrimaryButton disabled={isSaving} type="submit">Record outcome</PrimaryButton>
         </form>
       </Card>

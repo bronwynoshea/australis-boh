@@ -573,7 +573,7 @@ const BookingPage: React.FC<BookingPageProps> = ({ navigate, selectedMeetingType
     };
 
     return (
-        <div className="w-full max-w-7xl mx-auto px-4 py-3 md:px-6 lg:px-8 lg:py-2 animate-fade-in flex flex-col flex-grow min-h-[calc(100vh-5.5rem)] [@media_(min-height:900px)]:lg:h-[calc(100vh-5rem)] [@media_(min-height:900px)]:lg:min-h-0 [@media_(min-height:900px)]:lg:overflow-hidden">
+        <div className="w-full px-4 py-3 md:px-6 lg:px-8 lg:py-2 animate-fade-in flex flex-col flex-grow min-h-[calc(100vh-5.5rem)] [@media_(min-height:900px)]:lg:h-[calc(100vh-5rem)] [@media_(min-height:900px)]:lg:min-h-0 [@media_(min-height:900px)]:lg:overflow-hidden">
             <div className="min-h-0 flex-grow [@media_(min-height:900px)]:lg:overflow-hidden">
                 <div className="flex flex-col md:flex-row md:items-end justify-between mb-2 gap-4">
                     <div>

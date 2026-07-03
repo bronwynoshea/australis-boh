@@ -13,7 +13,7 @@ Purpose: use this file to recreate the useful Loft context from the current Code
 
 - Repo: `bronwynoshea/loft-app`
 - Local valid Git checkout used for pushes here: `C:\JOBZCAFE\1. DEVELOPMENT ENVIRONMENT\loft\codex-staging-checkout-shallow`
-- Dev domain: `dev-loft.jobzcafe.com`
+- BOH-native route: `https://boh.australis.cloud/apps/loft`
 - Current working branch in this checkout: `codex-staging`
 - Production/staging deployment must not be changed unless the user explicitly asks.
 
@@ -50,8 +50,8 @@ Loft allowed origins are represented by `LOFT_ALLOWED_ORIGINS` for server/Edge F
 - Supabase Auth redirect URLs for Loft dev should include:
 
 ```text
-https://dev-loft.jobzcafe.com
-https://dev-loft.jobzcafe.com/**
+https://boh.australis.cloud
+https://boh.jobzcafe.com
 ```
 
 Vite env vars are build-time values. After changing Cloudflare Pages variables, redeploy the site.

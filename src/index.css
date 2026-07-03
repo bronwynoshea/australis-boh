@@ -1606,6 +1606,27 @@ input:checked + .slider:before { transform: translateX(20px); }
     border-radius: 0.75rem;
     box-shadow: 0 14px 30px rgba(99, 92, 205, 0.22);
 }
+
+.login-brand-boh img {
+    width: 2.75rem;
+    height: 2.1rem;
+    border-radius: 0;
+    object-fit: contain;
+    box-shadow: none;
+    filter: drop-shadow(0 12px 20px rgba(99, 92, 205, 0.28));
+}
+
+.login-brand .logo-sub {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--boh-text-sub-light);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.dark .login-brand .logo-sub {
+    color: var(--boh-text-sub);
+}
 .login-box .logo-main {
     font-size: 0.78rem;
     font-weight: 800;
@@ -2553,26 +2574,27 @@ body.dark {
     width: 40px;
     height: 40px;
     border: 0;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--boh-primary), color-mix(in srgb, var(--boh-primary) 70%, #000));
+    border-radius: 12px;
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
     text-decoration: none;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
     cursor: pointer;
 }
 
 .boh-rail-logo:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--boh-primary) 30%, transparent);
+    background: transparent;
+    box-shadow: none;
 }
 
-.boh-rail-logo-text {
-    color: white;
-    font-weight: 700;
-    font-size: 1.25rem;
-    line-height: 1;
+.boh-rail-logo-mark {
+    width: 34px;
+    height: 26px;
+    object-fit: contain;
+    filter: drop-shadow(0 6px 12px rgba(99, 92, 205, 0.28));
 }
 
 /* Rail Apps Navigation */
@@ -3343,19 +3365,22 @@ body.dark {
     cursor: pointer;
 }
 
-.boh-dashboard-logo-text {
+.boh-dashboard-logo-mark {
     width: 40px;
     height: 40px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, var(--boh-primary), color-mix(in srgb, var(--boh-primary) 70%, #000));
+    border-radius: 12px;
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
-    font-weight: 700;
-    font-size: 1.25rem;
-    line-height: 1;
     flex-shrink: 0;
+}
+
+.boh-dashboard-logo-mark img {
+    width: 34px;
+    height: 26px;
+    object-fit: contain;
+    filter: drop-shadow(0 6px 12px rgba(99, 92, 205, 0.28));
 }
 
 .boh-dashboard-logo-label {

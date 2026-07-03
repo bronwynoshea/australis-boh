@@ -18,6 +18,8 @@ import {
   validateServerBearer,
 } from "../_shared/loftExternalAccess.ts";
 
+const JOIN_OPEN_WINDOW_MS = 2 * 60 * 1000;
+
 serve(async (req: Request) => {
   const cors = handleCors(req);
   if (cors) return cors;
@@ -68,6 +70,12 @@ serve(async (req: Request) => {
       const isParticipant = session.patron_person_id === patronPersonId;
       const isHost = session.host_patron_person_id === patronPersonId;
       if (!isParticipant && !isHost) return jsonResponse(req, { success: false, error: 'session_access_denied' }, 403);
+      if (isParticipant && !isHost && session.scheduled_start_at) {
+        const opensAt = new Date(new Date(session.scheduled_start_at).getTime() - JOIN_OPEN_WINDOW_MS);
+        if (Number.isFinite(opensAt.getTime()) && Date.now() < opensAt.getTime()) {
+          return jsonResponse(req, { success: false, error: 'session_not_open_yet', opensAt: opensAt.toISOString(), scheduledStartAt: session.scheduled_start_at }, 403);
+        }
+      }
       videoSession = session;
       loftRoomId = session.loft_room_id;
       role = isHost ? 'host' : 'listener';

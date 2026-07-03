@@ -131,7 +131,7 @@ const ConfirmationPage: React.FC<ConfirmationPageProps> = ({ lastBooking, handle
     const meetingName = meetingType?.name || lastBooking.scheduling_meeting_types?.name;
 
     return (
-        <div className="w-full max-w-5xl mx-auto px-4 py-4 md:px-6 lg:px-8 lg:py-6 animate-fade-in flex flex-col flex-grow">
+        <div className="w-full px-4 py-4 md:px-6 lg:px-8 lg:py-6 animate-fade-in flex flex-col flex-grow">
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-stretch">
                 <section className="h-full rounded-xl border border-primary-border bg-white p-5 shadow-sm dark:border-white/10 dark:bg-darkcard md:p-6">
                     <div className="mb-5 flex flex-col gap-3 border-b border-primary-border/70 pb-5 dark:border-white/10 md:flex-row md:items-start md:justify-between">

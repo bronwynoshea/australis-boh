@@ -21,8 +21,8 @@ Resolved or superseded items:
 
 New items added after the first version:
 
-- **`dev-loft.jobzcafe.com` is now part of the expected Loft dev validation path.**
-- **The registered Loft domain is `loft.jobzcafe.com`; `app.jobzcafe.com` is a separate app/repo context and should not be hardcoded into Loft.**
+- **Loft is now validated inside BOH at `/apps/loft`; standalone Loft hostnames are retired rather than redirected.**
+- **The BOH-native Loft route is `https://boh.australis.cloud/apps/loft`; `app.jobzcafe.com` is a separate app/repo context and should not be hardcoded into Loft.**
 - **`T-0294` tracks the dedicated Loft session layout and CORS hardening follow-up.**
 - **Personal Table recording now calls Daily cloud recording for authenticated hosts instead of only flipping a local database flag.**
 - **Daily background effects are enabled through the installed Daily client’s video processor where browser/device support exists.**
@@ -37,7 +37,7 @@ New items added after the first version:
 - Session status and participant roles no longer depend on direct browser REST reads that were returning `403`.
 - Raised-hand calls no longer fail because of the old hardcoded `app.jobzcafe.com` CORS response.
 - Loft Edge Function CORS is driven by `LOFT_ALLOWED_ORIGINS` with no silent fallback origin.
-- Localhost, `dev-loft.jobzcafe.com`, and `loft.jobzcafe.com` are documented as the expected Loft validation origins.
+- Localhost and the BOH origins are documented as the expected Loft validation origins; `/apps/loft` is the explicit application route.
 - Desktop participant cards are centered and can use multiple full rows before scrolling.
 - Laptop-height layouts preserve one participant row with hidden horizontal scrolling and space for the transport bar below.
 - Participant rail scrolling remains available without showing a visible browser scrollbar.
@@ -112,8 +112,8 @@ Expected dev `LOFT_ALLOWED_ORIGINS` values:
 - `http://127.0.0.1:8081`
 - `http://localhost:5173`
 - `http://127.0.0.1:5173`
-- `https://dev-loft.jobzcafe.com`
-- `https://loft.jobzcafe.com`
+- `https://boh.australis.cloud`
+- `https://boh.jobzcafe.com`
 
 Do not hardcode `app.jobzcafe.com` in Loft. That is a separate app/repo context.
 

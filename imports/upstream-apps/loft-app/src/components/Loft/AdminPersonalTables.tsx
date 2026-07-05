@@ -10,6 +10,8 @@ type PersonalTableRow = {
   personal_room_id: string | null;
   personal_room_slug: string | null;
   invite_code: string | null;
+  tenant_slug?: string | null;
+  tenantSlug?: string | null;
   room_title: string | null;
   room_status: string | null;
   is_open: boolean;
@@ -23,6 +25,23 @@ const getAppOrigin = () => {
   } catch {
     return '';
   }
+};
+
+const getDefaultTenantSlug = () => {
+  try {
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname.includes('jobzcafe.com')) return 'jobzcafe';
+    if (hostname.includes('australis.cloud')) return 'australis';
+  } catch {
+    // Fall through to the current JOBZCAFE® production tenant while Loft is white-labeled there.
+  }
+  return 'jobzcafe';
+};
+
+const buildGuestInviteLink = (origin: string, row: PersonalTableRow) => {
+  if (!row.invite_code || !origin) return '';
+  const tenantSlug = (row.tenant_slug || row.tenantSlug || getDefaultTenantSlug()).toLowerCase();
+  return `${origin}/t/${tenantSlug}/loft/join/${row.invite_code.toLowerCase()}`;
 };
 
 const AdminPersonalTables: React.FC = () => {
@@ -92,8 +111,9 @@ const AdminPersonalTables: React.FC = () => {
   };
 
   const copyInviteLink = async (row: PersonalTableRow) => {
-    if (!row.invite_code || !appOrigin) return;
-    await navigator.clipboard.writeText(`${appOrigin}/#/personal/${row.invite_code}`);
+    const inviteLink = buildGuestInviteLink(appOrigin, row);
+    if (!inviteLink) return;
+    await navigator.clipboard.writeText(inviteLink);
     setNotice(`Guest link copied for ${row.display_name}.`);
   };
 

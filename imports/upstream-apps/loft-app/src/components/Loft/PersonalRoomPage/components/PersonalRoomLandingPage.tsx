@@ -180,7 +180,7 @@ Best regards`;
         roomTitle: string;
         hostName: string;
         roomId: string;
-      }>('join_personal_room_by_slug', {
+      }>('loft-join-personal-room-by-slug', {
         slug: slug,
         guestName: trimmedName
       });

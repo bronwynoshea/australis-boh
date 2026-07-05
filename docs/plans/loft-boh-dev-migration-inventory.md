@@ -57,8 +57,8 @@ Notes:
 
 | Source file | Current role | BOH destination/owner |
 |---|---|---|
-| `/home/jobzcafe/jobzcafe-app/src/utils/loft.ts` | Redirect helper. Defines `LOFT_APP_URL = import.meta.env.VITE_LOFT_APP_URL || 'https://loft.jobzcafe.com'`, iOS/mobile helpers, `buildLoftUrl`, and `openLoft`. | Replace redirect semantics with BOH-owned Loft routing. Keep only if BOH needs a temporary migration redirect helper. New BOH-owned module should live under `/home/jobzcafe/jobzcafe-boh/src/apps/loft/`. |
-| `/home/jobzcafe/jobzcafe-app/src/components/shared/OpenLoftModal.tsx` | iOS install/continue modal for the standalone Loft PWA. It assumes Loft remains its own app and sends users to `LOFT_APP_URL`. | Likely do not migrate as-is. If BOH still needs PWA instructions, rewrite copy around BOH Suite Loft; otherwise remove from migration scope. |
+| `/home/jobzcafe/jobzcafe-app/src/utils/loft.ts` | Redirect helper. Defines `BOH Loft internal route /apps/loft = import.meta.env.BOH Loft internal route /apps/loft || 'retired standalone Loft hostname'`, iOS/mobile helpers, `buildLoftUrl`, and `openLoft`. | Replace redirect semantics with BOH-owned Loft routing. Keep only if BOH needs a temporary migration redirect helper. New BOH-owned module should live under `/home/jobzcafe/jobzcafe-boh/src/apps/loft/`. |
+| `/home/jobzcafe/jobzcafe-app/src/components/shared/OpenLoftModal.tsx` | iOS install/continue modal for the standalone Loft PWA. It assumes Loft remains its own app and sends users to `BOH Loft internal route /apps/loft`. | Likely do not migrate as-is. If BOH still needs PWA instructions, rewrite copy around BOH Suite Loft; otherwise remove from migration scope. |
 | `/home/jobzcafe/jobzcafe-app/src/App.tsx` | Imports `OpenLoftModal`, `isIOS`, `openLoft`; has `ExternalLoftRedirect`; routes `/loft`, `/loft/create`, `/loft/room/:id`, and `/loft/*` redirect externally. | BOH already owns `/loft/*` routing in `/home/jobzcafe/jobzcafe-boh/src/App.tsx`. Migration should implement real BOH Loft pages under that route instead of preserving external redirect behavior. |
 | `/home/jobzcafe/jobzcafe-app/src/lib/types/subscription.ts` and `/home/jobzcafe/jobzcafe-app/src/lib/types/supabase.ts` | Type definitions include shared Loft/profile fields: `loft_orientation_completed_at`, `personal_room_id`, `can_host_loft`, `is_loft_admin`, `can_use_personal_room`, `personal_room_slug`, `personal_room_public`, and `background_mode`. | BOH DB/type layer needs equivalent fields against the BOH dev schema if Loft remains profile-owned. Since BOH identity guidance says app ownership should use `public.boh_user.id`, implementation should decide whether these remain on shared `profile` during transition or are adapted to BOH users/Patron identity. |
 | Icons such as `src/components/icons/LoftsIcon.tsx`, `src/components/icons/mentor/MentorLoftsIcon.tsx`, `src/components/icons/coach/CoachLoftsIcon.tsx`, `src/components/icons/journey/JourneyLoftsIcon.tsx`, plus feature card references in dashboard/menu files | Studio/customer-app navigation affordances into Loft. | BOH already has `DefaultIcons.Loft`; do not blindly copy customer-app icons unless the BOH visual system needs them. |
@@ -76,7 +76,7 @@ Notes:
 - Source migrations inspected: only four files under `/home/jobzcafe/jobzcafe-app/supabase/migrations/`; no Loft schema migration was found there by searching `loft_room`, `personal_room`, `loft_`, or `waitlist`.
 - Source `supabase/config.toml` currently lists only several non-Loft functions; no `[functions.loft-*]` entries were found.
 - No source asset files with `loft` in the file name were found by file-name search. Source has Loft icon components and copy references, but no obvious Loft image/video assets in this repo.
-- `HERMES_CODEX_HANDOVER.md` says "Loft implementation lives in `loft`" and lists frontend-safe Vite variable names including `VITE_LOFT_APP_URL`; that suggests this repo is mostly a JOBZCAFE customer-app redirect/integration surface, not the complete standalone Loft app.
+- `HERMES_CODEX_HANDOVER.md` says "Loft implementation lives in `loft`" and lists frontend-safe Vite variable names including `BOH Loft internal route /apps/loft`; that suggests this repo is mostly a JOBZCAFE customer-app redirect/integration surface, not the complete standalone Loft app.
 
 ## Existing BOH inventory
 
@@ -86,8 +86,8 @@ Notes:
 |---|---|---|
 | `/home/jobzcafe/jobzcafe-boh/src/App.tsx` | Imports `LoftApp` and protects route `<Route path="/loft/*" element={renderProtectedRoute(<LoftApp isAdmin={isSuperAdmin} />)} />`. | Keep. This is the correct BOH-owned route surface. |
 | `/home/jobzcafe/jobzcafe-boh/src/apps/loft/LoftApp.tsx` | Placeholder BOH shell: shows "Loft" and "Inventory and resource management. Coming soon." | Replace with real Loft BOH module pages. It currently has no room/session UI and no Supabase calls. |
-| `/home/jobzcafe/jobzcafe-boh/src/boh/navigation/appConfigs.ts` | Defines `loftNavConfig`, but `bohApps` entry for Loft has `route: ''`, `isExternal: true`, and external URL switching between `https://loft.jobzcafe.com` and `https://dev-loft.jobzcafe.com`. | Change in implementation card: set Loft to internal route `/loft`, attach `navConfig: loftNavConfig`, remove external URL behavior once BOH Loft UI is ready. Also update Dashboard external URL mapping. |
-| `/home/jobzcafe/jobzcafe-boh/src/apps/boh/pages/DashboardPage.tsx` | Has `externalUrlBySlug.loft = getExternalAppUrl('https://loft.jobzcafe.com', 'https://dev-loft.jobzcafe.com')`. | Change in implementation card so dashboard opens internal `/loft` when Loft is BOH-owned. |
+| `/home/jobzcafe/jobzcafe-boh/src/boh/navigation/appConfigs.ts` | Defines `loftNavConfig`, but `bohApps` entry for Loft has `route: ''`, `isExternal: true`, and external URL switching between `retired standalone Loft hostname` and `retired standalone Loft dev hostname`. | Change in implementation card: set Loft to internal route `/loft`, attach `navConfig: loftNavConfig`, remove external URL behavior once BOH Loft UI is ready. Also update Dashboard external URL mapping. |
+| `/home/jobzcafe/jobzcafe-boh/src/apps/boh/pages/DashboardPage.tsx` | Has `externalUrlBySlug.loft = getExternalAppUrl('retired standalone Loft hostname', 'retired standalone Loft dev hostname')`. | Change in implementation card so dashboard opens internal `/loft` when Loft is BOH-owned. |
 
 ### BOH Edge Functions already present
 
@@ -263,7 +263,7 @@ Source-only names that should not be carried forward unless there is a deliberat
 - `STUDIO_APP_URL`
 - `STUDIO_SUPABASE_ADMIN_KEY`
 - `STUDIO_SUPABASE_PUBLISHABLE_KEY`
-- `VITE_LOFT_APP_URL`
+- `BOH Loft internal route /apps/loft`
 
 Human setup commands/checklist for BOH-DEV:
 

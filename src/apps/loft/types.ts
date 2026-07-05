@@ -50,6 +50,7 @@ export type LoftJoinToken = {
 export type PersonalRoomJoin = {
   token: string;
   dailyRoomName: string;
+  dailyRoomUrl?: string;
   roomTitle: string;
   hostName?: string;
 };

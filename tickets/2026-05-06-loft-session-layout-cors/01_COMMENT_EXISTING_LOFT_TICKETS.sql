@@ -8,7 +8,7 @@ with notes(ticket_number, marker, body) as (
       $$[[codex_loft_20260506_session_runtime_progress]]
 Status: OPEN - implementation still requires release validation.
 
-Progress on 2026-05-06: Loft session joining was hardened by routing session status and participant role reads through approved Edge Function/service paths instead of direct browser REST reads that were blocked by RLS. Remaining work is release validation for Daily join, participant refresh, raised-hands calls, and host/session transitions across localhost, dev-loft.jobzcafe.com, and loft.jobzcafe.com.$$ 
+Progress on 2026-05-06: Loft session joining was hardened by routing session status and participant role reads through approved Edge Function/service paths instead of direct browser REST reads that were blocked by RLS. Remaining work is release validation for Daily join, participant refresh, raised-hands calls, and host/session transitions across localhost, retired standalone Loft dev and production hostnames.$$
     ),
     (
       'T-0114',
@@ -16,7 +16,7 @@ Progress on 2026-05-06: Loft session joining was hardened by routing session sta
       $$[[codex_loft_20260506_no_fallback_cors]]
 Status: OPEN - implementation still requires environment verification.
 
-Progress on 2026-05-06: Loft Edge Function CORS handling was reviewed against the no-silent-fallback rule. Hardcoded app.jobzcafe.com origins must stay removed from Loft functions, allowed origins must come from explicit environment configuration, and failures should surface clearly rather than substituting legacy/default origins.$$ 
+Progress on 2026-05-06: Loft Edge Function CORS handling was reviewed against the no-silent-fallback rule. Hardcoded app.jobzcafe.com origins must stay removed from Loft functions, allowed origins must come from explicit environment configuration, and failures should surface clearly rather than substituting legacy/default origins.$$
     ),
     (
       'T-0118',
@@ -24,7 +24,7 @@ Progress on 2026-05-06: Loft Edge Function CORS handling was reviewed against th
       $$[[codex_loft_20260506_table_layout_polish]]
 Status: OPEN - implementation still requires responsive QA.
 
-Progress on 2026-05-06: Loft session/table layout polish removed the visible participant-card background tint, restored centered desktop participant grids, kept hidden horizontal scrolling behavior, adjusted laptop/short-height transport sizing, simplified listener cards, and refined the host stage card toward the participant-card proportions. Validate full desktop, laptop-height, and personal-table variants before release allocation.$$ 
+Progress on 2026-05-06: Loft session/table layout polish removed the visible participant-card background tint, restored centered desktop participant grids, kept hidden horizontal scrolling behavior, adjusted laptop/short-height transport sizing, simplified listener cards, and refined the host stage card toward the participant-card proportions. Validate full desktop, laptop-height, and personal-table variants before release allocation.$$
     ),
     (
       'T-0119',
@@ -32,7 +32,7 @@ Progress on 2026-05-06: Loft session/table layout polish removed the visible par
       $$[[codex_loft_20260506_laptop_breakpoints]]
 Status: OPEN - implementation still requires browser/device validation.
 
-Progress on 2026-05-06: Loft laptop behavior now needs explicit height-based QA, not only width-based QA. The laptop target is one participant row with hidden horizontal scrolling and enough space for the transport bar below; large desktop should continue to show full cards centered with multiple rows before scrolling.$$ 
+Progress on 2026-05-06: Loft laptop behavior now needs explicit height-based QA, not only width-based QA. The laptop target is one participant row with hidden horizontal scrolling and enough space for the transport bar below; large desktop should continue to show full cards centered with multiple rows before scrolling.$$
     ),
     (
       'T-0117',
@@ -40,7 +40,7 @@ Progress on 2026-05-06: Loft laptop behavior now needs explicit height-based QA,
       $$[[codex_loft_20260506_layout_cors_regression_tests]]
 Status: OPEN - test coverage still required.
 
-Add regression coverage for the 2026-05-06 Loft hardening pass: explicit CORS origin handling with no silent fallbacks, localhost/dev/prod origin checks, session join without direct browser RLS reads, laptop-height participant rail behavior, hidden horizontal scrolling, centered desktop grids, personal-table tint removal, and listener-card controls hidden unless the participant is promoted.$$ 
+Add regression coverage for the 2026-05-06 Loft hardening pass: explicit CORS origin handling with no silent fallbacks, localhost/dev/prod origin checks, session join without direct browser RLS reads, laptop-height participant rail behavior, hidden horizontal scrolling, centered desktop grids, personal-table tint removal, and listener-card controls hidden unless the participant is promoted.$$
     )
 ),
 target_tickets as (

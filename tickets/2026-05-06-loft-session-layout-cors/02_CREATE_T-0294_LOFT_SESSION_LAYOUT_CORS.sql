@@ -33,7 +33,7 @@ inserted as (
   select
     'T-0294',
     'Finalize Loft session layout and CORS hardening',
-    $$Finalize the JOBZCAFE® Loft session/table hardening completed in local staging. Scope: keep Loft Edge Function CORS origins explicit with no hardcoded app.jobzcafe.com and no silent fallback origins; validate localhost, dev-loft.jobzcafe.com, and loft.jobzcafe.com; preserve session joining through approved service paths rather than direct browser RLS reads; polish the host stage card, participant rail, laptop height breakpoints, hidden horizontal scrolling, personal-table tint removal, and listener-card space recovery so the experience feels enterprise-grade.$$,
+    $$Finalize the JOBZCAFE® Loft session/table hardening completed in local staging. Scope: keep Loft Edge Function CORS origins explicit with no hardcoded app.jobzcafe.com and no silent fallback origins; validate localhost, retired standalone Loft dev hostname, and retired standalone Loft hostname; preserve session joining through approved service paths rather than direct browser RLS reads; polish the host stage card, participant rail, laptop height breakpoints, hidden horizontal scrolling, personal-table tint removal, and listener-card space recovery so the experience feels enterprise-grade.$$,
     'loft_hardening',
     'loft',
     app_id,

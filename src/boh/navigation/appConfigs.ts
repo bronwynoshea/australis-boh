@@ -31,6 +31,23 @@ export const menuNavConfig: AppNavConfig = {
   ],
 };
 
+// Assembly App Navigation Config
+export const assemblyNavConfig: AppNavConfig = {
+  appId: 'assembly',
+  appLabel: 'Assembly',
+  appIcon: DefaultIcons.Keep,
+  baseRoute: '/assembly',
+  defaultRoute: '/assembly/overview',
+  sidebarItems: [
+    { key: 'overview', label: 'Overview', to: '/assembly/overview' },
+    { key: 'memos', label: 'Memos', to: '/assembly/memos' },
+    { key: 'meetings', label: 'Meetings', to: '/assembly/meetings' },
+    { key: 'governance', label: 'Governance', to: '/assembly/governance' },
+    { key: 'reviews', label: 'Reviews', to: '/assembly/reviews' },
+    { key: 'outcomes', label: 'Outcomes & Tasks', to: '/assembly/outcomes' },
+  ],
+};
+
 // Tablez App Navigation Config
 export const tablezNavConfig: AppNavConfig = {
   appId: 'tablez',
@@ -283,6 +300,15 @@ export const cellarNavConfig: AppNavConfig = {
 
 // All BOH App Definitions
 export const bohApps: BohAppDefinition[] = [
+  {
+    id: 'assembly',
+    slug: 'assembly',
+    name: 'Assembly',
+    route: '/assembly',
+    icon: DefaultIcons.Keep,
+    navConfig: assemblyNavConfig,
+    category: 'internal',
+  },
   {
     id: 'cellar',
     slug: 'cellar',

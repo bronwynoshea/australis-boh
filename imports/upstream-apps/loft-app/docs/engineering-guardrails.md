@@ -28,7 +28,7 @@ Allowed examples:
 
 If required configuration or data is missing, fail loudly with a clear error so the issue can be fixed at the source.
 
-For Loft Edge Functions, CORS must be driven by the explicit `LOFT_ALLOWED_ORIGINS` environment variable. Do not hardcode `loft.jobzcafe.com`, `dev-loft.jobzcafe.com`, localhost, or any fallback origin in function source.
+For Loft Edge Functions, CORS must be driven by the explicit `LOFT_ALLOWED_ORIGINS` environment variable. Do not hardcode retired standalone Loft hostnames, localhost, BOH origins, or any fallback origin in function source.
 
 ## Personal Room Links
 

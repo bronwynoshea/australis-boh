@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { joinPersonalRoomBySlug } from '../lib/loftApi';
 import type { PersonalRoomJoin } from '../types';
 
+const DAILY_DOMAIN = import.meta.env.VITE_DAILY_DOMAIN || 'jobzcafe.daily.co';
+
 const explainError = (value: string) => {
   const messages: Record<string, string> = {
     room_not_found: 'Personal room not found or not available.',
@@ -39,6 +41,8 @@ const PersonalRoomPublicJoinPage: React.FC = () => {
     try {
       const result = await joinPersonalRoomBySlug(normalizedSlug, guestName.trim() || 'Guest', normalizedTenantSlug);
       setJoinResult(result);
+      const roomUrl = result.dailyRoomUrl || `https://${DAILY_DOMAIN}/${result.dailyRoomName.replace(/^\/+/, '')}`;
+      window.location.href = `${roomUrl}${roomUrl.includes('?') ? '&' : '?'}t=${encodeURIComponent(result.token)}`;
     } catch (err) {
       setError(explainError((err as Error).message));
     } finally {
@@ -93,8 +97,14 @@ const PersonalRoomPublicJoinPage: React.FC = () => {
             <div className="rounded-2xl border border-boh-primary/30 bg-boh-primary/10 px-4 py-4 text-sm leading-6">
               <div className="font-semibold">Room token issued for {joinResult.roomTitle}.</div>
               <div className="mt-2 text-boh-text-sub-light dark:text-boh-text-sub">
-                Daily room: <span className="font-mono">{joinResult.dailyRoomName}</span>. The next frontend step is wiring this token into the approved Daily call component; this page does not print or expose the token.
+                Opening the secure video room now. If the room does not open automatically, use the button below.
               </div>
+              <a
+                href={`${joinResult.dailyRoomUrl || `https://${DAILY_DOMAIN}/${joinResult.dailyRoomName.replace(/^\/+/, '')}`}${(joinResult.dailyRoomUrl || '').includes('?') ? '&' : '?'}t=${encodeURIComponent(joinResult.token)}`}
+                className="mt-4 inline-flex rounded-xl bg-boh-primary px-4 py-2 text-sm font-semibold text-white"
+              >
+                Open video room
+              </a>
             </div>
           )}
           <button

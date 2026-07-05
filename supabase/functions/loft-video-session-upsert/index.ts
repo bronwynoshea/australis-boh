@@ -39,7 +39,8 @@ async function ensureExternalPersonalRoom(supabaseAdmin: any, dailyApiKey: strin
     .select('id, daily_room_name, invite_code, title')
     .eq('tenant_id', tenant.id)
     .eq('host_profile_id', externalProfile.profileId)
-    .contains('tags', ['personal-room'])
+    .eq('business_context', 'interview')
+    .contains('tags', ['external-recruiter'])
     .limit(1)
     .maybeSingle();
   if (existingRoom?.id) {
@@ -124,7 +125,7 @@ serve(async (req: Request) => {
     if (!loftRoomId) return jsonResponse(req, { success: false, error: 'loft_room_required' }, 400);
     const { data: targetRoom, error: targetRoomError } = await supabaseAdmin
       .from('loft_room')
-      .select('id')
+      .select('id, invite_code')
       .eq('id', loftRoomId)
       .eq('tenant_id', tenant.id)
       .maybeSingle();
@@ -179,7 +180,9 @@ serve(async (req: Request) => {
     const { data: session, error } = await query;
     if (error || !session?.id) throw new Error(`video_session_upsert_failed: ${error?.message || 'unknown'}`);
 
-    const computedJoinUrl = `/${sourceApp.includes('talent') ? 'talent' : 'loft'}/session/${session.id}`;
+    const computedJoinUrl = targetRoom.invite_code
+      ? `/t/${tenant.slug}/loft/join/${String(targetRoom.invite_code).toLowerCase()}`
+      : `/apps/loft`;
     if (session.join_url !== computedJoinUrl) {
       await supabaseAdmin
         .from('loft_video_session')

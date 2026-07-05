@@ -98,10 +98,16 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
   }, [profile?.id, slug, isLoadingProfile, canUsePersonalRoom, user?.id]);
 
   const appOrigin = typeof window !== 'undefined' ? new URL(window.location.href).origin : '';
+  const getDefaultTenantSlug = () => {
+    if (typeof window === 'undefined') return 'jobzcafe';
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname.includes('australis.cloud') || hostname.includes('australis-boh.pages.dev')) return 'australis';
+    return 'jobzcafe';
+  };
   const guestJoinCode = slug || inviteCode;
   const personalLink = guestJoinCode
-    ? `${appOrigin}/#/personal/${guestJoinCode}`
-    : roomId ? `${appOrigin}/#/personal-room/${roomId}` : '';
+    ? `${appOrigin}/t/${getDefaultTenantSlug()}/loft/join/${guestJoinCode.toLowerCase()}`
+    : '';
   const profileName =
     ((profile as any)?.name as string | undefined) ||
     ((profile as any)?.displayName as string | undefined) ||
@@ -174,7 +180,7 @@ Best regards`;
         roomTitle: string;
         hostName: string;
         roomId: string;
-      }>('join_personal_room_by_slug', {
+      }>('loft-join-personal-room-by-slug', {
         slug: slug,
         guestName: trimmedName
       });

@@ -31,7 +31,7 @@ const getDefaultTenantSlug = () => {
   try {
     const hostname = window.location.hostname.toLowerCase();
     if (hostname.includes('jobzcafe.com')) return 'jobzcafe';
-    if (hostname.includes('australis.cloud')) return 'australis';
+    if (hostname.includes('australis.cloud') || hostname.includes('australis-boh.pages.dev')) return 'australis';
   } catch {
     // Fall through to the current JOBZCAFE® production tenant while Loft is white-labeled there.
   }
@@ -241,7 +241,7 @@ const AdminPersonalTables: React.FC = () => {
                       <div className="grid gap-2 text-xs font-bold text-main/60 dark:text-white/60 md:grid-cols-2">
                         <p className="truncate">Email: {row.email || 'No email on profile'}</p>
                         <p>Table: {row.personal_room_id ? row.room_status || 'Created' : 'Not created yet'}</p>
-                        <p className="truncate">Invite: {row.invite_code ? `${appOrigin}/#/personal/${row.invite_code}` : 'Created when member opens Personal Table'}</p>
+                        <p className="truncate">Invite: {buildGuestInviteLink(appOrigin, row) || 'Created when member opens Personal Table'}</p>
                         <p className="truncate">Title: {row.room_title || 'Created on first use'}</p>
                       </div>
                     </div>

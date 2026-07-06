@@ -100,6 +100,52 @@ export function displayNameForCaller(caller: Partial<ExternalLoftCaller>, patron
   return normalizeText(caller.email) || normalizeText(patron?.email) || 'Loft Guest';
 }
 
+function displayNameForProfile(profile: any, fallback?: string | null) {
+  const name =
+    normalizeText(profile?.full_name) ||
+    normalizeText(profile?.display_name) ||
+    [profile?.first_name, profile?.last_name].map(normalizeText).filter(Boolean).join(' ').trim() ||
+    normalizeText(fallback);
+  return name || 'Loft member';
+}
+
+export async function resolveInternalLoftProfileByEmail(
+  supabaseAdmin: any,
+  caller: Pick<ExternalLoftCaller, 'tenantId' | 'email'>,
+): Promise<{ profileId: string; created: false; displayName: string; source: 'boh_user' } | null> {
+  const email = normalizeText(caller.email).toLowerCase();
+  if (!email) return null;
+
+  const { data: bohUser, error: bohUserError } = await supabaseAdmin
+    .from('boh_user')
+    .select('id, auth_user_id, email, full_name, display_name, first_name, last_name, status')
+    .eq('tenant_id', caller.tenantId)
+    .ilike('email', email)
+    .maybeSingle();
+
+  if (bohUserError) throw new Error(`boh_user_lookup_failed: ${bohUserError.message}`);
+  if (!bohUser?.id) return null;
+
+  const profileLookup = bohUser.auth_user_id
+    ? await supabaseAdmin
+        .from('profile')
+        .select('id, user_id, email, full_name, display_name, first_name, last_name')
+        .eq('user_id', bohUser.auth_user_id)
+        .maybeSingle()
+    : await supabaseAdmin
+        .from('profile')
+        .select('id, user_id, email, full_name, display_name, first_name, last_name')
+        .eq('id', bohUser.id)
+        .maybeSingle();
+
+  if (profileLookup.error) throw new Error(`internal_profile_lookup_failed: ${profileLookup.error.message}`);
+  const profile = profileLookup.data;
+  if (!profile?.id) return null;
+
+  const displayName = displayNameForProfile(profile, displayNameForProfile(bohUser, email));
+  return { profileId: profile.id, created: false, displayName, source: 'boh_user' };
+}
+
 export async function ensureExternalLoftProfile(
   supabaseAdmin: any,
   caller: ExternalLoftCaller,
@@ -222,6 +268,8 @@ export async function createDailyMeetingToken(params: {
   userName: string;
   isOwner: boolean;
   expiresInSeconds?: number;
+  closeTabOnExit?: boolean;
+  redirectOnMeetingExit?: string;
 }) {
   const resp = await fetch('https://api.daily.co/v1/meeting-tokens', {
     method: 'POST',
@@ -236,6 +284,8 @@ export async function createDailyMeetingToken(params: {
         user_name: params.userName,
         is_owner: params.isOwner,
         enable_prejoin_ui: false,
+        close_tab_on_exit: Boolean(params.closeTabOnExit),
+        ...(params.redirectOnMeetingExit ? { redirect_on_meeting_exit: params.redirectOnMeetingExit } : {}),
         exp: Math.floor(Date.now() / 1000) + (params.expiresInSeconds || 4 * 60 * 60),
       },
     }),

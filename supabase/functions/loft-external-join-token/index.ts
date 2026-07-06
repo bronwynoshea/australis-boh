@@ -14,6 +14,7 @@ import {
   normalizeAppContext,
   normalizePersona,
   normalizeText,
+  resolveInternalLoftProfileByEmail,
   resolveTenant,
   validateServerBearer,
 } from "../_shared/loftExternalAccess.ts";
@@ -50,7 +51,9 @@ serve(async (req: Request) => {
       email: body.email || patron.email || null,
       displayName: body.displayName || displayNameForCaller({}, patron),
     };
-    const externalProfile = await ensureExternalLoftProfile(supabaseAdmin, caller, patron);
+    const loftProfile =
+      await resolveInternalLoftProfileByEmail(supabaseAdmin, caller) ||
+      await ensureExternalLoftProfile(supabaseAdmin, caller, patron);
 
     let videoSession: any = null;
     let loftRoomId = normalizeText(body.loftRoomId);
@@ -93,7 +96,7 @@ serve(async (req: Request) => {
 
     if (!videoSession) {
       const isVisibleBusinessRoom = ['public', 'unlisted'].includes(String(room.visibility || '')) && !isPersonalRoom(room);
-      const isOwnPersonalRoom = isPersonalRoom(room) && room.host_profile_id === externalProfile.profileId;
+      const isOwnPersonalRoom = isPersonalRoom(room) && room.host_profile_id === loftProfile.profileId;
       if (!isVisibleBusinessRoom && !isOwnPersonalRoom) return jsonResponse(req, { success: false, error: 'room_access_denied' }, 403);
       if (isVisibleBusinessRoom && !isRoomJoinableForExternal(room)) return jsonResponse(req, { success: false, error: 'room_not_open_yet' }, 403);
       if (isOwnPersonalRoom) role = 'host';
@@ -108,7 +111,7 @@ serve(async (req: Request) => {
         .from('loft_room_member')
         .select('id, is_active')
         .eq('loft_room_id', room.id)
-        .eq('profile_id', externalProfile.profileId)
+        .eq('profile_id', loftProfile.profileId)
         .maybeSingle();
 
       if (!existingMember?.is_active) {
@@ -132,10 +135,10 @@ serve(async (req: Request) => {
         .eq('status', 'going');
 
       if (rsvpRowsError) throw new Error(`rsvp_lookup_failed: ${rsvpRowsError.message}`);
-      const callerHasReservedSeat = (rsvpRows || []).some((row: any) => String(row.profile_id) === externalProfile.profileId);
+      const callerHasReservedSeat = (rsvpRows || []).some((row: any) => String(row.profile_id) === loftProfile.profileId);
       const outstandingReservedSeats = (rsvpRows || []).filter((row: any) => {
         const reservedProfileId = String(row.profile_id || '');
-        return reservedProfileId && reservedProfileId !== externalProfile.profileId && !activeProfileIds.has(reservedProfileId);
+        return reservedProfileId && reservedProfileId !== loftProfile.profileId && !activeProfileIds.has(reservedProfileId);
       }).length;
 
       if (!callerHasReservedSeat && activeCount + outstandingReservedSeats >= maxParticipants) {
@@ -144,19 +147,32 @@ serve(async (req: Request) => {
       }
     }
 
-    await supabaseAdmin.from('loft_room_member').upsert({ loft_room_id: room.id, profile_id: externalProfile.profileId, role, is_active: true, left_at: null }, { onConflict: 'loft_room_id,profile_id' });
+    await supabaseAdmin.from('loft_room_member').upsert({ loft_room_id: room.id, profile_id: loftProfile.profileId, role, is_active: true, left_at: null }, { onConflict: 'loft_room_id,profile_id' });
     if (videoSession?.id) {
       const update: Record<string, unknown> = { status: 'joined' };
       if (!videoSession.first_joined_at) update.first_joined_at = new Date().toISOString();
       await supabaseAdmin.from('loft_video_session').update(update).eq('id', videoSession.id);
     }
 
+    const redirectOnMeetingExit = (() => {
+      const value = normalizeText(body.redirectOnMeetingExit);
+      if (!value) return undefined;
+      try {
+        const parsed = new URL(value);
+        return ['http:', 'https:'].includes(parsed.protocol) ? parsed.toString() : undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+
     const tokenResult = await createDailyMeetingToken({
       dailyApiKey,
       roomName: room.daily_room_name,
-      userId: `patron:${patronPersonId}`,
-      userName: externalProfile.displayName,
+      userId: (loftProfile as any).source === 'boh_user' ? `profile:${loftProfile.profileId}` : `patron:${patronPersonId}`,
+      userName: loftProfile.displayName,
       isOwner: role === 'host',
+      closeTabOnExit: !redirectOnMeetingExit,
+      redirectOnMeetingExit,
     });
 
     return jsonResponse(req, {
@@ -169,9 +185,9 @@ serve(async (req: Request) => {
       videoSessionId: videoSession?.id || null,
       loftRoomId: room.id,
       currentUserProfile: {
-        profileId: externalProfile.profileId,
+        profileId: loftProfile.profileId,
         patronPersonId,
-        displayName: externalProfile.displayName,
+        displayName: loftProfile.displayName,
         isHost: role === 'host',
       },
     });

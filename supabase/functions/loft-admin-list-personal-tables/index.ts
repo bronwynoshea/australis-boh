@@ -99,11 +99,12 @@ serve(async (req: Request) => {
 
     const roomIds = (profiles || []).map((profile: any) => profile.personal_room_id).filter(Boolean);
     const roomById = new Map<string, any>();
+    const tenantSlugById = new Map<string, string>();
 
     if (roomIds.length > 0) {
       const { data: rooms, error: roomError } = await supabaseAdmin
         .from("loft_room")
-        .select("id, title, status, is_open, invite_code, updated_at, created_at")
+        .select("id, title, status, is_open, invite_code, tenant_id, updated_at, created_at")
         .in("id", roomIds);
 
       if (roomError) {
@@ -113,6 +114,22 @@ serve(async (req: Request) => {
       (rooms || []).forEach((room: any) => {
         if (room?.id) roomById.set(room.id, room);
       });
+
+      const tenantIds = Array.from(new Set((rooms || []).map((room: any) => room.tenant_id).filter(Boolean)));
+      if (tenantIds.length > 0) {
+        const { data: tenants, error: tenantError } = await supabaseAdmin
+          .from("boh_tenant")
+          .select("id, slug")
+          .in("id", tenantIds);
+
+        if (tenantError) {
+          return json(req, { error: "tenant_lookup_failed", details: tenantError }, 500);
+        }
+
+        (tenants || []).forEach((tenant: any) => {
+          if (tenant?.id && tenant?.slug) tenantSlugById.set(tenant.id, tenant.slug);
+        });
+      }
     }
 
     const personalTables = (profiles || []).map((profile: any) => {
@@ -126,6 +143,7 @@ serve(async (req: Request) => {
         personal_room_id: profile.personal_room_id || null,
         personal_room_slug: profile.personal_room_slug || null,
         invite_code: room?.invite_code || null,
+        tenant_slug: room?.tenant_id ? tenantSlugById.get(room.tenant_id) || null : null,
         room_title: room?.title || null,
         room_status: room?.status || null,
         is_open: room?.is_open ?? false,

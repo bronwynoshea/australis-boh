@@ -38,6 +38,16 @@ async function getTenantId(supabaseAdmin: any, tenantSlug: string) {
   return data.id as string;
 }
 
+async function getTenantSlug(supabaseAdmin: any, tenantId: string | null) {
+  if (!tenantId) return null;
+  const { data } = await supabaseAdmin
+    .from("boh_tenant")
+    .select("slug")
+    .eq("id", tenantId)
+    .maybeSingle();
+  return data?.slug ?? null;
+}
+
 async function getHostProfile(supabaseAdmin: any, hostProfileId: string | null) {
   if (!hostProfileId) return null;
   const { data } = await supabaseAdmin
@@ -134,11 +144,13 @@ serve(async (req: Request) => {
 
     const hostProfile = await getHostProfile(supabaseAdmin, hostProfileId ?? room.host_profile_id ?? null);
     const hostName = displayHostName(hostProfile);
+    const resolvedTenantSlug = await getTenantSlug(supabaseAdmin, room.tenant_id ?? tenantId);
 
     return json(req, {
       roomId: room.id,
       title: room.title || `${hostName}'s Personal Table`,
       hostName,
+      tenantSlug: resolvedTenantSlug,
       isOpen: room.is_open === true,
       openedAt: room.opened_at ?? null,
       inviteCode: room.invite_code ?? null,

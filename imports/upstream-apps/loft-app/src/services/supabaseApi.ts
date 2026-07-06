@@ -24,8 +24,8 @@ const assignDebugSnapshot = (key: string, value: unknown) => {
 
 const normalizeProfile = (profileRow: any, fallbackName: string): UserProfile => {
   const nameFromSchema =
-    profileRow.display_name ||
     profileRow.full_name ||
+    profileRow.display_name ||
     [profileRow.first_name, profileRow.last_name].filter(Boolean).join(' ') ||
     profileRow.name ||
     fallbackName ||

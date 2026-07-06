@@ -6,9 +6,10 @@ import { clearPersonalGuestAccessState } from '../utils/personalRoomGuestStorage
 interface PersonalRoomLandingPageProps {
   onNavigate: (path: string) => void;
   slug?: string;
+  tenantSlug?: string;
 }
 
-const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNavigate, slug }) => {
+const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNavigate, slug, tenantSlug }) => {
   const { user, profile, isLoading: isLoadingProfile } = useSupabaseUser();
   const [roomId, setRoomId] = useState<string | null>(null);
   const [roomTitle, setRoomTitle] = useState<string>('');
@@ -42,7 +43,7 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
             title: string;
             hostName: string;
             inviteCode?: string | null;
-          }>('loft-get-personal-room-by-slug', { slug });
+          }>('loft-get-personal-room-by-slug', { slug, tenantSlug });
           
           setRoomId(response.roomId);
           setRoomTitle(response.title);
@@ -95,10 +96,11 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
     };
 
     fetchPersonalRoom();
-  }, [profile?.id, slug, isLoadingProfile, canUsePersonalRoom, user?.id]);
+  }, [profile?.id, slug, tenantSlug, isLoadingProfile, canUsePersonalRoom, user?.id]);
 
   const appOrigin = typeof window !== 'undefined' ? new URL(window.location.href).origin : '';
   const getDefaultTenantSlug = () => {
+    if (tenantSlug) return tenantSlug;
     if (typeof window === 'undefined') return 'jobzcafe';
     const hostname = window.location.hostname.toLowerCase();
     if (hostname.includes('australis.cloud') || hostname.includes('australis-boh.pages.dev')) return 'australis';
@@ -182,6 +184,7 @@ Best regards`;
         roomId: string;
       }>('loft-join-personal-room-by-slug', {
         slug: slug,
+        tenantSlug,
         guestName: trimmedName
       });
 

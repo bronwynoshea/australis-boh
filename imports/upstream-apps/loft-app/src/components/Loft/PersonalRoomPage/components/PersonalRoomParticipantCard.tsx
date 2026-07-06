@@ -165,10 +165,10 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
           {!hideLabels && (
             <div className="absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-4 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-5 pb-4 pt-16">
               <div className="min-w-0">
-                <div className="truncate text-lg font-black uppercase leading-none tracking-wide text-white md:text-2xl">
+                <div className="truncate text-lg font-semibold leading-none tracking-normal text-white/95 drop-shadow md:text-2xl">
                   {participant.name}
                 </div>
-                <div className="mt-2 text-[10px] font-black uppercase leading-none tracking-[0.3em] text-white/65">
+                <div className="mt-2 text-[10px] font-medium uppercase leading-none tracking-[0.24em] text-white/70">
                   {roleLabel}
                 </div>
               </div>
@@ -250,10 +250,10 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
           {!hideLabels && (
             <div className={`absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-2 px-3 pb-2 pt-8 ${spotlightMode ? 'bg-transparent' : 'bg-gradient-to-t from-black/70 via-black/35 to-transparent'}`}>
               <div className="min-w-0">
-                <div className="truncate text-[11px] font-black uppercase leading-none tracking-wide text-white">
+                <div className="truncate text-[11px] font-semibold leading-none tracking-normal text-white/95 drop-shadow">
                   {participant.name}
                 </div>
-                <div className="mt-1 text-[7px] font-black uppercase leading-none tracking-[0.24em] text-white/65">
+                <div className="mt-1 text-[7px] font-medium uppercase leading-none tracking-[0.2em] text-white/70">
                   {roleLabel}
                 </div>
               </div>
@@ -336,11 +336,11 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
         {!hideLabels && (
           <div className={`w-full flex-shrink-0 border-t border-[var(--loft-border)] ${transparentSecondaryCard ? 'bg-transparent' : 'bg-[var(--loft-surface)]/90'} ${compact ? 'px-2 py-2' : 'min-h-[3.5rem] px-3 py-2 md:min-h-[4rem] md:px-4 md:py-3'} flex items-center justify-between z-20`}>
             <div className="flex flex-col min-w-0">
-              <span className={`font-black text-[var(--loft-text)] uppercase tracking-wider ${compact ? 'text-[8px] md:text-[12px]' : 'text-[11px] md:text-[18px]'} truncate leading-none`}>
+              <span className={`font-semibold text-[var(--loft-text)] tracking-normal ${compact ? 'text-[8px] md:text-[12px]' : 'text-[11px] md:text-[18px]'} truncate leading-none`}>
                 {participant.name}
               </span>
               {!compact && (
-                <span className="mt-1 h-3 truncate text-[7px] font-bold uppercase tracking-[0.3em] text-muted md:h-3.5 md:text-[10px]">
+                <span className="mt-1 h-3 truncate text-[7px] font-medium uppercase tracking-[0.22em] text-muted md:h-3.5 md:text-[10px]">
                   {roleLabel}
                 </span>
               )}

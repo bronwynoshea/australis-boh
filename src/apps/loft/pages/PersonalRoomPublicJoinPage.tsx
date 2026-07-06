@@ -4,7 +4,8 @@ import PersonalRoomLandingPage from '../../../../imports/upstream-apps/loft-app/
 import '../../../../imports/upstream-apps/loft-app/index.css';
 
 const PersonalRoomPublicJoinPage: React.FC = () => {
-  const { slug = '' } = useParams();
+  const { tenantSlug = '', slug = '' } = useParams();
+  const normalizedTenantSlug = tenantSlug.toLowerCase().replace(/[^a-z0-9-_]/g, '');
   const normalizedSlug = slug.toLowerCase().replace(/[^a-z0-9-_]/g, '');
 
   const handleNavigate = (path: string) => {
@@ -14,7 +15,7 @@ const PersonalRoomPublicJoinPage: React.FC = () => {
 
   return (
     <div className="loft-shell loft-scope min-h-screen w-full overflow-hidden bg-[var(--loft-bg)] text-main dark:text-white">
-      <PersonalRoomLandingPage onNavigate={handleNavigate} slug={normalizedSlug} />
+      <PersonalRoomLandingPage onNavigate={handleNavigate} slug={normalizedSlug} tenantSlug={normalizedTenantSlug} />
     </div>
   );
 };

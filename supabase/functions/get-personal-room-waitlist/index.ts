@@ -41,7 +41,8 @@ serve(async (req) => {
         status,
         requested_at,
         approved_at,
-        approved_by
+        approved_by_boh_user_id,
+        approved_by_patron_person_id
       `)
       .eq('loft_room_id', personalRoomId)
       .order('requested_at', { ascending: false })
@@ -63,7 +64,7 @@ serve(async (req) => {
       status: entry.status,
       requestedAt: entry.requested_at,
       approvedAt: entry.approved_at,
-      approvedBy: entry.approved_by
+      approvedBy: entry.approved_by_boh_user_id || entry.approved_by_patron_person_id || null
     }))
 
     console.log('[Edge Function] Returning success response');

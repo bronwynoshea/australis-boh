@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 type CreateRoomBody = {
   payload?: {
@@ -112,30 +113,10 @@ serve(async (req: Request) => {
 
     const appContext = normalizeAppContext((body as any)?.appContext ?? (payload as any)?.appContext);
 
-    const profileSelect = "id, can_host_loft, is_loft_admin, user_type_id";
-    const byUserId = await supabaseAdmin.from("profile").select(profileSelect).eq("user_id", user.id).maybeSingle();
-    const profile = byUserId.data?.id
-      ? byUserId.data
-      : (await supabaseAdmin.from("profile").select(profileSelect).eq("id", user.id).maybeSingle()).data;
+    const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
+    const tenantId = identity.tenantId;
 
-    if (!profile?.id) {
-      return json(req, { error: "profile_not_found" }, 400);
-    }
-
-    const { data: bohUser, error: bohUserError } = await supabaseAdmin
-      .from("boh_user")
-      .select("id, tenant_id")
-      .eq("auth_user_id", user.id)
-      .eq("app_context", "boh")
-      .maybeSingle();
-
-    if (bohUserError || !bohUser?.tenant_id) {
-      return json(req, { error: "tenant_not_found" }, 403);
-    }
-
-    const tenantId = String(bohUser.tenant_id);
-
-    const canCreateRooms = !!profile.can_host_loft || !!profile.is_loft_admin || Number(profile.user_type_id) === 5;
+    const canCreateRooms = !!identity.canHostLoft || !!identity.isLoftAdmin || Number(identity.userTypeId) === 5;
     if (!canCreateRooms) {
       return json(req, {
         error: "host_permission_required",
@@ -160,7 +141,7 @@ serve(async (req: Request) => {
     const insertRow = {
       app_context: appContext,
       tenant_id: tenantId,
-      host_profile_id: profile.id,
+      host_boh_user_id: identity.bohUserId,
       title,
       description: String(payload.description || ""),
       visibility: String(payload.visibility || "public"),
@@ -193,7 +174,7 @@ serve(async (req: Request) => {
     // Ensure host is a member as well
     await supabaseAdmin
       .from("loft_room_member")
-      .insert({ loft_room_id: room.id, profile_id: profile.id, role: "host" });
+      .insert({ loft_room_id: room.id, boh_user_id: identity.bohUserId, role: "host" });
 
     // Create recurring instances if needed
     if (hasRecurrence && scheduledStartAt) {
@@ -227,7 +208,7 @@ serve(async (req: Request) => {
           instances.push({
             app_context: appContext,
             tenant_id: tenantId,
-            host_profile_id: profile.id,
+            host_boh_user_id: identity.bohUserId,
             title,
             description: String(payload.description || ""),
             visibility: String(payload.visibility || "public"),
@@ -263,7 +244,7 @@ serve(async (req: Request) => {
         if (recurringRooms && recurringRooms.length > 0) {
           const memberInserts = recurringRooms.map((r: { id: string }) => ({
             loft_room_id: r.id,
-            profile_id: profile.id,
+            boh_user_id: identity.bohUserId,
             role: "host"
           }));
           await supabaseAdmin.from("loft_room_member").insert(memberInserts);

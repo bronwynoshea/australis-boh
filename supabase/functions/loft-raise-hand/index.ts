@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 type Body = {
   loftRoomId?: string;
@@ -57,23 +58,13 @@ serve(async (req: Request) => {
 
     const isHandRaised = !!(body.is_hand_raised ?? body.isHandRaised);
 
-    const { data: profileRow, error: profileError } = await supabaseAdmin
-      .from("profile")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (profileError || !profileRow?.id) {
-      return json(req, { error: "profile_not_found" }, 400);
-    }
-
-    const profileId = profileRow.id;
+    const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
 
     const { data: existingMember, error: memberLookupError } = await supabaseAdmin
       .from("loft_room_member")
       .select("id, role")
       .eq("loft_room_id", loftRoomId)
-      .eq("profile_id", profileId)
+      .eq("boh_user_id", identity.bohUserId)
       .maybeSingle();
 
     if (memberLookupError) {
@@ -87,7 +78,7 @@ serve(async (req: Request) => {
         .from("loft_room_member")
         .insert({
           loft_room_id: loftRoomId,
-          profile_id: profileId,
+          boh_user_id: identity.bohUserId,
           role: "listener",
           is_hand_raised: isHandRaised,
           hand_raised_at: isHandRaised ? nowIso : null,

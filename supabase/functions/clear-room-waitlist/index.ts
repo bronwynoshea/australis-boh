@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 serve(async (req) => {
   const requestCorsHeaders = corsHeaders(req.headers.get('origin'));
@@ -48,35 +49,11 @@ serve(async (req) => {
       );
     }
 
-    const { data: profileByUserId, error: profileByUserIdError } = await supabase
-      .from('profile')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    let profile = profileByUserId;
-    let profileError = profileByUserIdError;
-
-    if (!profile?.id && !profileByUserIdError) {
-      const profileByIdLookup = await supabase
-        .from('profile')
-        .select('id')
-        .eq('id', user.id)
-        .maybeSingle();
-      profile = profileByIdLookup.data;
-      profileError = profileByIdLookup.error;
-    }
-
-    if (profileError || !profile?.id) {
-      return new Response(
-        JSON.stringify({ error: 'profile_not_found' }),
-        { status: 400, headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const identity = await resolveBohLoftIdentity(supabase, user.id);
 
     const { data: room, error: roomError } = await supabase
       .from('loft_room')
-      .select('id, host_profile_id')
+      .select('id, host_boh_user_id')
       .eq('id', loftRoomId)
       .maybeSingle();
 
@@ -87,7 +64,7 @@ serve(async (req) => {
       );
     }
 
-    if (room.host_profile_id !== profile.id) {
+    if (room.host_boh_user_id !== identity.bohUserId) {
       return new Response(
         JSON.stringify({ error: 'not_owner' }),
         { status: 403, headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' } }

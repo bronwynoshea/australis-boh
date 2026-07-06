@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 type Body = {
   loftRoomId?: string;
@@ -53,22 +54,14 @@ serve(async (req: Request) => {
     const loftRoomId = String(body.loftRoomId || body.loft_room_id || "").trim();
     if (!loftRoomId) return json(req, { error: "missing_loft_room_id" }, 400);
 
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profile")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (profileError || !profile?.id) {
-      return json(req, { error: "profile_not_found" }, 400);
-    }
+    const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
 
     const nowIso = new Date().toISOString();
     const { error: updateError } = await supabaseAdmin
       .from("loft_room_member")
       .update({ is_active: false, left_at: nowIso })
       .eq("loft_room_id", loftRoomId)
-      .eq("profile_id", profile.id);
+      .eq("boh_user_id", identity.bohUserId);
 
     if (updateError) {
       return json(req, { error: "member_update_failed", details: updateError }, 500);
@@ -76,11 +69,11 @@ serve(async (req: Request) => {
 
     const { data: room } = await supabaseAdmin
       .from("loft_room")
-      .select("id, host_profile_id")
+      .select("id, host_boh_user_id")
       .eq("id", loftRoomId)
       .maybeSingle();
 
-    if (room?.host_profile_id === profile.id) {
+    if (room?.host_boh_user_id === identity.bohUserId) {
       const { error: waitlistError } = await supabaseAdmin
         .from("loft_room_waitlist")
         .delete()

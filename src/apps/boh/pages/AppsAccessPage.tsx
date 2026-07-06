@@ -21,7 +21,8 @@ interface AppUserAccess {
   permission_level: 'view' | 'edit' | 'admin';
   user: {
     id: string;
-    full_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
     email: string | null;
     status: 'pending' | 'active' | 'inactive' | string;
   } | null;
@@ -29,7 +30,8 @@ interface AppUserAccess {
 
 interface BohUserOption {
   id: string;
-  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
   status: string;
 }
@@ -53,6 +55,9 @@ const AppsAccessPage: React.FC<AppsAccessPageProps> = () => {
   const [availableUsers, setAvailableUsers] = useState<BohUserOption[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [selectedPermission, setSelectedPermission] = useState<'view' | 'edit' | 'admin'>('view');
+
+  const getUserLabel = (user: { first_name: string | null; last_name: string | null } | null) =>
+    user ? [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || 'Incomplete profile' : 'Incomplete profile';
 
   useEffect(() => {
     const loadData = async () => {
@@ -170,7 +175,7 @@ const AppsAccessPage: React.FC<AppsAccessPageProps> = () => {
       const { data, error: usersErr } = await supabase
         .from('boh_user_app')
         .select(
-          `id, permission_level, user:boh_user (id, full_name, email, status)`
+          `id, permission_level, user:boh_user (id, first_name, last_name, email, status)`
         )
         .eq('app_id', app.id)
         .eq('app_context', 'boh');
@@ -191,7 +196,7 @@ const AppsAccessPage: React.FC<AppsAccessPageProps> = () => {
       // Load all active BOH users for the add-user dropdown
       const { data: usersOptions, error: optionsErr } = await supabase
         .from('boh_user')
-        .select('id, full_name, email, status')
+        .select('id, first_name, last_name, email, status')
         .eq('app_context', 'boh')
         .eq('status', 'active');
 
@@ -289,7 +294,7 @@ const AppsAccessPage: React.FC<AppsAccessPageProps> = () => {
         app_context: 'boh',
       })
       .select(
-        `id, permission_level, user:boh_user (id, full_name, email, status)`,
+        `id, permission_level, user:boh_user (id, first_name, last_name, email, status)`,
       )
       .single();
 

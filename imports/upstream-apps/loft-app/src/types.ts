@@ -28,6 +28,9 @@ export enum LoftRole {
 
 export interface UserProfile {
   id: string;
+  bohUserId?: string;
+  authUserId?: string;
+  legacyProfileId?: string | null;
   name: string;
   avatarUrl?: string | null;
   defaultBgId?: string;
@@ -73,7 +76,12 @@ export interface LoftPoll {
 export interface LoftRoom {
   id: string;
   app_context: AppContext;
-  host_profile_id: string;
+  host_boh_user_id?: string | null;
+  hostBohUserId?: string | null;
+  host_patron_person_id?: string | null;
+  hostPatronPersonId?: string | null;
+  host_profile_id?: string | null;
+  hostProfileId?: string | null;
   host_name?: string; 
   host_avatar_url?: string;
   title: string;
@@ -103,7 +111,9 @@ export interface LoftRoom {
 export interface LoftRoomMember {
   id: string;
   loft_room_id: string;
-  profile_id: string;
+  boh_user_id?: string | null;
+  patron_person_id?: string | null;
+  profile_id?: string | null;
   name: string;
   role: LoftRole;
   joined_at: string;

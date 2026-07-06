@@ -117,9 +117,7 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
   const profileName =
     ((profile as any)?.name as string | undefined) ||
     ((profile as any)?.displayName as string | undefined) ||
-    ((profile as any)?.display_name as string | undefined) ||
     ((profile as any)?.fullName as string | undefined) ||
-    ((profile as any)?.full_name as string | undefined) ||
     '';
   const displayHostName =
     hostName ||

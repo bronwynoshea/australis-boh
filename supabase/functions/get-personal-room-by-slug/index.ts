@@ -9,78 +9,68 @@ function json(req: Request, data: unknown, status = 200) {
   });
 }
 
+const cleanCode = (value: unknown) => String(value || '').trim().replace(/[^a-z0-9-_]/gi, '');
+const displayHostName = (user: any, fallback = 'Host') =>
+  [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim() || user?.email || fallback;
+
+async function getTenantId(supabaseAdmin: any, tenantSlug: string) {
+  if (!tenantSlug) return null;
+  const { data, error } = await supabaseAdmin.from("boh_tenant").select("id").eq("slug", tenantSlug).maybeSingle();
+  if (error || !data?.id) return null;
+  return data.id as string;
+}
+
+async function getTenantSlug(supabaseAdmin: any, tenantId: string | null) {
+  if (!tenantId) return null;
+  const { data } = await supabaseAdmin.from("boh_tenant").select("slug").eq("id", tenantId).maybeSingle();
+  return data?.slug ?? null;
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders(req.headers.get('origin')) });
   if (req.method !== "POST") return json(req, { error: "method_not_allowed" }, 405);
 
   try {
-    console.log('[loft-get-personal-room-by-slug] Request received');
-    
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceRoleKey = Deno.env.get("SB_SECRET_KEY");
+    const serviceRoleKey = Deno.env.get("SB_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) return json(req, { error: "server_not_configured" }, 500);
 
-    if (!supabaseUrl || !serviceRoleKey) {
-      console.log('[loft-get-personal-room-by-slug] Server not configured');
-      return json(req, { error: "server_not_configured" }, 500);
-    }
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    const body = await req.json().catch(() => ({}));
+    const slug = cleanCode(body.slug);
+    const tenantSlug = cleanCode(body.tenantSlug).toLowerCase();
+    if (!slug) return json(req, { error: "slug_required" }, 400);
 
-    console.log('[loft-get-personal-room-by-slug] Parsing request body');
-    const body = await req.json().catch((e) => {
-      console.log('[loft-get-personal-room-by-slug] Failed to parse JSON:', e);
-      return {};
-    });
-    const { slug } = body;
-
-    console.log('[loft-get-personal-room-by-slug] Slug:', slug);
-
-    if (!slug) {
-      console.log('[loft-get-personal-room-by-slug] No slug provided');
-      return json(req, { error: "slug_required" }, 400);
-    }
-
-    // Lookup profile by slug
-    console.log('[loft-get-personal-room-by-slug] Looking up profile with slug:', slug);
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profile")
-      .select("id, display_name, personal_room_id")
-      .eq("personal_room_slug", slug)
-      .single();
-
-    console.log('[loft-get-personal-room-by-slug] Profile lookup result:', { profile, profileError });
-
-    if (profileError || !profile) {
-      console.log('[loft-get-personal-room-by-slug] Profile not found');
-      return json(req, { error: "personal_room_not_found", message: "No Personal Room found with this slug" }, 404);
-    }
-
-    if (!profile.personal_room_id) {
-      console.log('[loft-get-personal-room-by-slug] Profile has no personal room ID');
-      return json(req, { error: "personal_room_not_created", message: "This user has not created their Personal Room yet" }, 404);
-    }
-
-    // Get room details
-    console.log('[loft-get-personal-room-by-slug] Looking up room:', profile.personal_room_id);
-    const { data: room, error: roomError } = await supabaseAdmin
+    const tenantId = await getTenantId(supabaseAdmin, tenantSlug);
+    let query = supabaseAdmin
       .from("loft_room")
-      .select("id, title")
-      .eq("id", profile.personal_room_id)
-      .single();
+      .select("id, title, is_open, opened_at, invite_code, host_boh_user_id, tags, tenant_id")
+      .ilike("invite_code", slug.toUpperCase())
+      .eq("room_origin", "personal")
+      .neq("status", "deleted")
+      .limit(1);
+    if (tenantId) query = query.eq("tenant_id", tenantId);
 
-    console.log('[loft-get-personal-room-by-slug] Room lookup result:', { room, roomError });
+    const { data: room, error: roomError } = await query.maybeSingle();
+    if (roomError || !room) return json(req, { error: "personal_room_not_found", message: "No Personal Room found with this guest link" }, 404);
 
-    if (roomError || !room) {
-      console.log('[loft-get-personal-room-by-slug] Room not found');
-      return json(req, { error: "room_not_found" }, 404);
-    }
+    const { data: host } = room.host_boh_user_id
+      ? await supabaseAdmin.from("boh_user").select("id, email, first_name, last_name").eq("id", room.host_boh_user_id).maybeSingle()
+      : { data: null };
+    const hostName = displayHostName(host);
+    const resolvedTenantSlug = await getTenantSlug(supabaseAdmin, room.tenant_id ?? tenantId);
 
-    console.log('[loft-get-personal-room-by-slug] Success, returning room:', room.id);
     return json(req, {
       roomId: room.id,
-      title: room.title,
+      title: room.title || `${hostName}'s Personal Table`,
+      hostName,
+      tenantSlug: resolvedTenantSlug,
+      isOpen: room.is_open === true,
+      openedAt: room.opened_at ?? null,
+      inviteCode: room.invite_code ?? null,
+      hostBohUserId: room.host_boh_user_id ?? null,
+      hostProfileId: null,
     });
   } catch (e) {
     return json(req, { error: "unexpected_error", details: String((e as any)?.message || e) }, 500);

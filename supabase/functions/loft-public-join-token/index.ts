@@ -58,8 +58,6 @@ function deriveDisplayName(row: any): string {
   const emailLocal = row.email ? String(row.email).split('@')[0] : '';
   const nameFromParts = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
   return (
-    String(row.display_name || '').trim() ||
-    String(row.full_name || '').trim() ||
     nameFromParts ||
     emailLocal ||
     'Host'
@@ -160,7 +158,7 @@ serve(async (req: Request) => {
     // Fetch room details
     const { data: room, error: roomError } = await supabaseAdmin
       .from("loft_room")
-      .select("id, daily_room_name, visibility, status, title, is_open, opened_at, host_profile_id")
+      .select("id, daily_room_name, visibility, status, title, is_open, opened_at, host_boh_user_id")
       .eq("id", loftRoomId)
       .single();
 
@@ -179,7 +177,7 @@ serve(async (req: Request) => {
       visibility,
       status: room.status,
       is_open: room.is_open,
-      host_profile_id: room.host_profile_id,
+      host_boh_user_id: room.host_boh_user_id,
     });
 
     // Only allow public and unlisted rooms for guests
@@ -210,15 +208,16 @@ serve(async (req: Request) => {
       }, 403);
     }
 
-    // ✅ FETCH HOST PROFILE - Critical for displaying host to guests
-    const { data: hostProfile, error: hostProfileError } = await supabaseAdmin
-      .from("profile")
-      .select("id, display_name, full_name, first_name, last_name, email, avatar_url, user_id")
-      .eq("id", room.host_profile_id)
-      .single();
+    const { data: hostProfile, error: hostProfileError } = room.host_boh_user_id
+      ? await supabaseAdmin
+          .from("boh_user")
+          .select("id, auth_user_id, first_name, last_name, email, avatar_url")
+          .eq("id", room.host_boh_user_id)
+          .maybeSingle()
+      : { data: null, error: null };
 
     if (hostProfileError) {
-      console.error('[loft-public-join-token] Could not fetch host profile:', hostProfileError);
+      console.error('[loft-public-join-token] Could not fetch host BOH user:', hostProfileError);
     }
 
     const hostDisplayName = hostProfile ? deriveDisplayName(hostProfile) : 'Host';
@@ -275,8 +274,9 @@ serve(async (req: Request) => {
       },
       // ✅ CRITICAL: Provide host details so guests can identify the host
       hostDetails: {
-        profileId: room.host_profile_id,
-        userId: hostProfile?.user_id || null,
+        profileId: null,
+        bohUserId: room.host_boh_user_id || null,
+        userId: hostProfile?.auth_user_id || null,
         displayName: hostDisplayName,
         avatarUrl: hostAvatarUrl,
         isHost: true,

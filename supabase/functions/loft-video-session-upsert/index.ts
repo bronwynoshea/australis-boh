@@ -38,15 +38,20 @@ async function ensureExternalPersonalRoom(supabaseAdmin: any, dailyApiKey: strin
     await resolveInternalLoftProfileByEmail(supabaseAdmin, caller) ||
     await ensureExternalLoftProfile(supabaseAdmin, caller, hostPatron);
 
+  const isInternalHost = (loftProfile as any).source === 'boh_user';
+
   let existingRoomQuery = supabaseAdmin
     .from('loft_room')
     .select('id, daily_room_name, invite_code, title')
     .eq('tenant_id', tenant.id)
-    .eq('host_profile_id', loftProfile.profileId)
     .eq('business_context', 'interview')
     .limit(1);
 
-  existingRoomQuery = (loftProfile as any).source === 'boh_user'
+  existingRoomQuery = isInternalHost
+    ? existingRoomQuery.eq('host_boh_user_id', (loftProfile as any).bohUserId)
+    : existingRoomQuery.eq('host_patron_person_id', (loftProfile as any).patronPersonId);
+
+  existingRoomQuery = isInternalHost
     ? existingRoomQuery.contains('tags', ['personal-room'])
     : existingRoomQuery.contains('tags', ['external-recruiter']);
 
@@ -56,15 +61,16 @@ async function ensureExternalPersonalRoom(supabaseAdmin: any, dailyApiKey: strin
     return existingRoom;
   }
   const inviteCode = generateInviteCode();
-  const isInternalHost = (loftProfile as any).source === 'boh_user';
-  const dailyRoomName = `${isInternalHost ? 'loft-boh-personal' : 'loft-ext-personal'}-${tenant.slug}-${loftProfile.profileId}`.toLowerCase();
+  const canonicalHostId = isInternalHost ? (loftProfile as any).bohUserId : (loftProfile as any).patronPersonId;
+  const dailyRoomName = `${isInternalHost ? 'loft-boh-personal' : 'loft-ext-personal'}-${tenant.slug}-${canonicalHostId}`.toLowerCase();
   await ensureDailyRoom(dailyApiKey, dailyRoomName);
   const { data: room, error: roomError } = await supabaseAdmin
     .from('loft_room')
     .insert({
       tenant_id: tenant.id,
       app_context: caller.appContext,
-      host_profile_id: loftProfile.profileId,
+      host_boh_user_id: isInternalHost ? (loftProfile as any).bohUserId : null,
+      host_patron_person_id: !isInternalHost ? (loftProfile as any).patronPersonId : null,
       title: `${loftProfile.displayName}'s Interview Room`,
       description: 'Personal Loft room for scheduled one-on-one sessions.',
       visibility: 'unlisted',
@@ -83,7 +89,12 @@ async function ensureExternalPersonalRoom(supabaseAdmin: any, dailyApiKey: strin
     .select('id, daily_room_name, invite_code, title')
     .single();
   if (roomError || !room?.id) throw new Error(`host_room_create_failed: ${roomError?.message || 'unknown'}`);
-  await supabaseAdmin.from('loft_room_member').upsert({ loft_room_id: room.id, profile_id: loftProfile.profileId, role: 'host' }, { onConflict: 'loft_room_id,profile_id' });
+  await supabaseAdmin.from('loft_room_member').upsert({
+    loft_room_id: room.id,
+    boh_user_id: isInternalHost ? (loftProfile as any).bohUserId : null,
+    patron_person_id: !isInternalHost ? (loftProfile as any).patronPersonId : null,
+    role: 'host'
+  }, { onConflict: isInternalHost ? 'loft_room_id,boh_user_id' : 'loft_room_id,patron_person_id' });
   return room;
 }
 

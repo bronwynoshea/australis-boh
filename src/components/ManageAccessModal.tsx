@@ -135,6 +135,8 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
 
   if (!isOpen || !user) return null;
 
+  const userLabel = [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || 'Incomplete profile';
+
   const handleSave = () => {
     const payload: AccessUserAccessInput = {
       userId: user.id,
@@ -156,7 +158,7 @@ const ManageAccessModal: React.FC<ManageAccessModalProps> = ({
         <div className="modal-header manage-access-modal__header">
           <div>
             <p className="eyebrow">Managing access for</p>
-            <h3>{user.full_name || user.email || 'Crew member'}</h3>
+            <h3>{userLabel}</h3>
             <p>{user.email || 'No email on record'}</p>
           </div>
           <div className="status-badge">{user.status}</div>

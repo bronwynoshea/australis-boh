@@ -5,7 +5,8 @@ import { Shield, Clock, CheckCircle, XCircle, Loader2, User, Calendar, FileText 
 
 interface HostApplication {
   id: string;
-  profile_id: string;
+  applicantBohUserId?: string | null;
+  applicantPatronPersonId?: string | null;
   status: 'pending' | 'approved' | 'rejected';
   application_reason: string;
   experience_description: string | null;
@@ -38,7 +39,8 @@ const AdminHostApplications: React.FC = () => {
 
       const formatted = (data || []).map((app: any) => ({
         id: app.id,
-        profile_id: app.profile_id,
+        applicantBohUserId: app.applicant_boh_user_id || null,
+        applicantPatronPersonId: app.applicant_patron_person_id || null,
         status: app.status,
         application_reason: app.application_reason,
         experience_description: app.experience_description,
@@ -47,8 +49,8 @@ const AdminHostApplications: React.FC = () => {
         requested_host_scope: app.requested_host_scope,
         requested_audience: app.requested_audience,
         submitted_at: app.submitted_at,
-        applicant_name: app.applicant_name || app.profile?.display_name || app.profile?.full_name || app.profile?.email || 'Unknown User',
-        applicant_email: app.applicant_email || app.profile?.email,
+        applicant_name: app.applicant_name || app.applicant_email || 'Unknown User',
+        applicant_email: app.applicant_email || undefined,
       }));
 
       setApplications(formatted);

@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 const INVITE_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -66,21 +67,11 @@ serve(async (req: Request) => {
     const loftRoomId = String(body.loftRoomId || body.loft_room_id || "").trim();
     if (!loftRoomId) return json(req, { error: "missing_loft_room_id" }, 400);
 
-    // Get user profile
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profile")
-      .select("id, personal_room_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
 
-    if (profileError || !profile?.id) {
-      return json(req, { error: "profile_not_found" }, 400);
-    }
-
-    // Verify this is the user's personal room or they're the host
     const { data: room, error: roomError } = await supabaseAdmin
       .from("loft_room")
-      .select("id, host_profile_id, invite_code")
+      .select("id, host_boh_user_id, invite_code, room_origin")
       .eq("id", loftRoomId)
       .maybeSingle();
 
@@ -88,11 +79,8 @@ serve(async (req: Request) => {
       return json(req, { error: "room_not_found" }, 404);
     }
 
-    // Check if user owns this room (either personal room or is host)
-    const isPersonalRoom = profile.personal_room_id === loftRoomId;
-    const isHost = room.host_profile_id === profile.id;
-
-    if (!isPersonalRoom && !isHost) {
+    const isHost = room.host_boh_user_id === identity.bohUserId;
+    if (!isHost) {
       return json(req, { error: "forbidden" }, 403);
     }
 

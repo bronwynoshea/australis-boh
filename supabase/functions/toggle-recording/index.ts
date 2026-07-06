@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from "../_shared/cors.ts"
+import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts"
 
 function json(req: Request, body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -72,29 +73,18 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
-    const { data: profile, error: profileError } = await supabase
-      .from('profile')
-      .select('id')
-      .or(`user_id.eq.${authedUser.id},id.eq.${authedUser.id}`)
-      .maybeSingle()
-
-    if (profileError) {
-      return json(req, { error: 'profile_lookup_failed', message: 'Could not verify recording permissions.' }, 500)
-    }
-    if (!profile?.id) {
-      return json(req, { error: 'profile_not_found', message: 'Could not verify recording permissions.' }, 403)
-    }
+    const identity = await resolveBohLoftIdentity(supabase, authedUser.id)
 
     const { data: room, error: roomError } = await supabase
       .from('loft_room')
-      .select('id, daily_room_name, host_profile_id, is_recorded')
+      .select('id, daily_room_name, host_boh_user_id, is_recorded')
       .eq('id', roomId)
       .single()
 
     if (roomError || !room) {
       return json(req, { error: 'room_not_found', message: 'This session could not be found.' }, 404)
     }
-    if (room.host_profile_id !== profile.id) {
+    if (room.host_boh_user_id !== identity.bohUserId) {
       return json(req, { error: 'forbidden', message: 'Only the host can change recording.' }, 403)
     }
     if (!room.daily_room_name) {
@@ -173,7 +163,7 @@ serve(async (req) => {
       .insert({
         room_id: roomId,
         join_type: isRecording ? 'recording_started' : 'recording_stopped',
-        user_id: profile.id,
+        user_id: identity.bohUserId,
         joined_at: new Date().toISOString(),
       })
 

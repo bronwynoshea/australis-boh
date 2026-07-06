@@ -22,6 +22,9 @@ const CrewAccessPage: React.FC<CrewAccessPageProps> = ({ users, conflicts, isLoa
   const hasSuperAdminRole = (member: AccessUserRecord) =>
     member.roles.some((role) => role.code === 'super_admin');
 
+  const getMemberLabel = (member: AccessUserRecord) =>
+    [member.first_name, member.last_name].filter(Boolean).join(' ').trim() || 'Incomplete profile';
+
   const renderApps = (member: AccessUserRecord) => {
     if (hasSuperAdminRole(member)) {
       return (
@@ -136,7 +139,7 @@ const CrewAccessPage: React.FC<CrewAccessPageProps> = ({ users, conflicts, isLoa
             <tbody>
               {activeUsers.map((member) => (
                 <tr key={member.id}>
-                  <td>{member.full_name || 'Unknown'}</td>
+                  <td>{getMemberLabel(member)}</td>
                   <td>{member.email || '—'}</td>
                   <td>{getStatusBadge(member.status)}</td>
                   <td>
@@ -196,7 +199,7 @@ const CrewAccessPage: React.FC<CrewAccessPageProps> = ({ users, conflicts, isLoa
               <tbody>
                 {inactiveUsers.map((member) => (
                   <tr key={member.id}>
-                    <td>{member.full_name || 'Unknown'}</td>
+                    <td>{getMemberLabel(member)}</td>
                     <td>{member.email || '—'}</td>
                     <td>{getStatusBadge(member.status)}</td>
                     <td>

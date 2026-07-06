@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 type UpdateRoomBody = {
   loftRoomId?: string;
@@ -79,32 +80,12 @@ serve(async (req) => {
 
     const payload = body.payload;
 
-    // Get user profile
-    const byUserId = await supabaseAdmin
-      .from("profile")
-      .select("id, user_type_id, is_loft_admin")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    
-    const profile = byUserId.data?.id
-      ? byUserId.data
-      : (await supabaseAdmin
-          .from("profile")
-          .select("id, user_type_id, is_loft_admin")
-          .eq("id", user.id)
-          .maybeSingle()).data;
+    const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
 
-    if (!profile?.id) {
-      console.error('[loft_update_room] Profile not found for user:', user.id);
-      return json(req, { error: "profile_not_found" }, 400);
-    }
-
-    console.log('[loft_update_room] Profile found:', profile.id);
-
-    // Get the room to check ownership (note: singular 'loft_room')
+    // Get the room to check canonical ownership (note: singular 'loft_room')
     const { data: room, error: roomError } = await supabaseAdmin
       .from('loft_room')
-      .select('host_profile_id, status')
+      .select('host_boh_user_id, status')
       .eq('id', body.loftRoomId)
       .single();
 
@@ -117,11 +98,11 @@ serve(async (req) => {
       return json(req, { error: "room_not_found" }, 404);
     }
 
-    console.log('[loft_update_room] Room found, host:', room.host_profile_id);
+    console.log('[loft_update_room] Room found, host:', room.host_boh_user_id);
 
     // Check permissions
-    const isHost = room.host_profile_id === profile.id;
-    const isSuperAdmin = profile.user_type_id === 5 || profile.is_loft_admin;
+    const isHost = room.host_boh_user_id === identity.bohUserId;
+    const isSuperAdmin = Number(identity.userTypeId) === 5 || identity.isLoftAdmin;
 
     if (!isHost && !isSuperAdmin) {
       console.error('[loft_update_room] Insufficient permissions. isHost:', isHost, 'isSuperAdmin:', isSuperAdmin);

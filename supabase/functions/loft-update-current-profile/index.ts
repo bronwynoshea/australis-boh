@@ -5,11 +5,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
 import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
-type Body = {
-  loftRoomId?: string;
-  loft_room_id?: string;
-};
-
 function json(req: Request, data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -25,17 +20,12 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SB_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-
-    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
-      return json(req, { error: "server_not_configured" }, 500);
-    }
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) return json(req, { error: "server_not_configured" }, 500);
 
     const authHeader = req.headers.get("Authorization") ?? "";
-
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
-
     const supabaseAuthed = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { autoRefreshToken: false, persistSession: false },
@@ -45,47 +35,25 @@ serve(async (req: Request) => {
       data: { user },
       error: userError,
     } = await supabaseAuthed.auth.getUser();
+    if (userError || !user) return json(req, { error: "not_authenticated" }, 401);
 
-    if (userError || !user) {
-      return json(req, { error: "not_authenticated" }, 401);
-    }
-
-    const body = (await req.json().catch(() => ({}))) as Body;
-    const loftRoomId = String(body.loftRoomId || body.loft_room_id || "").trim();
-    if (!loftRoomId) return json(req, { error: "missing_loft_room_id" }, 400);
-
+    const body = (await req.json().catch(() => ({}))) as { avatarUrl?: string | null; defaultBgId?: string | null };
     const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
+    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-    const { data: member, error: memberError } = await supabaseAdmin
-      .from("loft_room_member")
-      .select("role")
-      .eq("loft_room_id", loftRoomId)
-      .eq("boh_user_id", identity.bohUserId)
-      .maybeSingle();
+    if ("avatarUrl" in body) updates.avatar_url = typeof body.avatarUrl === "string" && body.avatarUrl.trim() ? body.avatarUrl.trim() : null;
+    // There is no canonical BOH replacement for legacy profile.default_bg_id yet.
+    // Accept the field to keep old clients harmless while profile is removed.
 
-    if (memberError) {
-      return json(req, { error: "member_lookup_failed", details: memberError }, 500);
+    if (Object.keys(updates).length > 1) {
+      const { error: updateError } = await supabaseAdmin
+        .from("boh_user")
+        .update(updates)
+        .eq("id", identity.bohUserId);
+      if (updateError) return json(req, { error: "boh_user_update_failed", details: updateError }, 500);
     }
 
-    const role = String(member?.role || "").toLowerCase();
-    const isHostish = role === "host" || role === "cohost";
-    if (!isHostish) {
-      return json(req, { error: "forbidden" }, 403);
-    }
-
-    const nowIso = new Date().toISOString();
-    const { data: updatedRoom, error: updateError } = await supabaseAdmin
-      .from("loft_room")
-      .update({ is_open: true, opened_at: nowIso })
-      .eq("id", loftRoomId)
-      .select("*")
-      .maybeSingle();
-
-    if (updateError || !updatedRoom) {
-      return json(req, { error: "room_update_failed", details: updateError }, 500);
-    }
-
-    return json(req, { room: updatedRoom });
+    return json(req, { success: true });
   } catch (e) {
     return json(req, { error: "unexpected_error", details: String((e as any)?.message || e) }, 500);
   }

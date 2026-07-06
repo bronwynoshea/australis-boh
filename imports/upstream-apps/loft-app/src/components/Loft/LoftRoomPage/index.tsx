@@ -1779,11 +1779,7 @@ if (isHostParticipant) role = LoftRole.HOST;
   const persistBackdropToProfile = useCallback(async (bgId: string) => {
     if (!profile?.id) return;
     try {
-      const { error } = await supabase
-        .from('profile')
-        .update({ default_bg_id: bgId })
-        .eq('id', profile.id);
-      if (error) throw error;
+      await callEdgeFunction('loft_update_current_profile', { defaultBgId: bgId });
     } catch {
       // ignore
     }

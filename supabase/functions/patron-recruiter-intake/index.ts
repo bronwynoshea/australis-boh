@@ -63,7 +63,6 @@ interface Person {
   first_name?: string
   last_name?: string
   email?: string
-  display_name?: string
   source?: string
   person_type_key: string
   pipeline_stage_id: string
@@ -210,7 +209,11 @@ async function upsertPerson(
   }
 
   const normalizedEmail = work_email.toLowerCase().trim()
-  const displayName = [first_name, last_name].filter(Boolean).join(' ') || normalizedEmail
+  const normalizedFirstName = first_name?.trim() || ''
+  const normalizedLastName = last_name?.trim() || ''
+  if (!normalizedFirstName || !normalizedLastName) {
+    throw new Error('first_name and last_name are required for recruiter intake')
+  }
 
   // Try to find existing person
   const { data: existingPerson, error: findError } = await supabase
@@ -230,9 +233,8 @@ async function upsertPerson(
       app_context: 'patron'
     }
 
-    if (!existingPerson.first_name && first_name) updates.first_name = first_name.trim()
-    if (!existingPerson.last_name && last_name) updates.last_name = last_name.trim()
-    if (!existingPerson.display_name) updates.display_name = displayName
+    if (!existingPerson.first_name) updates.first_name = normalizedFirstName
+    if (!existingPerson.last_name) updates.last_name = normalizedLastName
     if (!existingPerson.source) updates.source = 'recruiter_intake'
     if (!existingPerson.person_type_key) updates.person_type_key = 'recruiter_prospect'
     if (!existingPerson.pipeline_stage_id) updates.pipeline_stage_id = pipelineStages.new_recruiter_intake.id
@@ -259,10 +261,9 @@ async function upsertPerson(
     // Create new person
     const newPerson: Omit<Person, 'id'> = {
       tenant_id: tenantId,
-      first_name: first_name?.trim(),
-      last_name: last_name?.trim(),
+      first_name: normalizedFirstName,
+      last_name: normalizedLastName,
       email: normalizedEmail,
-      display_name: displayName,
       source: 'recruiter_intake',
       person_type_key: 'recruiter_prospect',
       pipeline_stage_id: pipelineStages.new_recruiter_intake.id,

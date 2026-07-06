@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { hydrateLoftMemberIdentities, identityForMemberRow, resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 type Body = {
   loftRoomId?: string;
@@ -51,25 +52,15 @@ serve(async (req: Request) => {
     const loftRoomId = String(body.loftRoomId || body.loft_room_id || "").trim();
     if (!loftRoomId) return json(req, { error: "missing_loft_room_id" }, 400);
 
-    const { data: profileRow, error: profileError } = await supabaseAdmin
-      .from("profile")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (profileError || !profileRow?.id) {
-      return json(req, { error: "profile_not_found" }, 400);
-    }
-
-    const profileId = profileRow.id;
+    const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
 
     const { data: roomRow, error: roomError } = await supabaseAdmin
       .from("loft_room")
-      .select("host_profile_id")
+      .select("host_boh_user_id, host_patron_person_id")
       .eq("id", loftRoomId)
       .maybeSingle();
 
-    if (roomError || !roomRow?.host_profile_id) {
+    if (roomError || !roomRow) {
       return json(req, { error: "room_lookup_failed", details: roomError }, 500);
     }
 
@@ -77,7 +68,7 @@ serve(async (req: Request) => {
       .from("loft_room_member")
       .select("role")
       .eq("loft_room_id", loftRoomId)
-      .eq("profile_id", profileId)
+      .eq("boh_user_id", identity.bohUserId)
       .maybeSingle();
 
     if (callerMemberError) {
@@ -85,15 +76,15 @@ serve(async (req: Request) => {
     }
 
     const normalizedRole = String(callerMember?.role || "").toLowerCase();
-    const isHostProfile = String(roomRow.host_profile_id) === profileId;
-    const isAuthorized = isHostProfile || normalizedRole === "cohost";
+    const isHost = String(roomRow.host_boh_user_id || "") === identity.bohUserId;
+    const isAuthorized = isHost || normalizedRole === "cohost";
     if (!isAuthorized) {
       return json(req, { error: "forbidden" }, 403);
     }
 
     const { data: rows, error: rowsError } = await supabaseAdmin
       .from("loft_room_member")
-      .select("profile_id, role, joined_at, is_hand_raised, hand_raised_at")
+      .select("boh_user_id, patron_person_id, guest_label, role, joined_at, is_hand_raised, hand_raised_at")
       .eq("loft_room_id", loftRoomId)
       .eq("is_hand_raised", true)
       .order("hand_raised_at", { ascending: true, nullsLast: false });
@@ -102,49 +93,17 @@ serve(async (req: Request) => {
       return json(req, { error: "list_failed", details: rowsError }, 500);
     }
 
-    const profileIds = Array.from(
-      new Set((rows || []).map((r: any) => String(r?.profile_id || '')).filter(Boolean))
-    );
-
-    const profileDetailsById = new Map<
-      string,
-      { userId?: string; displayName: string; avatarUrl?: string }
-    >();
-
-    if (profileIds.length > 0) {
-      const { data: profiles, error: profileErr } = await supabaseAdmin
-        .from('profile')
-        .select('id, user_id, display_name, full_name, email, avatar_url')
-        .in('id', profileIds);
-
-      if (profileErr) {
-        return json(req, { error: 'profile_lookup_failed', details: profileErr }, 500);
-      }
-
-      (profiles || []).forEach((p: any) => {
-        const pid = p?.id ? String(p.id) : '';
-        if (!pid) return;
-        const emailLocal = p?.email ? String(p.email).split('@')[0] : '';
-        const displayName =
-          String(p?.display_name || '').trim() ||
-          String(p?.full_name || '').trim() ||
-          emailLocal ||
-          'Guest';
-        profileDetailsById.set(pid, {
-          userId: p?.user_id ? String(p.user_id) : undefined,
-          displayName,
-          avatarUrl: p?.avatar_url || undefined,
-        });
-      });
-    }
+    const identityMap = await hydrateLoftMemberIdentities(supabaseAdmin, rows || []);
 
     const requests = (rows || [])
       .map((r: any) => {
-        const profileId = r?.profile_id ? String(r.profile_id) : '';
-        const details = profileId ? profileDetailsById.get(profileId) : undefined;
-        if (!profileId || !details) return null;
+        const details = identityForMemberRow(identityMap, r);
+        if (!details) return null;
         return {
-          profileId,
+          profileId: null,
+          bohUserId: r?.boh_user_id ? String(r.boh_user_id) : undefined,
+          patronPersonId: r?.patron_person_id ? String(r.patron_person_id) : undefined,
+          guestLabel: r?.guest_label ? String(r.guest_label) : undefined,
           userId: details.userId,
           displayName: details.displayName,
           avatarUrl: details.avatarUrl,

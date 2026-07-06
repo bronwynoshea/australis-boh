@@ -4,7 +4,8 @@ import { getCurrentBohUserContext } from '../boh/api/bohApi';
 
 export interface BohUser {
   id: string;
-  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
   status: string;
 }
@@ -27,11 +28,12 @@ export function useBohUsers() {
 
         const { data, error } = await supabase
           .from('boh_user')
-          .select('id, full_name, email, status')
+          .select('id, first_name, last_name, email, status')
           .eq('tenant_id', context.tenant_id)
           .eq('app_context', 'boh')
           .eq('status', 'active')
-          .order('full_name');
+          .order('first_name')
+          .order('last_name');
 
         if (error) {
           console.error('Error loading BOH users:', error);

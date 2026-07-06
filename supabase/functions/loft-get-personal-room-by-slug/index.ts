@@ -19,8 +19,8 @@ const cleanCode = (value: unknown) =>
 
 const displayHostName = (profile: any, fallback = 'Host') => {
   const candidates = [
-    profile?.display_name,
     profile?.full_name,
+    profile?.display_name,
     [profile?.first_name, profile?.last_name].filter(Boolean).join(' '),
     fallback,
   ];

@@ -225,7 +225,7 @@ serve(async (req: Request) => {
 
     const { data: profile } = await supabaseAdmin
       .from("profile")
-      .select("id, display_name, personal_room_public")
+      .select("id, display_name, full_name, first_name, last_name, personal_room_public")
       .eq("id", room.host_profile_id)
       .single();
 
@@ -278,11 +278,18 @@ serve(async (req: Request) => {
     console.log('[join-personal-room] Success for slug:', sanitizedSlug);
 
     // ✅ NEVER RETURN ROOM ID - only what's needed to join
+    const hostName =
+      profile?.full_name ||
+      profile?.display_name ||
+      [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') ||
+      tenant.name ||
+      'Host';
+
     return json(req, {
       token: tokenResp.token,
       dailyRoomName: room.daily_room_name,
-      roomTitle: room.title || `${profile?.display_name || tenant.name || 'Host'}'s Room`,
-      hostName: profile?.display_name || tenant.name || 'Host',
+      roomTitle: room.title || `${hostName}'s Room`,
+      hostName,
     });
 
   } catch (e) {

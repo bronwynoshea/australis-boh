@@ -13,8 +13,8 @@ function json(req: Request, data: unknown, status = 200) {
 
 function displayName(profile: any): string {
   return (
-    profile?.display_name ||
     profile?.full_name ||
+    profile?.display_name ||
     [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
     profile?.email ||
     "Loft member"

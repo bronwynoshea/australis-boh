@@ -115,7 +115,7 @@ serve(async (req: Request) => {
     }
 
     const profileId = String(profile.id);
-    const userName = profile.display_name || profile.full_name || profile.first_name || 'Host';
+    const userName = profile.full_name || profile.display_name || profile.first_name || 'Host';
 
     const { data: bohUser, error: bohUserError } = await supabaseAdmin
       .from("boh_user")

@@ -81,10 +81,10 @@ serve(async (req) => {
     const response = {
       roomId: roomData.id,
       title: roomData.title || 'Personal Room',
-      hostName: roomData.display_name || roomData.full_name || 'Host',
+      hostName: roomData.full_name || roomData.display_name || 'Host',
       hostDetails: {
         profileId: roomData.host_profile_id,
-        displayName: roomData.display_name || roomData.full_name,
+        displayName: roomData.full_name || roomData.display_name,
         avatarUrl: roomData.avatar_url
       },
       accessStatus: {

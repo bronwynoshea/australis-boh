@@ -113,7 +113,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       ? app.external_url
       : '';
     if (externalUrl) {
-      window.open(externalUrl, '_blank', 'noopener,noreferrer');
+      navigate(`/boh/external/${app.slug}`);
       return;
     }
 
@@ -134,7 +134,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
     const hasAccess = userHasAccess(app);
     const comingSoon = isComingSoon(app);
     const isExternal = app.app_kind === 'external' || app.type === 'external_app';
-    const buttonLabel = comingSoon ? 'Planned' : hasAccess ? (isExternal ? 'Visit' : 'Open') : 'Request access';
+    const buttonLabel = comingSoon ? 'Planned' : hasAccess ? (isExternal ? 'Launch' : 'Open') : 'Request access';
     const buttonClass = comingSoon ? 'card-button btn-disabled' : 'card-button btn-primary';
 
     return (
@@ -190,7 +190,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
               {dashboardApps.length > 0 && (
                 <div className="boh-workspace-columns">
                   {groupedDashboardApps.suite.length > 0 && renderAppSection('Internal apps', 'Workspace tools', groupedDashboardApps.suite)}
-                  {groupedDashboardApps.links.length > 0 && renderAppSection('External links', 'Open in a new tab', groupedDashboardApps.links)}
+                  {groupedDashboardApps.links.length > 0 && renderAppSection('External links', 'Connected surfaces', groupedDashboardApps.links)}
                 </div>
               )}
               {dashboardApps.length === 0 && (

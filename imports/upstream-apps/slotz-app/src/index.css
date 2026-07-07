@@ -152,10 +152,18 @@ body {
   }
 
   .slotz-notice {
-    border: 1px solid rgba(99, 92, 205, 0.24);
-    background: rgba(99, 92, 205, 0.1);
-    color: var(--text-muted);
+    border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
+    background: color-mix(in srgb, var(--primary) 10%, var(--bg-secondary));
+    color: var(--text-secondary);
     border-radius: 0.75rem;
+  }
+
+  .dark .slotz-notice,
+  [data-theme="dark"] .slotz-notice {
+    border-color: color-mix(in srgb, var(--primary) 70%, white);
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 14px 34px -24px color-mix(in srgb, var(--primary) 70%, #000);
   }
 
   .slotz-notice-error {

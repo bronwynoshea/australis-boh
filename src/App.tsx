@@ -29,6 +29,7 @@ import ChatzApp from './apps/chatz/App';
 import SlotzApp from './apps/slotz/App';
 import WebsiteApp from './apps/website/App';
 import AssemblyApp from './apps/assembly/AssemblyApp';
+import ExternalWorkspaceAppPage from './apps/boh/pages/ExternalWorkspaceAppPage';
 import DashboardApp from './apps/dashboard/DashboardApp';
 import StoryboardPage from './apps/cookbook/slowcook/storyboard/pages/StoryboardPage';
 import MobileCloseButton from './components/boh/MobileCloseButton';
@@ -346,6 +347,7 @@ function App() {
       <Route path="/boh/cookbook/slow-cook/:projectType" element={renderProtectedRoute(<StoryboardPage mode="edit" />)} />
       <Route path="/boh/cookbook/*" element={renderProtectedRoute(<CookbookApp />)} />
       <Route path="/boh/login" element={<Login onLogin={handleLogin} />} />
+      <Route path="/boh/external/:slug" element={renderProtectedRoute(<ExternalWorkspaceAppPage isAdmin={isSuperAdmin} />)} />
       <Route path="/boh/*" element={renderProtectedRoute(<DashboardApp isAdmin={isSuperAdmin} />)} />
       <Route path="/menu/*" element={renderProtectedRoute(<MenuApp isAdmin={isSuperAdmin} />)} />
       <Route path="/ledger/*" element={renderProtectedRoute(<LedgerApp isAdmin={isSuperAdmin} />)} />

@@ -473,7 +473,7 @@ const PersonalGuestShell = ({
 
         <footer className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-[var(--loft-border)] pt-5 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted">
           <span>A JOBZCAFE® product</span>
-          <span>{roomTitle || 'Private table access'}</span>
+          <span>Private table access</span>
         </footer>
       </section>
 
@@ -484,15 +484,6 @@ const PersonalGuestShell = ({
           className="absolute inset-0 h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-[#10163a]/70 via-[#10163a]/18 to-[#10163a]/64" />
-        <div className="absolute left-8 top-8 right-8 flex items-center justify-between">
-          <div className="flex items-center gap-3 rounded-2xl bg-black/35 border border-white/15 px-4 py-3 text-white backdrop-blur-md">
-            <LoftIcon className="h-8 w-8" />
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/60">Personal table</p>
-              <p className="text-sm font-semibold">{hostName || 'Hosted session'}</p>
-            </div>
-          </div>
-        </div>
         <div className="absolute left-8 right-8 bottom-8 grid grid-cols-3 gap-3">
           {[
             ['Entry', 'Private link'],

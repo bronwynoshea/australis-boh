@@ -166,6 +166,20 @@ interface JoinTokenResponse {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const withTimeout = async <T,>(promise: Promise<T> | T, ms = 1500): Promise<T | undefined> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<undefined>((resolve) => {
+        timeoutId = setTimeout(() => resolve(undefined), ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
+
 const describeScreenShareError = (error: any) => {
   const name = error?.name || '';
   const message = String(error?.message || error || '');
@@ -2109,10 +2123,10 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
             // Daily may already be disconnecting; the Edge Function close remains authoritative.
           }
         }
-        try { await callObj.setLocalVideo(false); } catch { }
-        try { await callObj.setLocalAudio(false); } catch { }
-        try { await leaveMeeting(); } catch { }
-        try { await callObj.destroy(); } catch { }
+        try { await withTimeout(callObj.setLocalVideo(false), 1000); } catch { }
+        try { await withTimeout(callObj.setLocalAudio(false), 1000); } catch { }
+        try { await withTimeout(leaveMeeting(), 1500); } catch { }
+        try { await withTimeout(callObj.destroy(), 1500); } catch { }
       }
     } finally {
       callObjectRef.current = null;

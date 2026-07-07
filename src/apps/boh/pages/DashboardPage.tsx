@@ -81,25 +81,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
 
   const dashboardApps = accessibleApps;
 
-  const groupedDashboardApps = useMemo(() => {
-    const groups = {
-      suite: [] as any[],
-      links: [] as any[],
-    };
-
-    dashboardApps.forEach((app) => {
-      if (app.app_kind === 'external' || app.type === 'external_app') {
-        groups.links.push(app);
-      } else {
-        groups.suite.push(app);
-      }
-    });
-
-    groups.suite.sort((a, b) => a.name.localeCompare(b.name));
-    groups.links.sort((a, b) => a.name.localeCompare(b.name));
-
-    return groups;
-  }, [dashboardApps]);
 
   const handleAppClick = (app: any) => {
     if (isComingSoon(app)) return;
@@ -157,23 +138,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
     );
   };
 
-  const renderGroup = (title: string, description: string, apps: any[]) => (
-    <section className="boh-workspace-panel">
-      <div className="boh-workspace-panel-header">
-        <div>
-          <h2>{title}</h2>
-          <p>{description}</p>
-        </div>
-      </div>
-      {apps.length > 0 ? (
-        <div className="boh-workspace-app-grid">{apps.map(renderAppCard)}</div>
-      ) : (
-        <div className="boh-workspace-empty compact">
-          <p>No apps are currently available in this group.</p>
-        </div>
-      )}
-    </section>
-  );
 
   return (
     <section id="dashboard-section" className="main-section active">
@@ -191,10 +155,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
             </div>
           ) : (
             <>
-              <div className="boh-workspace-columns">
-                {renderGroup('Back of House Suite', 'BOH applications enabled for this workspace.', groupedDashboardApps.suite)}
-                {renderGroup('Workspace Links', 'Non-BOH applications, websites, and external apps.', groupedDashboardApps.links)}
-              </div>
+              {dashboardApps.length > 0 && (
+                <div className="boh-workspace-app-grid boh-workspace-app-grid-unified">
+                  {dashboardApps.map(renderAppCard)}
+                </div>
+              )}
               {dashboardApps.length === 0 && (
                 <div className="boh-workspace-empty">
                   <h3>App access did not load.</h3>

@@ -54,6 +54,17 @@ serve(async (req: Request) => {
 })
 
 async function saveGoogleConnection(supabase: any, staffId: string, code: string, codeVerifier: string) {
+  const { data: staffProfile, error: staffError } = await supabase
+    .from('scheduling_staff_profiles')
+    .select('tenant_id')
+    .eq('id', staffId)
+    .single()
+
+  if (staffError || !staffProfile?.tenant_id) {
+    throw new Error('Staff profile tenant was not found for Google Calendar connection')
+  }
+
+  const tenantId = staffProfile.tenant_id
   const tokenData = await exchangeCode(supabase, code, codeVerifier)
   const profile = await fetchGoogleProfile(tokenData.access_token)
   const now = new Date()
@@ -65,6 +76,7 @@ async function saveGoogleConnection(supabase: any, staffId: string, code: string
     .from('google_oauth_tokens')
     .insert({
       staff_id: staffId,
+      tenant_id: tenantId,
       access_token: tokenData.access_token,
       refresh_token: tokenData.refresh_token,
       expires_at: expiresAt.toISOString(),
@@ -83,6 +95,7 @@ async function saveGoogleConnection(supabase: any, staffId: string, code: string
     .from('google_calendar_sync')
     .upsert({
       staff_id: staffId,
+      tenant_id: tenantId,
       is_enabled: true,
       sync_interval_minutes: 1440,
       sync_calendar_id: 'primary',
@@ -226,6 +239,10 @@ function normalizeAllowedAppUrl(value: string) {
       'https://dev-slotz.jobzcafe.com',
       'http://localhost:5173',
       'http://127.0.0.1:5173',
+      'http://localhost:5174',
+      'http://127.0.0.1:5174',
+      'http://localhost:5180',
+      'http://127.0.0.1:5180',
     ])
 
     if (!allowedOrigins.has(origin)) throw new Error('Unapproved SLOTZ app URL')

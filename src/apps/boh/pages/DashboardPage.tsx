@@ -81,6 +81,25 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
 
   const dashboardApps = accessibleApps;
 
+  const groupedDashboardApps = useMemo(() => {
+    const groups = {
+      suite: [] as any[],
+      links: [] as any[],
+    };
+
+    dashboardApps.forEach((app) => {
+      if (app.app_kind === 'external' || app.type === 'external_app') {
+        groups.links.push(app);
+      } else {
+        groups.suite.push(app);
+      }
+    });
+
+    groups.suite.sort((a, b) => a.name.localeCompare(b.name));
+    groups.links.sort((a, b) => a.name.localeCompare(b.name));
+
+    return groups;
+  }, [dashboardApps]);
 
   const handleAppClick = (app: any) => {
     if (isComingSoon(app)) return;
@@ -138,6 +157,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
     );
   };
 
+  const renderAppSection = (ariaLabel: string, apps: any[]) => (
+    <section className="boh-workspace-panel" aria-label={ariaLabel}>
+      <div className="boh-workspace-app-grid">{apps.map(renderAppCard)}</div>
+    </section>
+  );
 
   return (
     <section id="dashboard-section" className="main-section active">
@@ -156,8 +180,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
           ) : (
             <>
               {dashboardApps.length > 0 && (
-                <div className="boh-workspace-app-grid boh-workspace-app-grid-unified">
-                  {dashboardApps.map(renderAppCard)}
+                <div className="boh-workspace-columns">
+                  {groupedDashboardApps.suite.length > 0 && renderAppSection('BOH applications', groupedDashboardApps.suite)}
+                  {groupedDashboardApps.links.length > 0 && renderAppSection('External links', groupedDashboardApps.links)}
                 </div>
               )}
               {dashboardApps.length === 0 && (

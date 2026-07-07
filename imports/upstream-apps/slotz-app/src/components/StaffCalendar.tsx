@@ -129,13 +129,13 @@ const StaffCalendar: React.FC<StaffCalendarProps> = ({ selectedDate, onSelectDat
                 className={`
                   h-9 md:h-10 w-full rounded-xl flex flex-col items-center justify-center text-xs transition-all relative
                   ${selected ? 'bg-primary text-white scale-105 shadow-lg z-10 font-semibold' : 
+                    isToday ? 'slotz-calendar-today text-white shadow-lg font-semibold cursor-pointer' :
                     past ? 'opacity-10 cursor-not-allowed' :
                     'hover:bg-primary-light dark:hover:bg-white/5 text-[var(--text-secondary)] font-semibold cursor-pointer'}
-                  ${isToday && !selected ? 'text-primary font-semibold' : ''}
                 `}
               >
                 <span>{date.getDate()}</span>
-                {isToday && !selected && <span className="absolute bottom-1 w-1 h-1 bg-primary rounded-full" />}
+                {isToday && !selected && <span className="absolute bottom-1 w-1 h-1 bg-white rounded-full" />}
                 {dayBookings.length > 0 && (
                   <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex gap-0.5">
                     {dayBookings.slice(0, 3).map((_, index) => (

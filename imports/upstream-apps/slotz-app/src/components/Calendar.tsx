@@ -236,15 +236,15 @@ const Calendar: React.FC<CalendarProps> = ({
                 className={`
                   h-9 md:h-10 w-full rounded-xl flex flex-col items-center justify-center text-xs transition-all relative
                   ${selected || isRangeStart || isRangeEnd ? 'bg-primary text-white scale-105 shadow-lg z-10 font-semibold' : 
+                    isToday ? 'slotz-calendar-today text-white shadow-lg font-semibold cursor-pointer' :
                     disabledByAvailability ? 'slotz-calendar-unavailable text-[var(--text-muted)] cursor-not-allowed opacity-70' :
                     'hover:bg-primary-100 dark:hover:bg-white/5 text-[var(--text-secondary)] dark:text-white/70 font-semibold cursor-pointer'}
                   ${past ? 'opacity-10 cursor-not-allowed' : ''}
-                  ${isToday && !selected && !isRangeStart && !isRangeEnd ? 'text-primary font-semibold' : ''}
                   ${isRangeStart || isRangeEnd ? 'rounded-full' : ''}
                 `}
               >
                 <span>{date.getDate()}</span>
-                {showTodayMarker && isToday && !selected && !isRangeStart && !isRangeEnd && <span className="pointer-events-none absolute inset-x-px top-px bottom-px rounded-xl border border-primary/40" />}
+                {showTodayMarker && isToday && !selected && !isRangeStart && !isRangeEnd && <span className="pointer-events-none absolute inset-x-px top-px bottom-px rounded-xl border border-white/45" />}
                 {!hideEventDots && allEvents.length > 0 && (
                   <div className="absolute bottom-1.5 left-1/2 flex -translate-x-1/2 gap-0.5">
                     {dayBookings.slice(0, 2).map((_, index) => (

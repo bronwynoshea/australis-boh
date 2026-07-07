@@ -195,6 +195,18 @@ body {
     color: #fff !important;
   }
 
+  .slotz-calendar-today,
+  .slotz-today-button {
+    border-color: color-mix(in srgb, var(--primary) 70%, white) !important;
+    background: linear-gradient(135deg, #746df2 0%, #635ccd 52%, #5146b8 100%) !important;
+    color: #fff !important;
+  }
+
+  .slotz-calendar-today *,
+  .slotz-today-button * {
+    color: #fff !important;
+  }
+
   .slotz-notice-error {
     border-color: color-mix(in srgb, var(--danger) 32%, transparent);
     background: color-mix(in srgb, var(--danger) 12%, transparent);

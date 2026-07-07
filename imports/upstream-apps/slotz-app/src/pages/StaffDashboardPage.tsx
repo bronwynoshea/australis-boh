@@ -471,7 +471,7 @@ const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ setFeedback, na
                                 <button type="button" onClick={handlePrev} className="flex h-9 w-9 items-center justify-center rounded-lg border border-primary-border text-primary-text-muted transition-colors hover:bg-primary-light hover:text-primary dark:border-primary/25 dark:text-white/70 dark:hover:bg-primary/15" aria-label="Previous period">
                                     <ChevronLeft className="h-4 w-4" />
                                 </button>
-                                <button type="button" onClick={handleGoToToday} className="min-h-9 rounded-lg border border-primary-border px-3 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:bg-primary-light dark:border-primary/25 dark:text-white dark:hover:bg-primary/15">
+                                <button type="button" onClick={handleGoToToday} className="slotz-today-button min-h-9 rounded-lg border px-3 text-xs font-semibold transition-colors">
                                     Today
                                 </button>
                                 <button type="button" onClick={handleNext} className="flex h-9 w-9 items-center justify-center rounded-lg border border-primary-border text-primary-text-muted transition-colors hover:bg-primary-light hover:text-primary dark:border-primary/25 dark:text-white/70 dark:hover:bg-primary/15" aria-label="Next period">

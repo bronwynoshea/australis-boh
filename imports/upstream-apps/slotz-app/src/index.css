@@ -199,6 +199,7 @@ body {
   .slotz-calendar-today,
   .slotz-calendar-today-number,
   .slotz-calendar-today-card,
+  .slotz-google-action,
   .slotz-today-button {
     border-color: color-mix(in srgb, var(--primary) 70%, white) !important;
     background: linear-gradient(135deg, #746df2 0%, #635ccd 52%, #5146b8 100%) !important;
@@ -209,8 +210,13 @@ body {
   .slotz-calendar-today *,
   .slotz-calendar-today-number *,
   .slotz-calendar-today-card *,
+  .slotz-google-action *,
   .slotz-today-button * {
     color: #fff !important;
+  }
+
+  .slotz-google-action:hover {
+    filter: brightness(1.05);
   }
 
   .slotz-notice-error {

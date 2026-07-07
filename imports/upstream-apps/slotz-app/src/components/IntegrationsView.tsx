@@ -476,7 +476,7 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ setFeedback, initia
                             )}
 
                             {visibleOutlookStatusMessage && (
-                                <div className="slotz-notice mb-6 px-3 py-2 text-xs font-medium">
+                                <div className="slotz-notice slotz-integration-notice mb-6 px-3 py-2 text-xs font-medium">
                                     {visibleOutlookStatusMessage}
                                 </div>
                             )}
@@ -687,7 +687,7 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ setFeedback, initia
                         )}
 
                         {visibleGoogleStatusMessage && (
-                            <div className="slotz-notice mb-6 px-3 py-2 text-xs font-medium">
+                            <div className="slotz-notice slotz-integration-notice mb-6 px-3 py-2 text-xs font-medium">
                                 {visibleGoogleStatusMessage}
                             </div>
                         )}

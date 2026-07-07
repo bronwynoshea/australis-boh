@@ -166,6 +166,16 @@ body {
     box-shadow: 0 14px 34px -24px color-mix(in srgb, var(--primary) 70%, #000);
   }
 
+  .slotz-integration-notice {
+    border-color: color-mix(in srgb, var(--primary) 70%, white) !important;
+    background: var(--primary) !important;
+    color: #fff !important;
+  }
+
+  .slotz-integration-notice * {
+    color: #fff !important;
+  }
+
   .slotz-notice-error {
     border-color: color-mix(in srgb, var(--danger) 32%, transparent);
     background: color-mix(in srgb, var(--danger) 12%, transparent);

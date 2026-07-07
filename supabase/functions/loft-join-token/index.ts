@@ -344,7 +344,7 @@ serve(async (req: Request) => {
         patron_person_id,
         guest_label,
         role,
-        is_hand_raised,
+        is_hand_raised
       `)
       .eq('loft_room_id', room.id);
 

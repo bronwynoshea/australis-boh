@@ -22,6 +22,12 @@ interface LoftLobbyPageProps {
 const PAGE_SIZE = 6;
 const MAX_VISIBLE_DAYS = 30;
 const isPersonalRoom = (room: LoftRoom) => room.tags?.includes('personal-room') || !!room.invite_code;
+const getCanonicalHostId = (room: LoftRoom): string =>
+  String(room.host_boh_user_id || room.hostBohUserId || room.host_profile_id || room.hostProfileId || '').trim();
+const isRoomHost = (room: LoftRoom, profileId?: string | null): boolean => {
+  const hostId = getCanonicalHostId(room);
+  return !!profileId && !!hostId && String(profileId).trim() === hostId;
+};
 const LIVE_ACCENT = '#e05f46';
 const LIVE_ACCENT_SOFT = 'rgba(224, 95, 70, 0.18)';
 const LIVE_ACCENT_SHADOW = 'rgba(224, 95, 70, 0.22)';
@@ -137,7 +143,7 @@ const LoftLobbyPage: React.FC<LoftLobbyPageProps> = ({ onNavigate }) => {
 
   const endRoom = async (room: LoftRoom) => {
     if (!profile?.id) return;
-    if (room.host_profile_id !== profile.id) return;
+    if (!isRoomHost(room, profile.id)) return;
     try {
       await callEdgeFunction<{ success: boolean }>('end_loft_room', { loftRoomId: room.id });
     } catch (error) {
@@ -169,11 +175,11 @@ const LoftLobbyPage: React.FC<LoftLobbyPageProps> = ({ onNavigate }) => {
     .filter(room => {
       const kind = getRoomDisplayStatus(room).kind;
       const personal = isPersonalRoom(room);
-      const isOwnedPersonalTable = personal && !!profile?.id && room.host_profile_id === profile.id;
+      const isOwnedPersonalTable = personal && isRoomHost(room, profile?.id);
       if (filter === 'mine') {
         if (!profile?.id) return false;
         // For 'mine' filter, show all rooms created by this user (no date filtering)
-        return room.host_profile_id === profile.id;
+        return isRoomHost(room, profile.id);
       }
       if (personal) return filter === 'all' && isOwnedPersonalTable;
       if (filter === 'live') return kind === 'live';
@@ -237,7 +243,7 @@ const LoftLobbyPage: React.FC<LoftLobbyPageProps> = ({ onNavigate }) => {
 
   const toggleRsvp = async (room: LoftRoom) => {
     if (!profile?.id) return;
-    if (room.host_profile_id === profile.id) return;
+    if (isRoomHost(room, profile.id)) return;
     if (getRoomDisplayStatus(room).kind !== 'scheduled') return;
 
     const nextRegistered = !room.is_registered;
@@ -256,9 +262,7 @@ const LoftLobbyPage: React.FC<LoftLobbyPageProps> = ({ onNavigate }) => {
   };
 
   const deleteRoom = async (room: LoftRoom) => {
-    const currentUserId = profile?.id?.toString().trim();
-    const hostUserId = room.host_profile_id?.toString().trim();
-    const isHost = !!currentUserId && !!hostUserId && currentUserId === hostUserId;
+    const isHost = isRoomHost(room, profile?.id);
     
     if (!profile?.id) return;
     if (!isHost && !isSuperAdmin) return;
@@ -284,9 +288,7 @@ const LoftLobbyPage: React.FC<LoftLobbyPageProps> = ({ onNavigate }) => {
       return `/room/${room.id}`;
     }
 
-    const currentUserId = profile?.id?.toString().trim();
-    const hostUserId = room.host_profile_id?.toString().trim();
-    const isHost = currentUserId && hostUserId && currentUserId === hostUserId;
+    const isHost = isRoomHost(room, profile?.id);
 
     if (isPersonal && isHost) {
       return `/personal-room/${room.id}`;
@@ -308,9 +310,7 @@ const LoftLobbyPage: React.FC<LoftLobbyPageProps> = ({ onNavigate }) => {
     const statusLabel = personal ? 'Open' : status.label;
     const isLiveSession = !personal && status.kind === 'live';
     
-    const currentUserId = profile?.id?.toString().trim();
-    const hostUserId = room.host_profile_id?.toString().trim();
-    const isHost = !!(currentUserId && hostUserId && currentUserId === hostUserId);
+    const isHost = isRoomHost(room, profile?.id);
     const canEditRoom = isHost || isSuperAdmin;
     
     const isRsvped = !!room.is_registered;
@@ -479,9 +479,7 @@ const LoftLobbyPage: React.FC<LoftLobbyPageProps> = ({ onNavigate }) => {
     const statusLabel = personal ? 'Open' : status.label;
     const isLiveSession = !personal && status.kind === 'live';
     
-    const currentUserId = profile?.id?.toString().trim();
-    const hostUserId = room.host_profile_id?.toString().trim();
-    const isHost = !!(currentUserId && hostUserId && currentUserId === hostUserId);
+    const isHost = isRoomHost(room, profile?.id);
     const canEditRoom = isHost || isSuperAdmin;
     
     const isRsvped = !!room.is_registered;

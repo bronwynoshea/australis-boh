@@ -53,7 +53,7 @@ serve(async (req: Request) => {
 
     const { data: roomRows, error: roomError } = await supabaseAdmin
       .from("loft_room")
-      .select("id, title, description, room_origin, business_context, visibility, status, scheduled_start_at, scheduled_end_at, daily_room_name, host_name, tags, invite_code, is_recorded, host_profile_id")
+      .select("id, title, description, room_origin, business_context, visibility, status, scheduled_start_at, scheduled_end_at, daily_room_name, host_name, tags, invite_code, is_recorded, host_boh_user_id, host_patron_person_id")
       .eq("tenant_id", tenant.id)
       .in("status", statuses)
       .in("visibility", ["public", "unlisted"])

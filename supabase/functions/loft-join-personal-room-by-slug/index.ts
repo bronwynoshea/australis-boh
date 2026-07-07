@@ -199,7 +199,7 @@ serve(async (req: Request) => {
     // ✅ LOOKUP WITH TENANT + INVITE CODE PRIVACY CHECKS
     const { data: room, error: roomError } = await supabaseAdmin
       .from("loft_room")
-      .select("id, title, daily_room_name, status, tenant_id, public_join_enabled, host_profile_id")
+      .select("id, title, daily_room_name, status, tenant_id, public_join_enabled, host_boh_user_id, room_origin")
       .eq("tenant_id", tenant.id)
       .ilike("invite_code", sanitizedSlug)
       .single();
@@ -223,19 +223,13 @@ serve(async (req: Request) => {
       }, 403);
     }
 
-    const { data: profile } = await supabaseAdmin
-      .from("profile")
-      .select("id, display_name, full_name, first_name, last_name, personal_room_public")
-      .eq("id", room.host_profile_id)
-      .single();
-
-    if (profile && profile.personal_room_public === false) {
-      console.log('[join-personal-room] Host profile marks room private:', room.id);
-      return json(req, {
-        error: "room_private",
-        message: "This personal room is private"
-      }, 403);
-    }
+    const { data: hostUser } = room.host_boh_user_id
+      ? await supabaseAdmin
+          .from("boh_user")
+          .select("id, first_name, last_name, email")
+          .eq("id", room.host_boh_user_id)
+          .maybeSingle()
+      : { data: null };
 
     // ✅ CHECK ROOM STATUS
     if (room.status === 'ended' || room.status === 'deleted') {
@@ -278,12 +272,8 @@ serve(async (req: Request) => {
     console.log('[join-personal-room] Success for slug:', sanitizedSlug);
 
     // ✅ NEVER RETURN ROOM ID - only what's needed to join
-    const hostName =
-      profile?.full_name ||
-      profile?.display_name ||
-      [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') ||
-      tenant.name ||
-      'Host';
+    const hostName = [hostUser?.first_name, hostUser?.last_name].filter(Boolean).join(' ').trim() || hostUser?.email || '';
+    if (!hostName) return json(req, { error: "host_onboarding_incomplete" }, 400);
 
     return json(req, {
       token: tokenResp.token,

@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabaseClient';
+import { callEdgeFunction } from '@/services/supabaseApi';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5MB
 const BUCKET = 'avatars';
@@ -46,21 +47,8 @@ export async function updateProfileAvatar(avatarUrl: string | null): Promise<str
     throw new Error('Avatar URL must be an http(s) link or null to remove.');
   }
 
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError) throw authError;
-  const uid = authData?.user?.id;
-  if (!uid) throw new Error('Must be logged in to update avatar.');
-
-  const { data, error } = await supabase
-    .from('profile')
-    .update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() })
-    .eq('user_id', uid)
-    .select('id, user_id, avatar_url')
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!data) {
-    throw new Error('Profile update did not apply (no row matched user_id or RLS blocked).');
-  }
-  return data.avatar_url;
+  const data = await callEdgeFunction<{ avatarUrl?: string | null; avatar_url?: string | null }>('loft_update_current_profile', {
+    avatarUrl,
+  });
+  return data?.avatarUrl ?? data?.avatar_url ?? '';
 }

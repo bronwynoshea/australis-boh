@@ -38,8 +38,8 @@ export type BohChairWithUser = {
   chair_role_label: string | null;
   user: {
     id: string;
-    display_name: string | null;
-    full_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
     email: string | null;
   } | null;
 };
@@ -91,8 +91,8 @@ async function fetchChairRoleLabelMap(): Promise<Map<string, string>> {
 
 type BohUserLite = {
   id: string;
-  display_name: string | null;
-  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
 };
 
@@ -104,7 +104,7 @@ async function fetchBohUsersByIds(userIds: string[]): Promise<Map<string, BohUse
 
   const { data, error } = await supabase
     .from('boh_user')
-    .select('id, display_name, full_name, email')
+    .select('id, first_name, last_name, email')
     .eq('tenant_id', tenantId)
     .eq('app_context', 'boh')
     .in('id', uniqueIds);

@@ -80,8 +80,19 @@ async function completeOutlookConnection(code: string, state: string) {
 }
 
 async function saveOutlookConnection(supabase: any, staffId: string, code: string, codeVerifier: string) {
+  const { data: staffProfile, error: staffError } = await supabase
+    .from('scheduling_staff_profiles')
+    .select('tenant_id')
+    .eq('id', staffId)
+    .single()
+
+  if (staffError || !staffProfile?.tenant_id) {
+    throw new Error('Staff profile tenant was not found for Outlook connection')
+  }
+
+  const tenantId = staffProfile.tenant_id
   const tokenData = await exchangeCode(supabase, code, codeVerifier)
-  const profile = await fetchMicrosoftProfile(tokenData.access_token)
+  const microsoftProfile = await fetchMicrosoftProfile(tokenData.access_token)
   const now = new Date()
   const expiresAt = new Date(now.getTime() + Number(tokenData.expires_in || 3600) * 1000)
   const refreshExpiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000)
@@ -92,13 +103,14 @@ async function saveOutlookConnection(supabase: any, staffId: string, code: strin
     .from('outlook_oauth_tokens')
     .upsert({
       staff_id: staffId,
+      tenant_id: String(tenantId),
       access_token: tokenData.access_token,
       refresh_token: tokenData.refresh_token,
       expires_at: expiresAt.toISOString(),
       refresh_token_expires_at: refreshExpiresAt.toISOString(),
-      account_id: profile.id || profile.userPrincipalName || profile.mail,
-      account_username: profile.mail || profile.userPrincipalName,
-      account_name: profile.displayName,
+      account_id: microsoftProfile.id || microsoftProfile.userPrincipalName || microsoftProfile.mail,
+      account_username: microsoftProfile.mail || microsoftProfile.userPrincipalName,
+      account_name: microsoftProfile.displayName,
       token_type: tokenData.token_type || 'Bearer',
       scope: tokenData.scope || 'offline_access User.Read Calendars.ReadWrite',
       is_active: true,
@@ -111,6 +123,7 @@ async function saveOutlookConnection(supabase: any, staffId: string, code: strin
     .from('outlook_calendar_sync')
     .upsert({
       staff_id: staffId,
+      tenant_id: tenantId,
       is_enabled: true,
       sync_interval_minutes: 1440,
       last_sync_status: null,
@@ -267,6 +280,10 @@ function normalizeAllowedAppUrl(value: string) {
       'https://dev-slotz.jobzcafe.com',
       'http://localhost:5173',
       'http://127.0.0.1:5173',
+      'http://localhost:5174',
+      'http://127.0.0.1:5174',
+      'http://localhost:5180',
+      'http://127.0.0.1:5180',
     ])
 
     if (!allowedOrigins.has(origin)) throw new Error('Unapproved SLOTZ app URL')

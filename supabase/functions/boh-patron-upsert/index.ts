@@ -16,7 +16,6 @@ type UpsertPayload = {
   email?: string;
   first_name?: string;
   last_name?: string;
-  display_name?: string;
   lifecycle?: string;
   person_type_key?: string;
   external_user_id?: string;
@@ -32,7 +31,6 @@ type NormalizedPayload = {
   fullName: string;
   firstName: string;
   lastName: string;
-  displayName: string;
   companyName: string;
   roleTitle: string;
   consentGiven: boolean;
@@ -140,13 +138,11 @@ function validatePayload(body: UpsertPayload): NormalizedPayload {
   const metadata = body.metadata && typeof body.metadata === "object" ? body.metadata : {};
   const explicitFirstName = normalizeText(body.first_name);
   const explicitLastName = normalizeText(body.last_name);
-  const explicitDisplayName = normalizeText(body.display_name);
   const fullNameFromParts = compactName(explicitFirstName, explicitLastName);
-  const fullName = normalizeText(body.full_name) || explicitDisplayName || fullNameFromParts;
+  const fullName = normalizeText(body.full_name) || fullNameFromParts;
   const split = splitName(fullName);
   const firstName = explicitFirstName || split.firstName;
   const lastName = explicitLastName || split.lastName;
-  const displayName = explicitDisplayName || fullName || normalizeText(body.email) || normalizeText(body.work_email);
   const email = normalizeEmail(body.work_email || body.email);
   const companyName = normalizeText(body.company_name);
   const roleTitle = normalizeText(body.role_title);
@@ -157,7 +153,7 @@ function validatePayload(body: UpsertPayload): NormalizedPayload {
   const lifecycle = normalizeText(body.lifecycle);
 
   if (source === "talent_demo_request") {
-    if (!fullName) throw new Error("Name is required.");
+    if (!firstName || !lastName) throw new Error("First name and last name are required.");
     if (!email || !email.includes("@")) throw new Error("A valid work email is required.");
     if (!companyName) throw new Error("Company is required.");
     if (!roleTitle) throw new Error("Role is required.");
@@ -169,7 +165,6 @@ function validatePayload(body: UpsertPayload): NormalizedPayload {
       fullName,
       firstName,
       lastName,
-      displayName,
       companyName,
       roleTitle,
       consentGiven,
@@ -187,15 +182,14 @@ function validatePayload(body: UpsertPayload): NormalizedPayload {
 
   if (TALENT_RECRUITER_SOURCES.has(source)) {
     if (!email || !email.includes("@")) throw new Error("A valid recruiter email is required.");
-    if (!displayName) throw new Error("Recruiter name or display name is required.");
+    if (!firstName || !lastName) throw new Error("Recruiter first name and last name are required.");
 
     return {
       source,
       email,
-      fullName: fullName || displayName,
+      fullName,
       firstName,
       lastName,
-      displayName,
       companyName,
       roleTitle: roleTitle || "Recruiter",
       consentGiven,
@@ -213,14 +207,14 @@ function validatePayload(body: UpsertPayload): NormalizedPayload {
 
   if (isJobzcafeSource(source)) {
     if (!email || !email.includes("@")) throw new Error("A valid email is required.");
+    if (!firstName || !lastName) throw new Error("First name and last name are required.");
 
     return {
       source,
       email,
-      fullName: fullName || displayName || email,
+      fullName,
       firstName,
       lastName,
-      displayName: displayName || fullName || email,
       companyName,
       roleTitle,
       consentGiven,
@@ -283,7 +277,6 @@ async function upsertPerson(supabase: any, tenantId: string, payload: Normalized
 
     if (!existing.first_name && payload.firstName) updates.first_name = payload.firstName;
     if (!existing.last_name && payload.lastName) updates.last_name = payload.lastName;
-    if (!existing.display_name) updates.display_name = payload.displayName || payload.fullName || payload.email;
     if (!existing.person_type_key) updates.person_type_key = payload.personTypeKey;
     if (!existing.pipeline_stage_id && pipelineStageId) updates.pipeline_stage_id = pipelineStageId;
     if (payload.externalAppContext) updates.external_app_context = payload.externalAppContext;
@@ -308,7 +301,6 @@ async function upsertPerson(supabase: any, tenantId: string, payload: Normalized
     first_name: payload.firstName || null,
     last_name: payload.lastName || null,
     email: payload.email,
-    display_name: payload.displayName || payload.fullName || payload.email,
     source: payload.source,
     person_type_key: payload.personTypeKey,
     pipeline_stage_id: pipelineStageId,

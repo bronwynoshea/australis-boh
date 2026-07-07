@@ -20,6 +20,7 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
   const [guestName, setGuestName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
+  const [resolvedTenantSlug, setResolvedTenantSlug] = useState('');
 
   // Determine if user is viewing their own room or someone else's
   const isOwnRoom = !slug && !!profile?.id;
@@ -43,12 +44,14 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
             title: string;
             hostName: string;
             inviteCode?: string | null;
+            tenantSlug?: string | null;
           }>('loft-get-personal-room-by-slug', { slug, tenantSlug });
           
           setRoomId(response.roomId);
           setRoomTitle(response.title);
           setHostName(response.hostName || 'Host');
           setInviteCode(response.inviteCode || '');
+          setResolvedTenantSlug(response.tenantSlug || tenantSlug || '');
           
             
           return;
@@ -106,16 +109,15 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
     if (hostname.includes('australis.cloud') || hostname.includes('australis-boh.pages.dev')) return 'australis';
     return 'jobzcafe';
   };
-  const guestJoinCode = slug || inviteCode;
+  const activeTenantSlug = resolvedTenantSlug || tenantSlug || getDefaultTenantSlug();
+  const guestJoinCode = inviteCode || slug;
   const personalLink = guestJoinCode
-    ? `${appOrigin}/t/${getDefaultTenantSlug()}/loft/join/${guestJoinCode.toLowerCase()}`
+    ? `${appOrigin}/t/${activeTenantSlug}/loft/join/${guestJoinCode.toLowerCase()}`
     : '';
   const profileName =
     ((profile as any)?.name as string | undefined) ||
     ((profile as any)?.displayName as string | undefined) ||
-    ((profile as any)?.display_name as string | undefined) ||
     ((profile as any)?.fullName as string | undefined) ||
-    ((profile as any)?.full_name as string | undefined) ||
     '';
   const displayHostName =
     hostName ||
@@ -183,8 +185,8 @@ Best regards`;
         hostName: string;
         roomId: string;
       }>('loft-join-personal-room-by-slug', {
-        slug: slug,
-        tenantSlug,
+        slug: inviteCode || slug,
+        tenantSlug: activeTenantSlug,
         guestName: trimmedName
       });
 

@@ -3,9 +3,14 @@ import { callEdgeFunction, useSupabaseUser } from '@/services/supabaseApi';
 import { CheckCircle, Copy, KeyRound, Loader2, RefreshCw, Shield, UserPlus, XCircle } from 'lucide-react';
 
 type PersonalTableRow = {
-  profile_id: string;
+  userId?: string | null;
+  bohUserId?: string | null;
+  patronPersonId?: string | null;
+  legacyProfileId?: string | null;
+  profile_id?: string | null;
   email: string | null;
-  display_name: string;
+  displayName?: string;
+  display_name?: string;
   can_use_personal_room: boolean;
   personal_room_id: string | null;
   personal_room_slug: string | null;
@@ -18,6 +23,10 @@ type PersonalTableRow = {
   room_updated_at: string | null;
   profile_updated_at: string | null;
 };
+
+const getRowIdentity = (row: PersonalTableRow) =>
+  row.bohUserId || row.userId || row.patronPersonId || row.legacyProfileId || row.profile_id || row.email || '';
+const getRowDisplayName = (row: PersonalTableRow) => row.displayName || row.display_name || row.email || 'Loft member';
 
 const getAppOrigin = () => {
   try {
@@ -82,9 +91,9 @@ const AdminPersonalTables: React.FC = () => {
 
   const managePersonalTable = async (
     action: 'enable' | 'disable' | 'rotate_invite',
-    payload: { email?: string; profileId?: string }
+    payload: { email?: string; userId?: string; bohUserId?: string; profileId?: string }
   ) => {
-    const key = `${action}:${payload.profileId || payload.email || 'new'}`;
+    const key = `${action}:${payload.bohUserId || payload.userId || payload.profileId || payload.email || 'new'}`;
     setProcessingKey(key);
     setNotice(null);
     setError(null);
@@ -114,7 +123,7 @@ const AdminPersonalTables: React.FC = () => {
     const inviteLink = buildGuestInviteLink(appOrigin, row);
     if (!inviteLink) return;
     await navigator.clipboard.writeText(inviteLink);
-    setNotice(`Guest link copied for ${row.display_name}.`);
+    setNotice(`Guest link copied for ${getRowDisplayName(row)}.`);
   };
 
   if (!isSuperAdmin) {
@@ -211,15 +220,21 @@ const AdminPersonalTables: React.FC = () => {
         ) : (
           <div className="grid gap-4">
             {rows.map((row) => {
-              const disableKey = `disable:${row.profile_id}`;
-              const rotateKey = `rotate_invite:${row.profile_id}`;
+              const rowIdentity = getRowIdentity(row);
+              const targetPayload = row.bohUserId
+                ? { bohUserId: row.bohUserId }
+                : row.userId
+                  ? { userId: row.userId }
+                  : { profileId: row.legacyProfileId || row.profile_id || '' };
+              const disableKey = `disable:${rowIdentity}`;
+              const rotateKey = `rotate_invite:${rowIdentity}`;
               return (
-                <article key={row.profile_id} className="loft-card p-5 md:p-6">
+                <article key={rowIdentity} className="loft-card p-5 md:p-6">
                   <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
                     <div className="min-w-0 space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="truncate text-lg font-black uppercase tracking-tight text-main dark:text-white">
-                          {row.display_name}
+                          {getRowDisplayName(row)}
                         </h2>
                         {row.can_use_personal_room ? (
                           <span className="inline-flex items-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-green-600 dark:text-green-300">
@@ -258,7 +273,7 @@ const AdminPersonalTables: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => managePersonalTable('rotate_invite', { profileId: row.profile_id })}
+                        onClick={() => managePersonalTable('rotate_invite', targetPayload)}
                         disabled={!row.personal_room_id || !!processingKey}
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-main transition hover:border-cafe/60 hover:text-cafe disabled:cursor-not-allowed disabled:opacity-50 dark:text-white"
                       >
@@ -267,15 +282,15 @@ const AdminPersonalTables: React.FC = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => managePersonalTable(row.can_use_personal_room ? 'disable' : 'enable', { profileId: row.profile_id })}
-                        disabled={!!processingKey}
+                        onClick={() => managePersonalTable(row.can_use_personal_room ? 'disable' : 'enable', targetPayload)}
+                        disabled={!rowIdentity || !!processingKey}
                         className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] transition disabled:cursor-not-allowed disabled:opacity-50 ${
                           row.can_use_personal_room
                             ? 'border-red-500/30 bg-red-500/10 text-red-600 hover:bg-red-500/15 dark:text-red-300'
                             : 'border-green-500/30 bg-green-500/10 text-green-600 hover:bg-green-500/15 dark:text-green-300'
                         }`}
                       >
-                        {processingKey === disableKey || processingKey === `enable:${row.profile_id}` ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                        {processingKey === disableKey || processingKey === `enable:${rowIdentity}` ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                         {row.can_use_personal_room ? 'Disable' : 'Enable'}
                       </button>
                     </div>

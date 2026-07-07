@@ -830,6 +830,10 @@ input:checked + .theme-slider:before { transform: translateX(24px); }
     gap: 0.6rem;
 }
 
+.boh-workspace-app-grid-unified {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
 .boh-workspace-app-tile {
     display: flex;
     min-height: 104px;
@@ -2125,9 +2129,9 @@ body.dark {
 .dark .boh-workspace-hero,
 .dark .boh-workspace-panel,
 .dark .boh-workspace-stat {
-    background: var(--boh-surface);
-    border-color: rgba(255,255,255,0.08);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
 }
 
 .dark .boh-workspace-hero h2,

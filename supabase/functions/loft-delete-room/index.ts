@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 type DeleteRoomBody = {
   loftRoomId?: string;
@@ -54,20 +55,12 @@ serve(async (req) => {
       return json(req, { error: "missing_room_id" }, 400);
     }
 
-    // Get user profile
-    const byUserId = await supabaseAdmin.from("profile").select("id, user_type_id, is_loft_admin").eq("user_id", user.id).maybeSingle();
-    const profile = byUserId.data?.id
-      ? byUserId.data
-      : (await supabaseAdmin.from("profile").select("id, user_type_id, is_loft_admin").eq("id", user.id).maybeSingle()).data;
-
-    if (!profile?.id) {
-      return json(req, { error: "profile_not_found" }, 400);
-    }
+    const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
 
     // Get the room to check ownership
     const { data: room, error: roomError } = await supabaseAdmin
       .from('loft_room')
-      .select('host_profile_id, status')
+      .select('host_boh_user_id, status')
       .eq('id', body.loftRoomId)
       .single();
 
@@ -76,8 +69,8 @@ serve(async (req) => {
     }
 
     // Check permissions
-    const isHost = room.host_profile_id === profile.id;
-    const isSuperAdmin = profile.user_type_id === 5 || profile.is_loft_admin;
+    const isHost = room.host_boh_user_id === identity.bohUserId;
+    const isSuperAdmin = Number(identity.userTypeId) === 5 || identity.isLoftAdmin;
 
     if (!isHost && !isSuperAdmin) {
       return json(req, { error: "insufficient_permissions" }, 403);

@@ -23,48 +23,37 @@ serve(async (req: Request) => {
     if (!supabaseUrl || !serviceRoleKey || !anonKey) return json(req, { error: "server_not_configured" }, 500);
 
     const authHeader = req.headers.get("Authorization") ?? "";
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
     const supabaseAuthed = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { data: { user }, error: userError } = await supabaseAuthed.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseAuthed.auth.getUser();
     if (userError || !user) return json(req, { error: "not_authenticated" }, 401);
 
+    const body = (await req.json().catch(() => ({}))) as { avatarUrl?: string | null; defaultBgId?: string | null };
     const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
-    const { data: personalRoom, error: personalRoomError } = await supabaseAdmin
-      .from("loft_room")
-      .select("id, invite_code")
-      .eq("host_boh_user_id", identity.bohUserId)
-      .eq("room_origin", "personal")
-      .neq("status", "deleted")
-      .limit(1)
-      .maybeSingle();
-    if (personalRoomError) return json(req, { error: "personal_room_lookup_failed" }, 500);
+    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-    return json(req, {
-      user: { id: user.id, email: user.email ?? null },
-      profile: {
-        id: identity.bohUserId,
-        profileId: null,
-        bohUserId: identity.bohUserId,
-        name: identity.displayName,
-        avatarUrl: identity.avatarUrl ?? null,
-        defaultBgId: null,
-        can_host_loft: !!identity.canHostLoft,
-        can_create_loft_rooms: !!identity.canHostLoft,
-        canCreateLoftRooms: !!identity.canHostLoft,
-        can_use_personal_room: !!personalRoom?.id,
-        canUsePersonalRoom: !!personalRoom?.id,
-        personal_room_slug: personalRoom?.invite_code ?? null,
-        personalRoomSlug: personalRoom?.invite_code ?? null,
-        personal_room_id: personalRoom?.id ?? null,
-        personalRoomId: personalRoom?.id ?? null,
-        is_loft_admin: !!identity.isLoftAdmin,
-        user_type_id: identity.userTypeId ?? null,
-      },
-    });
+    if ("avatarUrl" in body) updates.avatar_url = typeof body.avatarUrl === "string" && body.avatarUrl.trim() ? body.avatarUrl.trim() : null;
+    // There is no canonical BOH replacement for legacy profile.default_bg_id yet.
+    // Accept the field to keep old clients harmless while profile is removed.
+
+    if (Object.keys(updates).length > 1) {
+      const { error: updateError } = await supabaseAdmin
+        .from("boh_user")
+        .update(updates)
+        .eq("id", identity.bohUserId);
+      if (updateError) return json(req, { error: "boh_user_update_failed", details: updateError }, 500);
+    }
+
+    return json(req, { success: true });
   } catch (e) {
     return json(req, { error: "unexpected_error", details: String((e as any)?.message || e) }, 500);
   }

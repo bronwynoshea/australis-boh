@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import PersonalRoomLandingPage from '../../../../imports/upstream-apps/loft-app/src/components/Loft/PersonalRoomPage/components/PersonalRoomLandingPage';
+import PersonalRoomGuestGate from '../../../../imports/upstream-apps/loft-app/src/components/Loft/PersonalRoomPage/components/PersonalRoomGuestGate';
 import '../../../../imports/upstream-apps/loft-app/index.css';
 
 const PersonalRoomPublicJoinPage: React.FC = () => {
@@ -15,7 +15,7 @@ const PersonalRoomPublicJoinPage: React.FC = () => {
 
   return (
     <div className="loft-shell loft-scope min-h-screen w-full overflow-hidden bg-[var(--loft-bg)] text-main dark:text-white">
-      <PersonalRoomLandingPage onNavigate={handleNavigate} slug={normalizedSlug} tenantSlug={normalizedTenantSlug} />
+      <PersonalRoomGuestGate onNavigate={handleNavigate} slug={normalizedSlug} tenantSlug={normalizedTenantSlug} />
     </div>
   );
 };

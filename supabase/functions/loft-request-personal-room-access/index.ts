@@ -7,14 +7,28 @@ const PERSONAL_ROOM_TAG = 'personal-room'
 const hasPersonalRoomTag = (room: { tags?: unknown } | null) =>
   Array.isArray(room?.tags) && room.tags.includes(PERSONAL_ROOM_TAG)
 
-async function findPersonalRoomByInviteCode(supabase: any, inviteCode: string) {
-  return await supabase
+async function getTenantId(supabase: any, tenantSlug: string) {
+  const normalizedSlug = String(tenantSlug || '').trim().toLowerCase()
+  if (!normalizedSlug) return null
+  const { data, error } = await supabase
+    .from('boh_tenant')
+    .select('id')
+    .eq('slug', normalizedSlug)
+    .maybeSingle()
+  if (error || !data?.id) return null
+  return data.id as string
+}
+
+async function findPersonalRoomByInviteCode(supabase: any, inviteCode: string, tenantSlug?: string) {
+  const tenantId = await getTenantId(supabase, tenantSlug || '')
+  let query = supabase
     .from('loft_room')
-    .select('id, tags')
+    .select('id, tags, tenant_id')
     .eq('invite_code', inviteCode)
     .eq('room_origin', 'personal')
     .neq('status', 'deleted')
-    .maybeSingle()
+  if (tenantId) query = query.eq('tenant_id', tenantId)
+  return await query.maybeSingle()
 }
 
 serve(async (req) => {
@@ -26,7 +40,7 @@ serve(async (req) => {
   }
 
   try {
-    const { slug, guestName, guestEmail } = await req.json()
+    const { slug, tenantSlug, guestName, guestEmail } = await req.json()
 
     if (!slug || !guestName) {
       return new Response(
@@ -45,7 +59,7 @@ serve(async (req) => {
     const normalizedName = String(guestName).trim()
     const normalizedEmail = String(guestEmail || '').trim().toLowerCase()
 
-    let { data: room, error: roomError } = await findPersonalRoomByInviteCode(supabase, normalizedCode)
+    let { data: room, error: roomError } = await findPersonalRoomByInviteCode(supabase, normalizedCode, tenantSlug)
 
     if (!room) {
       return new Response(

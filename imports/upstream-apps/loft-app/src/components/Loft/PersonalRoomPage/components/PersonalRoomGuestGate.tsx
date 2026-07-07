@@ -19,10 +19,11 @@ const LoftIcon = ({ className = 'w-10 h-10' }: { className?: string }) => (
 
 interface PersonalRoomGuestGateProps {
   slug: string;
+  tenantSlug?: string;
   onNavigate: (path: string) => void;
 }
 
-const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, onNavigate }) => {
+const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, tenantSlug, onNavigate }) => {
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -43,7 +44,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, onN
         
         const response = await callEdgeFunction<{ roomId: string; title: string; isOpen?: boolean; inviteCode?: string | null }>(
           'get_personal_room_by_slug',
-          { slug }
+          { slug, tenantSlug }
         );
         
         setRoomId(response.roomId);
@@ -65,6 +66,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, onN
           try {
             const approvalResponse = await callEdgeFunction('check_guest_waitlist_status', {
               slug: slug,
+              tenantSlug,
               guestName: savedGuestName,
               guestEmail: savedGuestEmail || undefined,
             }) as any;
@@ -117,7 +119,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, onN
     if (slug) {
       fetchPersonalRoom();
     }
-  }, [slug, onNavigate]);
+  }, [slug, tenantSlug, onNavigate]);
 
   // Poll for approval status when waiting
   useEffect(() => {
@@ -136,6 +138,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, onN
       try {
         const response = await callEdgeFunction('check_guest_waitlist_status', {
           slug: slug,
+          tenantSlug,
           guestName: guestName,
           guestEmail: guestEmail || localStorage.getItem('personalRoomGuestEmail') || undefined,
         }) as any;
@@ -192,7 +195,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, onN
       isStopped = true;
       if (timerId) window.clearTimeout(timerId);
     };
-  }, [isWaitingForHost, isHostRoomOpen, guestName, slug, roomId, onNavigate]);
+  }, [isWaitingForHost, isHostRoomOpen, guestName, slug, tenantSlug, roomId, onNavigate]);
 
   useEffect(() => {
     if (!isWaitingForHost || isHostRoomOpen || !slug) return;
@@ -207,7 +210,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, onN
       }
 
       try {
-        const response = await callEdgeFunction<{ isOpen?: boolean }>('get_personal_room_by_slug', { slug });
+        const response = await callEdgeFunction<{ isOpen?: boolean }>('get_personal_room_by_slug', { slug, tenantSlug });
         if (response?.isOpen === true) {
           setIsHostRoomOpen(true);
           return;
@@ -224,7 +227,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, onN
       isStopped = true;
       if (timerId) window.clearTimeout(timerId);
     };
-  }, [isWaitingForHost, isHostRoomOpen, slug]);
+  }, [isWaitingForHost, isHostRoomOpen, slug, tenantSlug]);
 
   const handleJoinRoom = async (guestName?: string, guestEmail?: string) => {
     const nextName = guestName?.trim() || '';
@@ -258,6 +261,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, onN
         // Add guest to waitlist using the correct function
         const waitlistResponse = await callEdgeFunction('loft-request-personal-room-access', {
           slug: slug,
+          tenantSlug,
           guestName: nextName,
           guestEmail: nextEmail
         });

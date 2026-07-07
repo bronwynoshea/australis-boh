@@ -166,25 +166,33 @@ body {
     box-shadow: 0 14px 34px -24px color-mix(in srgb, var(--primary) 70%, #000);
   }
 
-  .slotz-integration-notice {
+  .slotz-integration-notice,
+  .slotz-feedback-notice {
     border-color: color-mix(in srgb, var(--primary) 70%, white) !important;
-    background: var(--primary) !important;
+    background: linear-gradient(135deg, #746df2 0%, #635ccd 52%, #5146b8 100%) !important;
     color: #fff !important;
   }
 
-  .slotz-integration-notice * {
+  .slotz-integration-notice *,
+  .slotz-feedback-notice * {
     color: #fff !important;
   }
 
   .slotz-calendar-health-notice,
   .slotz-today-card {
     border-color: color-mix(in srgb, var(--primary) 70%, white) !important;
-    background: var(--primary) !important;
+    background: linear-gradient(135deg, #746df2 0%, #635ccd 52%, #5146b8 100%) !important;
     color: #fff !important;
   }
 
   .slotz-calendar-health-notice * {
     color: inherit;
+  }
+
+  .slotz-today-card *,
+  .slotz-today-card p,
+  .slotz-today-card h2 {
+    color: #fff !important;
   }
 
   .slotz-notice-error {

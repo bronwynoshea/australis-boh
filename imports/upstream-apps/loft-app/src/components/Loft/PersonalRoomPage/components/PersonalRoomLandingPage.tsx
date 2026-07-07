@@ -6,9 +6,10 @@ import { clearPersonalGuestAccessState } from '../utils/personalRoomGuestStorage
 interface PersonalRoomLandingPageProps {
   onNavigate: (path: string) => void;
   slug?: string;
+  tenantSlug?: string;
 }
 
-const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNavigate, slug }) => {
+const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNavigate, slug, tenantSlug }) => {
   const { user, profile, isLoading: isLoadingProfile } = useSupabaseUser();
   const [roomId, setRoomId] = useState<string | null>(null);
   const [roomTitle, setRoomTitle] = useState<string>('');
@@ -19,6 +20,7 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
   const [guestName, setGuestName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
+  const [resolvedTenantSlug, setResolvedTenantSlug] = useState('');
 
   // Determine if user is viewing their own room or someone else's
   const isOwnRoom = !slug && !!profile?.id;
@@ -42,12 +44,14 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
             title: string;
             hostName: string;
             inviteCode?: string | null;
-          }>('loft-get-personal-room-by-slug', { slug });
+            tenantSlug?: string | null;
+          }>('loft-get-personal-room-by-slug', { slug, tenantSlug });
           
           setRoomId(response.roomId);
           setRoomTitle(response.title);
           setHostName(response.hostName || 'Host');
           setInviteCode(response.inviteCode || '');
+          setResolvedTenantSlug(response.tenantSlug || tenantSlug || '');
           
             
           return;
@@ -95,19 +99,25 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
     };
 
     fetchPersonalRoom();
-  }, [profile?.id, slug, isLoadingProfile, canUsePersonalRoom, user?.id]);
+  }, [profile?.id, slug, tenantSlug, isLoadingProfile, canUsePersonalRoom, user?.id]);
 
   const appOrigin = typeof window !== 'undefined' ? new URL(window.location.href).origin : '';
-  const guestJoinCode = slug || inviteCode;
+  const getDefaultTenantSlug = () => {
+    if (tenantSlug) return tenantSlug;
+    if (typeof window === 'undefined') return 'jobzcafe';
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname.includes('australis.cloud') || hostname.includes('australis-boh.pages.dev')) return 'australis';
+    return 'jobzcafe';
+  };
+  const activeTenantSlug = resolvedTenantSlug || tenantSlug || getDefaultTenantSlug();
+  const guestJoinCode = inviteCode || slug;
   const personalLink = guestJoinCode
-    ? `${appOrigin}/#/personal/${guestJoinCode}`
-    : roomId ? `${appOrigin}/#/personal-room/${roomId}` : '';
+    ? `${appOrigin}/t/${activeTenantSlug}/loft/join/${guestJoinCode.toLowerCase()}`
+    : '';
   const profileName =
     ((profile as any)?.name as string | undefined) ||
     ((profile as any)?.displayName as string | undefined) ||
-    ((profile as any)?.display_name as string | undefined) ||
     ((profile as any)?.fullName as string | undefined) ||
-    ((profile as any)?.full_name as string | undefined) ||
     '';
   const displayHostName =
     hostName ||
@@ -174,8 +184,9 @@ Best regards`;
         roomTitle: string;
         hostName: string;
         roomId: string;
-      }>('join_personal_room_by_slug', {
-        slug: slug,
+      }>('loft-join-personal-room-by-slug', {
+        slug: inviteCode || slug,
+        tenantSlug: activeTenantSlug,
         guestName: trimmedName
       });
 

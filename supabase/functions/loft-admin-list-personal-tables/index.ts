@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 function json(req: Request, data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -11,32 +12,8 @@ function json(req: Request, data: unknown, status = 200) {
   });
 }
 
-function displayName(profile: any): string {
-  return (
-    profile?.display_name ||
-    profile?.full_name ||
-    [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
-    profile?.email ||
-    "Loft member"
-  );
-}
-
-async function getCallerProfile(supabaseAdmin: any, userId: string) {
-  const byUserId = await supabaseAdmin
-    .from("profile")
-    .select("id, user_type_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (byUserId.data?.id) return byUserId.data;
-
-  const byProfileId = await supabaseAdmin
-    .from("profile")
-    .select("id, user_type_id")
-    .eq("id", userId)
-    .maybeSingle();
-
-  return byProfileId.data;
+function displayName(user: any): string {
+  return [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() || user?.email || "Loft member";
 }
 
 serve(async (req: Request) => {
@@ -66,71 +43,67 @@ serve(async (req: Request) => {
       error: userError,
     } = await supabaseAuthed.auth.getUser();
 
-    if (userError || !user) {
-      return json(req, { error: "not_authenticated" }, 401);
-    }
+    if (userError || !user) return json(req, { error: "not_authenticated" }, 401);
 
-    const callerProfile = await getCallerProfile(supabaseAdmin, user.id);
-    if (!callerProfile?.id || Number(callerProfile.user_type_id) !== 5) {
+    const caller = await resolveBohLoftIdentity(supabaseAdmin, user.id);
+    if (Number(caller.userTypeId) !== 5 && !caller.isLoftAdmin) {
       return json(req, { error: "superadmin_access_required" }, 403);
     }
 
-    const { data: profiles, error: profileError } = await supabaseAdmin
-      .from("profile")
-      .select(`
-        id,
-        user_id,
-        email,
-        display_name,
-        full_name,
-        first_name,
-        last_name,
-        can_use_personal_room,
-        personal_room_id,
-        personal_room_slug,
-        updated_at
-      `)
-      .or("can_use_personal_room.eq.true,personal_room_id.not.is.null")
-      .order("display_name", { ascending: true, nullsFirst: false });
+    const { data: rooms, error: roomError } = await supabaseAdmin
+      .from("loft_room")
+      .select("id, host_boh_user_id, title, status, is_open, invite_code, tenant_id, updated_at, created_at")
+      .eq("room_origin", "personal")
+      .neq("status", "deleted")
+      .order("updated_at", { ascending: false });
 
-    if (profileError) {
-      return json(req, { error: "profile_lookup_failed", details: profileError }, 500);
-    }
+    if (roomError) return json(req, { error: "room_lookup_failed", details: roomError }, 500);
 
-    const roomIds = (profiles || []).map((profile: any) => profile.personal_room_id).filter(Boolean);
-    const roomById = new Map<string, any>();
+    const hostIds = Array.from(new Set((rooms || []).map((room: any) => room.host_boh_user_id).filter(Boolean)));
+    const tenantIds = Array.from(new Set((rooms || []).map((room: any) => room.tenant_id).filter(Boolean)));
+    const userById = new Map<string, any>();
+    const tenantSlugById = new Map<string, string>();
 
-    if (roomIds.length > 0) {
-      const { data: rooms, error: roomError } = await supabaseAdmin
-        .from("loft_room")
-        .select("id, title, status, is_open, invite_code, updated_at, created_at")
-        .in("id", roomIds);
-
-      if (roomError) {
-        return json(req, { error: "room_lookup_failed", details: roomError }, 500);
-      }
-
-      (rooms || []).forEach((room: any) => {
-        if (room?.id) roomById.set(room.id, room);
+    if (hostIds.length > 0) {
+      const { data: users, error: userLookupError } = await supabaseAdmin
+        .from("boh_user")
+        .select("id, auth_user_id, email, first_name, last_name, updated_at")
+        .in("id", hostIds);
+      if (userLookupError) return json(req, { error: "boh_user_lookup_failed", details: userLookupError }, 500);
+      (users || []).forEach((bohUser: any) => {
+        if (bohUser?.id) userById.set(String(bohUser.id), bohUser);
       });
     }
 
-    const personalTables = (profiles || []).map((profile: any) => {
-      const room = profile.personal_room_id ? roomById.get(profile.personal_room_id) : null;
+    if (tenantIds.length > 0) {
+      const { data: tenants, error: tenantError } = await supabaseAdmin
+        .from("boh_tenant")
+        .select("id, slug")
+        .in("id", tenantIds);
+      if (tenantError) return json(req, { error: "tenant_lookup_failed", details: tenantError }, 500);
+      (tenants || []).forEach((tenant: any) => {
+        if (tenant?.id && tenant?.slug) tenantSlugById.set(String(tenant.id), String(tenant.slug));
+      });
+    }
+
+    const personalTables = (rooms || []).map((room: any) => {
+      const bohUser = room.host_boh_user_id ? userById.get(String(room.host_boh_user_id)) : null;
       return {
-        profile_id: profile.id,
-        user_id: profile.user_id || null,
-        email: profile.email || null,
-        display_name: displayName(profile),
-        can_use_personal_room: !!profile.can_use_personal_room,
-        personal_room_id: profile.personal_room_id || null,
-        personal_room_slug: profile.personal_room_slug || null,
-        invite_code: room?.invite_code || null,
-        room_title: room?.title || null,
-        room_status: room?.status || null,
-        is_open: room?.is_open ?? false,
-        room_updated_at: room?.updated_at || null,
-        profile_updated_at: profile.updated_at || null,
+        userId: bohUser?.auth_user_id || null,
+        bohUserId: room.host_boh_user_id || null,
+        legacyProfileId: null,
+        email: bohUser?.email || null,
+        displayName: displayName(bohUser),
+        can_use_personal_room: true,
+        personal_room_id: room.id || null,
+        personal_room_slug: room.invite_code || null,
+        invite_code: room.invite_code || null,
+        tenant_slug: room.tenant_id ? tenantSlugById.get(String(room.tenant_id)) || null : null,
+        room_title: room.title || null,
+        room_status: room.status || null,
+        is_open: room.is_open ?? false,
+        room_updated_at: room.updated_at || null,
+        profile_updated_at: bohUser?.updated_at || null,
       };
     });
 

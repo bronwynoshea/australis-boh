@@ -838,7 +838,7 @@ const TablezBoardPage: React.FC = () => {
                   >
                     <option value="">Change Chair…</option>
                     {bulkChairs.map((c, idx) => {
-                      const who = c.user?.full_name || c.user?.email || '';
+                      const who = c.user ? [c.user.first_name, c.user.last_name].filter(Boolean).join(' ').trim() : '';
                       const baseLabel = c.chair_role_label ?? '—';
                       const label = who ? `${baseLabel} — ${who}` : baseLabel;
                       return (

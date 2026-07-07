@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 type Body = {
   loftRoomId?: string;
@@ -55,20 +56,12 @@ serve(async (req: Request) => {
     const loftRoomId = String(body.loftRoomId || body.roomId || body.loft_room_id || "").trim();
     if (!loftRoomId) return json(req, { error: "missing_loft_room_id" }, 400);
 
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profile")
-      .select("id, personal_room_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (profileError || !profile?.id) {
-      return json(req, { error: "profile_not_found" }, 400);
-    }
+    const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
 
     // Get room details including recording status and daily room name
     const { data: room, error: roomError } = await supabaseAdmin
       .from("loft_room")
-      .select("id, host_profile_id, status, tags, daily_room_name, is_recorded")
+      .select("id, host_boh_user_id, status, tags, daily_room_name, is_recorded")
       .eq("id", loftRoomId)
       .single();
 
@@ -76,15 +69,14 @@ serve(async (req: Request) => {
       return json(req, { error: "room_not_found" }, 404);
     }
 
-    if (room.host_profile_id !== profile.id) {
+    if (room.host_boh_user_id !== identity.bohUserId) {
       return json(req, { error: "not_owner" }, 403);
     }
 
     // Personal Rooms should close but not end (they're reusable). Some older personal
-    // rooms may not have the tag, so also verify against the host profile's room id.
+    // rooms may not have the tag; canonical host checks above protect ownership.
     const hasPersonalRoomTag = Array.isArray(room.tags) && room.tags.includes('personal-room');
-    const isHostPersonalRoom = profile.personal_room_id === loftRoomId;
-    const isPersonalRoom = hasPersonalRoomTag || isHostPersonalRoom;
+    const isPersonalRoom = hasPersonalRoomTag;
     
     if (isPersonalRoom) {
       // Personal rooms just close (reusable)

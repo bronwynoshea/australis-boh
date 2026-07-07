@@ -5,7 +5,8 @@ import { supabase } from '../../../lib/supabase';
 type BohUserRow = {
   id: string;
   auth_user_id: string;
-  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
   status: string | null;
 };
@@ -84,7 +85,7 @@ const BohSettingsProfilePage: React.FC = () => {
 
         const { data: bohUserData, error: bohUserErr } = await supabase
           .from('boh_user')
-          .select('id, auth_user_id, full_name, email, status')
+          .select('id, auth_user_id, first_name, last_name, email, status')
           .eq('auth_user_id', auth.id)
           .eq('app_context', 'boh')
           .maybeSingle();
@@ -284,8 +285,8 @@ const BohSettingsProfilePage: React.FC = () => {
                     <div className="text-boh-text-light dark:text-boh-text">{bohUser.status || 'Not set'}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-boh-text-sub-light dark:text-boh-text-sub">full_name</div>
-                    <div className="text-boh-text-light dark:text-boh-text">{bohUser.full_name || bohUser.email || 'Not set'}</div>
+                    <div className="text-xs text-boh-text-sub-light dark:text-boh-text-sub">first_name + last_name</div>
+                    <div className="text-boh-text-light dark:text-boh-text">{[bohUser.first_name, bohUser.last_name].filter(Boolean).join(' ').trim() || 'Incomplete profile'}</div>
                   </div>
                   <div>
                     <div className="text-xs text-boh-text-sub-light dark:text-boh-text-sub">auth_user_id</div>

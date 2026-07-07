@@ -166,6 +166,20 @@ interface JoinTokenResponse {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const withTimeout = async <T,>(promise: Promise<T> | T, ms = 1500): Promise<T | undefined> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<undefined>((resolve) => {
+        timeoutId = setTimeout(() => resolve(undefined), ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
+
 const describeScreenShareError = (error: any) => {
   const name = error?.name || '';
   const message = String(error?.message || error || '');
@@ -395,7 +409,8 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
   }, []);
 
   // Check if user is a superadmin/superuser to enable layout preview data.
-  const isSuperUser = !!((profile as any)?.is_loft_admin || (profile as any)?.user_type_id === 5);
+  // BOH profiles can hydrate user_type_id as a string from RPC/JSON paths.
+  const isSuperUser = !!((profile as any)?.is_loft_admin || Number((profile as any)?.user_type_id) === 5);
 
   // 🔥 FIX: Check localStorage version and clear stale data from old app versions
   useEffect(() => {
@@ -1260,7 +1275,11 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
         prev.some((p, i) => {
           const newP = finalParticipants[i];
           return !newP || 
-            p.id !== newP.id || 
+            p.id !== newP.id ||
+            p.name !== newP.name ||
+            p.role !== newP.role ||
+            p.isLocal !== newP.isLocal ||
+            p.isHost !== newP.isHost ||
             p.audio !== newP.audio || 
             p.video !== newP.video ||
             p.isVideoOn !== newP.isVideoOn ||
@@ -2104,10 +2123,10 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
             // Daily may already be disconnecting; the Edge Function close remains authoritative.
           }
         }
-        try { await callObj.setLocalVideo(false); } catch { }
-        try { await callObj.setLocalAudio(false); } catch { }
-        try { await leaveMeeting(); } catch { }
-        try { await callObj.destroy(); } catch { }
+        try { await withTimeout(callObj.setLocalVideo(false), 1000); } catch { }
+        try { await withTimeout(callObj.setLocalAudio(false), 1000); } catch { }
+        try { await withTimeout(leaveMeeting(), 1500); } catch { }
+        try { await withTimeout(callObj.destroy(), 1500); } catch { }
       }
     } finally {
       callObjectRef.current = null;
@@ -2558,13 +2577,14 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
         localStorage.setItem(MOCK_SCENARIO_KEY, scenario);
       }
       setMockScenario(scenario);
-      setTimeout(() => {
-        syncDailyParticipants();
-      }, 0);
     } catch {
       // ignore
     }
-  }, [syncDailyParticipants]);
+  }, []);
+
+  useEffect(() => {
+    syncDailyParticipants();
+  }, [mockScenario, syncDailyParticipants]);
 
   const handleThemeChange = useCallback((theme: 'light' | 'dark' | 'auto') => {
     setThemeMode(theme);

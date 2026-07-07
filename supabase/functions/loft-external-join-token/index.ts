@@ -14,9 +14,12 @@ import {
   normalizeAppContext,
   normalizePersona,
   normalizeText,
+  resolveInternalLoftProfileByEmail,
   resolveTenant,
   validateServerBearer,
 } from "../_shared/loftExternalAccess.ts";
+
+const JOIN_OPEN_WINDOW_MS = 2 * 60 * 1000;
 
 serve(async (req: Request) => {
   const cors = handleCors(req);
@@ -48,7 +51,9 @@ serve(async (req: Request) => {
       email: body.email || patron.email || null,
       displayName: body.displayName || displayNameForCaller({}, patron),
     };
-    const externalProfile = await ensureExternalLoftProfile(supabaseAdmin, caller, patron);
+    const loftProfile =
+      await resolveInternalLoftProfileByEmail(supabaseAdmin, caller) ||
+      await ensureExternalLoftProfile(supabaseAdmin, caller, patron);
 
     let videoSession: any = null;
     let loftRoomId = normalizeText(body.loftRoomId);
@@ -68,6 +73,12 @@ serve(async (req: Request) => {
       const isParticipant = session.patron_person_id === patronPersonId;
       const isHost = session.host_patron_person_id === patronPersonId;
       if (!isParticipant && !isHost) return jsonResponse(req, { success: false, error: 'session_access_denied' }, 403);
+      if (isParticipant && !isHost && session.scheduled_start_at) {
+        const opensAt = new Date(new Date(session.scheduled_start_at).getTime() - JOIN_OPEN_WINDOW_MS);
+        if (Number.isFinite(opensAt.getTime()) && Date.now() < opensAt.getTime()) {
+          return jsonResponse(req, { success: false, error: 'session_not_open_yet', opensAt: opensAt.toISOString(), scheduledStartAt: session.scheduled_start_at }, 403);
+        }
+      }
       videoSession = session;
       loftRoomId = session.loft_room_id;
       role = isHost ? 'host' : 'listener';
@@ -85,7 +96,7 @@ serve(async (req: Request) => {
 
     if (!videoSession) {
       const isVisibleBusinessRoom = ['public', 'unlisted'].includes(String(room.visibility || '')) && !isPersonalRoom(room);
-      const isOwnPersonalRoom = isPersonalRoom(room) && room.host_profile_id === externalProfile.profileId;
+      const isOwnPersonalRoom = isPersonalRoom(room) && ((loftProfile as any).bohUserId ? room.host_boh_user_id === (loftProfile as any).bohUserId : room.host_patron_person_id === (loftProfile as any).patronPersonId);
       if (!isVisibleBusinessRoom && !isOwnPersonalRoom) return jsonResponse(req, { success: false, error: 'room_access_denied' }, 403);
       if (isVisibleBusinessRoom && !isRoomJoinableForExternal(room)) return jsonResponse(req, { success: false, error: 'room_not_open_yet' }, 403);
       if (isOwnPersonalRoom) role = 'host';
@@ -96,38 +107,41 @@ serve(async (req: Request) => {
     if (role !== 'host') {
       const configuredCapacity = Number(room.max_participants || 0);
       const maxParticipants = Number.isFinite(configuredCapacity) && configuredCapacity > 0 ? configuredCapacity : 30;
-      const { data: existingMember } = await supabaseAdmin
+      let existingMemberQuery = supabaseAdmin
         .from('loft_room_member')
         .select('id, is_active')
-        .eq('loft_room_id', room.id)
-        .eq('profile_id', externalProfile.profileId)
-        .maybeSingle();
+        .eq('loft_room_id', room.id);
+      existingMemberQuery = (loftProfile as any).bohUserId
+        ? existingMemberQuery.eq('boh_user_id', (loftProfile as any).bohUserId)
+        : existingMemberQuery.eq('patron_person_id', (loftProfile as any).patronPersonId);
+      const { data: existingMember } = await existingMemberQuery.maybeSingle();
 
       if (!existingMember?.is_active) {
       const { data: activeMembers, error: activeMembersError } = await supabaseAdmin
         .from('loft_room_member')
-        .select('profile_id')
+        .select('boh_user_id, patron_person_id, guest_label')
         .eq('loft_room_id', room.id)
         .eq('is_active', true);
 
       if (activeMembersError) throw new Error(`capacity_lookup_failed: ${activeMembersError.message}`);
-      const activeProfileIds = new Set((activeMembers || []).map((row: any) => String(row.profile_id)).filter(Boolean));
-      const activeCount = activeProfileIds.size;
+      const activeMemberKeys = new Set((activeMembers || []).map((row: any) => String(row.boh_user_id || row.patron_person_id || row.guest_label || '')).filter(Boolean));
+      const activeCount = activeMemberKeys.size;
       if (activeCount >= maxParticipants) {
         return jsonResponse(req, { success: false, error: 'room_full', maxParticipants }, 403);
       }
 
       const { data: rsvpRows, error: rsvpRowsError } = await supabaseAdmin
         .from('loft_room_rsvp')
-        .select('profile_id, status')
+        .select('boh_user_id, patron_person_id, status')
         .eq('loft_room_id', room.id)
         .eq('status', 'going');
 
       if (rsvpRowsError) throw new Error(`rsvp_lookup_failed: ${rsvpRowsError.message}`);
-      const callerHasReservedSeat = (rsvpRows || []).some((row: any) => String(row.profile_id) === externalProfile.profileId);
+      const callerSeatKey = (loftProfile as any).bohUserId ? String((loftProfile as any).bohUserId) : String((loftProfile as any).patronPersonId || '');
+      const callerHasReservedSeat = (rsvpRows || []).some((row: any) => String(row.boh_user_id || row.patron_person_id || '') === callerSeatKey);
       const outstandingReservedSeats = (rsvpRows || []).filter((row: any) => {
-        const reservedProfileId = String(row.profile_id || '');
-        return reservedProfileId && reservedProfileId !== externalProfile.profileId && !activeProfileIds.has(reservedProfileId);
+        const reservedKey = String(row.boh_user_id || row.patron_person_id || '');
+        return reservedKey && reservedKey !== callerSeatKey && !activeMemberKeys.has(reservedKey);
       }).length;
 
       if (!callerHasReservedSeat && activeCount + outstandingReservedSeats >= maxParticipants) {
@@ -136,19 +150,39 @@ serve(async (req: Request) => {
       }
     }
 
-    await supabaseAdmin.from('loft_room_member').upsert({ loft_room_id: room.id, profile_id: externalProfile.profileId, role, is_active: true, left_at: null }, { onConflict: 'loft_room_id,profile_id' });
+    await supabaseAdmin.from('loft_room_member').upsert({
+      loft_room_id: room.id,
+      boh_user_id: (loftProfile as any).bohUserId || null,
+      patron_person_id: (loftProfile as any).patronPersonId || null,
+      role,
+      is_active: true,
+      left_at: null,
+    }, { onConflict: (loftProfile as any).bohUserId ? 'loft_room_id,boh_user_id' : 'loft_room_id,patron_person_id' });
     if (videoSession?.id) {
       const update: Record<string, unknown> = { status: 'joined' };
       if (!videoSession.first_joined_at) update.first_joined_at = new Date().toISOString();
       await supabaseAdmin.from('loft_video_session').update(update).eq('id', videoSession.id);
     }
 
+    const redirectOnMeetingExit = (() => {
+      const value = normalizeText(body.redirectOnMeetingExit);
+      if (!value) return undefined;
+      try {
+        const parsed = new URL(value);
+        return ['http:', 'https:'].includes(parsed.protocol) ? parsed.toString() : undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+
     const tokenResult = await createDailyMeetingToken({
       dailyApiKey,
       roomName: room.daily_room_name,
-      userId: `patron:${patronPersonId}`,
-      userName: externalProfile.displayName,
+      userId: (loftProfile as any).bohUserId ? `boh:${(loftProfile as any).bohUserId}` : `patron:${patronPersonId}`,
+      userName: loftProfile.displayName,
       isOwner: role === 'host',
+      closeTabOnExit: !redirectOnMeetingExit,
+      redirectOnMeetingExit,
     });
 
     return jsonResponse(req, {
@@ -161,9 +195,10 @@ serve(async (req: Request) => {
       videoSessionId: videoSession?.id || null,
       loftRoomId: room.id,
       currentUserProfile: {
-        profileId: externalProfile.profileId,
+        profileId: null,
+        bohUserId: (loftProfile as any).bohUserId || null,
         patronPersonId,
-        displayName: externalProfile.displayName,
+        displayName: loftProfile.displayName,
         isHost: role === 'host',
       },
     });

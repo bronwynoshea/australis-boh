@@ -113,7 +113,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       ? app.external_url
       : '';
     if (externalUrl) {
-      window.open(externalUrl, '_blank', 'noopener,noreferrer');
+      navigate(`/boh/external/${app.slug}`);
       return;
     }
 
@@ -133,7 +133,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   const renderAppCard = (app: any) => {
     const hasAccess = userHasAccess(app);
     const comingSoon = isComingSoon(app);
-    const buttonLabel = comingSoon ? 'Planned' : hasAccess ? 'Open' : 'Request access';
+    const isExternal = app.app_kind === 'external' || app.type === 'external_app';
+    const buttonLabel = comingSoon ? 'Planned' : hasAccess ? (isExternal ? 'Launch' : 'Open') : 'Request access';
     const buttonClass = comingSoon ? 'card-button btn-disabled' : 'card-button btn-primary';
 
     return (
@@ -157,21 +158,16 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
     );
   };
 
-  const renderGroup = (title: string, description: string, apps: any[]) => (
-    <section className="boh-workspace-panel">
-      <div className="boh-workspace-panel-header">
+  const renderAppSection = (title: string, eyebrow: string, apps: any[]) => (
+    <section className="boh-workspace-panel" aria-labelledby={`boh-dashboard-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+      <div className="boh-workspace-section-kicker">
         <div>
-          <h2>{title}</h2>
-          <p>{description}</p>
+          <p>{eyebrow}</p>
+          <h2 id={`boh-dashboard-${title.toLowerCase().replace(/\s+/g, '-')}`}>{title}</h2>
         </div>
+        <span>{apps.length}</span>
       </div>
-      {apps.length > 0 ? (
-        <div className="boh-workspace-app-grid">{apps.map(renderAppCard)}</div>
-      ) : (
-        <div className="boh-workspace-empty compact">
-          <p>No apps are currently available in this group.</p>
-        </div>
-      )}
+      <div className="boh-workspace-app-grid">{apps.map(renderAppCard)}</div>
     </section>
   );
 
@@ -191,10 +187,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
             </div>
           ) : (
             <>
-              <div className="boh-workspace-columns">
-                {renderGroup('Back of House Suite', 'BOH applications enabled for this workspace.', groupedDashboardApps.suite)}
-                {renderGroup('Workspace Links', 'Non-BOH applications, websites, and external apps.', groupedDashboardApps.links)}
-              </div>
+              {dashboardApps.length > 0 && (
+                <div className="boh-workspace-columns">
+                  {groupedDashboardApps.suite.length > 0 && renderAppSection('Internal apps', 'Workspace tools', groupedDashboardApps.suite)}
+                  {groupedDashboardApps.links.length > 0 && renderAppSection('External links', 'Connected surfaces', groupedDashboardApps.links)}
+                </div>
+              )}
               {dashboardApps.length === 0 && (
                 <div className="boh-workspace-empty">
                   <h3>App access did not load.</h3>

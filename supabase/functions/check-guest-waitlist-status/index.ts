@@ -8,27 +8,13 @@ const hasPersonalRoomTag = (room: { tags?: unknown } | null) =>
   Array.isArray(room?.tags) && room.tags.includes(PERSONAL_ROOM_TAG)
 
 async function findPersonalRoomByInviteCode(supabase: any, inviteCode: string) {
-  const roomLookup = await supabase
+  return await supabase
     .from('loft_room')
     .select('id, tags')
     .eq('invite_code', inviteCode)
+    .eq('room_origin', 'personal')
+    .neq('status', 'deleted')
     .maybeSingle()
-
-  const room = roomLookup.data
-  if (roomLookup.error || !room) return roomLookup
-  if (hasPersonalRoomTag(room)) return { data: room, error: null }
-
-  const ownerLookup = await supabase
-    .from('profile')
-    .select('personal_room_id')
-    .eq('personal_room_id', room.id)
-    .maybeSingle()
-
-  if (ownerLookup.error || !ownerLookup.data?.personal_room_id) {
-    return { data: null, error: ownerLookup.error }
-  }
-
-  return { data: room, error: null }
 }
 
 serve(async (req) => {
@@ -60,27 +46,10 @@ serve(async (req) => {
     let { data: room, error: roomError } = await findPersonalRoomByInviteCode(supabase, normalizedCode)
 
     if (!room) {
-      const profileLookup = await supabase
-        .from('profile')
-        .select('personal_room_id')
-        .eq('personal_room_slug', normalizedSlug)
-        .maybeSingle()
-
-      if (profileLookup.error || !profileLookup.data?.personal_room_id) {
-        return new Response(
-          JSON.stringify({ error: 'personal_room_not_found' }),
-          { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-        )
-      }
-
-      const roomLookup = await supabase
-        .from('loft_room')
-        .select('id')
-        .eq('id', profileLookup.data.personal_room_id)
-        .maybeSingle()
-
-      room = roomLookup.data
-      roomError = roomLookup.error
+      return new Response(
+        JSON.stringify({ error: 'personal_room_not_found' }),
+        { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      )
     }
 
     if (roomError || !room?.id) {

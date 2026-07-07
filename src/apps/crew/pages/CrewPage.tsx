@@ -5,10 +5,8 @@ interface BohUser {
   id: string;
   auth_user_id: string;
   email: string | null;
-  full_name: string | null;
   first_name: string | null;
   last_name: string | null;
-  display_name: string | null;
   status: string;
   primary_role_hint: string | null;
   avatar_url: string | null;
@@ -69,7 +67,7 @@ const CrewPage: React.FC = () => {
   };
 
   const getDisplayName = (user: BohUser) => {
-    return user.display_name || user.full_name || user.email || 'Unknown';
+    return [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || 'Incomplete profile';
   };
 
   const filteredCrew = crew.filter(user => {

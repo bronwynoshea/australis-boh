@@ -11,10 +11,7 @@ function json(req: Request, data: unknown, status = 200) {
   });
 }
 
-type Body = {
-  loftRoomId?: string;
-  loft_room_id?: string;
-};
+type Body = { loftRoomId?: string; loft_room_id?: string };
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders(req.headers.get("origin")) });
@@ -24,30 +21,17 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SB_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-
-    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
-      return json(req, { error: "server_not_configured" }, 500);
-    }
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) return json(req, { error: "server_not_configured" }, 500);
 
     const authHeader = req.headers.get("Authorization") ?? "";
-
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
     const supabaseAuthed = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseAuthed.auth.getUser();
-
-    if (userError || !user) {
-      return json(req, { error: "not_authenticated" }, 401);
-    }
+    const { data: { user }, error: userError } = await supabaseAuthed.auth.getUser();
+    if (userError || !user) return json(req, { error: "not_authenticated" }, 401);
 
     const body = (await req.json().catch(() => ({}))) as Body;
     const loftRoomId = String(body.loftRoomId || body.loft_room_id || "").trim();
@@ -55,47 +39,30 @@ serve(async (req: Request) => {
 
     const { data: rows, error: rowsError } = await supabaseAdmin
       .from("loft_room_member")
-      .select("profile_id, role")
+      .select("boh_user_id, patron_person_id, guest_label, role")
       .eq("loft_room_id", loftRoomId);
+    if (rowsError) return json(req, { error: "list_failed", details: rowsError }, 500);
 
-    if (rowsError) {
-      return json(req, { error: "list_failed", details: rowsError }, 500);
-    }
-
-    const profileIds = Array.from(
-      new Set((rows || []).map((r: any) => String(r?.profile_id || '')).filter(Boolean))
-    );
-
-    const userIdByProfileId = new Map<string, string>();
-    if (profileIds.length > 0) {
-      const { data: profiles, error: profileErr } = await supabaseAdmin
-        .from('profile')
-        .select('id, user_id')
-        .in('id', profileIds);
-
-      if (profileErr) {
-        return json(req, { error: 'profile_lookup_failed', details: profileErr }, 500);
-      }
-
-      (profiles || []).forEach((p: any) => {
-        const pid = p?.id ? String(p.id) : '';
-        const uid = p?.user_id ? String(p.user_id) : '';
-        if (!pid || !uid) return;
-        userIdByProfileId.set(pid, uid);
+    const bohIds = Array.from(new Set((rows || []).map((r: any) => String(r?.boh_user_id || '')).filter(Boolean)));
+    const authByBohId = new Map<string, string>();
+    if (bohIds.length > 0) {
+      const { data: users, error: userErr } = await supabaseAdmin.from('boh_user').select('id, auth_user_id').in('id', bohIds);
+      if (userErr) return json(req, { error: 'boh_user_lookup_failed', details: userErr }, 500);
+      (users || []).forEach((u: any) => {
+        if (u?.id && u?.auth_user_id) authByBohId.set(String(u.id), String(u.auth_user_id));
       });
     }
 
     const roles = (rows || [])
-      .map((r: any) => {
-        const profileId = r?.profile_id ? String(r.profile_id) : '';
-        const userId = profileId ? userIdByProfileId.get(profileId) : undefined;
-        return {
-          profileId,
-          userId,
-          role: r?.role,
-        };
-      })
-      .filter((r: any) => r.profileId && r.userId && r.role);
+      .map((r: any) => ({
+        profileId: null,
+        bohUserId: r?.boh_user_id || null,
+        patronPersonId: r?.patron_person_id || null,
+        guestLabel: r?.guest_label || null,
+        userId: r?.boh_user_id ? authByBohId.get(String(r.boh_user_id)) : undefined,
+        role: r?.role,
+      }))
+      .filter((r: any) => (r.bohUserId || r.patronPersonId || r.guestLabel) && r.role);
 
     return json(req, { roles });
   } catch (e) {

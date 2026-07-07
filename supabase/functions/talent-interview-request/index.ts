@@ -192,7 +192,7 @@ async function assertPatronInTenant(supabaseAdmin: any, tenantId: string, patron
   if (!patronPersonId) throw Object.assign(new Error('patron_person_id_required'), { status: 400 });
   const { data, error } = await supabaseAdmin
     .from('patron_person')
-    .select('id, tenant_id, email, display_name, first_name, last_name, person_type_key')
+    .select('id, tenant_id, email, first_name, last_name, person_type_key')
     .eq('id', patronPersonId)
     .eq('tenant_id', tenantId)
     .maybeSingle();
@@ -204,9 +204,10 @@ async function assertPatronInTenant(supabaseAdmin: any, tenantId: string, patron
 async function upsertPatronPerson(supabaseAdmin: any, input: any) {
   if (!VALID_EMAIL.test(input.email)) throw Object.assign(new Error('valid_email_required'), { status: 400 });
   const { firstName, lastName } = splitName(input.fullName || input.email);
+  if (!firstName || !lastName) throw Object.assign(new Error('first_name_and_last_name_required'), { status: 400 });
   const { data: existing, error: existingError } = await supabaseAdmin
     .from('patron_person')
-    .select('id, email, display_name, person_type_key')
+    .select('id, email, person_type_key')
     .eq('tenant_id', input.tenantId)
     .eq('email', input.email)
     .maybeSingle();
@@ -218,7 +219,6 @@ async function upsertPatronPerson(supabaseAdmin: any, input: any) {
     const { data, error } = await supabaseAdmin
       .from('patron_person')
       .update({
-        display_name: input.fullName,
         first_name: firstName || null,
         last_name: lastName || null,
         phone: input.phone || null,
@@ -226,7 +226,7 @@ async function upsertPatronPerson(supabaseAdmin: any, input: any) {
         external_app_context: input.externalAppContext,
       })
       .eq('id', existing.id)
-      .select('id, email, display_name, person_type_key')
+      .select('id, email, person_type_key')
       .single();
     if (error) throw new Error(`patron_update_failed: ${error.message}`);
     return data;
@@ -239,14 +239,13 @@ async function upsertPatronPerson(supabaseAdmin: any, input: any) {
       email: input.email,
       first_name: firstName || null,
       last_name: lastName || null,
-      display_name: input.fullName || input.email,
       phone: input.phone || null,
       source: input.source,
       app_context: 'patron',
       external_app_context: input.externalAppContext,
       person_type_key: input.personTypeKey,
     })
-    .select('id, email, display_name, person_type_key')
+    .select('id, email, person_type_key')
     .single();
   if (error) throw new Error(`patron_create_failed: ${error.message}`);
   return data;
@@ -438,9 +437,12 @@ async function sendCandidateEmail(input: any) {
 function normalizeRecruiter(input: any) {
   const email = normalizeEmail(input.recruiterEmail || input.hostEmail || input.email);
   if (!VALID_EMAIL.test(email)) throw Object.assign(new Error('recruiter_email_required'), { status: 400 });
+  const fullName = normalizeText(input.recruiterName || input.hostDisplayName || input.fullName || input.name);
+  const { firstName, lastName } = splitName(fullName);
+  if (!firstName || !lastName) throw Object.assign(new Error('recruiter_first_name_and_last_name_required'), { status: 400 });
   return {
     email,
-    fullName: normalizeText(input.recruiterName || input.hostDisplayName || input.fullName || input.name) || email,
+    fullName,
     phone: normalizeText(input.recruiterPhone || input.phone) || null,
     timezone: normalizeText(input.recruiterTimezone || input.timezone) || 'UTC',
     externalAuthUserId: normalizeText(input.recruiterAuthUserId || input.hostExternalAuthUserId || input.externalAuthUserId) || null,
@@ -450,9 +452,12 @@ function normalizeRecruiter(input: any) {
 function normalizeCandidate(input: any) {
   const email = normalizeEmail(input.candidateEmail || input.jobSeekerEmail || input.guestEmail || input.email);
   if (!VALID_EMAIL.test(email)) throw Object.assign(new Error('candidate_email_required'), { status: 400 });
+  const fullName = normalizeText(input.candidateName || input.jobSeekerName || input.guestName || input.fullName || input.name);
+  const { firstName, lastName } = splitName(fullName);
+  if (!firstName || !lastName) throw Object.assign(new Error('candidate_first_name_and_last_name_required'), { status: 400 });
   return {
     email,
-    fullName: normalizeText(input.candidateName || input.jobSeekerName || input.guestName || input.fullName || input.name) || email,
+    fullName,
     phone: normalizeText(input.candidatePhone || input.jobSeekerPhone || input.phone) || null,
     timezone: normalizeText(input.candidateTimezone || input.guestTimezone || input.timezone) || 'UTC',
     notes: normalizeText(input.notes || input.agendaNotes || input.message) || null,

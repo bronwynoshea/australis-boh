@@ -61,7 +61,7 @@ serve(async (req: Request) => {
       .from('loft_room')
       .select('id, title, daily_room_name, invite_code, tags, room_origin')
       .eq('tenant_id', tenant.id)
-      .eq('host_profile_id', externalProfile.profileId)
+      .eq('host_patron_person_id', externalProfile.patronPersonId)
       .eq('room_origin', 'personal')
       .neq('status', 'deleted')
       .limit(1)
@@ -89,7 +89,7 @@ serve(async (req: Request) => {
     }
 
     const inviteCode = generateInviteCode();
-    const dailyRoomName = `loft-ext-personal-${tenant.slug}-${externalProfile.profileId}`.toLowerCase();
+    const dailyRoomName = `loft-ext-personal-${tenant.slug}-${externalProfile.patronPersonId}`.toLowerCase();
     await ensureDailyRoom(dailyApiKey, dailyRoomName);
     const title = `${externalProfile.displayName}'s ${persona === 'coach' ? 'Coaching' : 'Interview'} Room`;
     const now = new Date().toISOString();
@@ -99,7 +99,7 @@ serve(async (req: Request) => {
       .insert({
         tenant_id: tenant.id,
         app_context: appContext,
-        host_profile_id: externalProfile.profileId,
+        host_patron_person_id: externalProfile.patronPersonId,
         title,
         description: 'Personal Loft room for scheduled one-on-one sessions.',
         visibility: 'unlisted',
@@ -119,8 +119,11 @@ serve(async (req: Request) => {
       .single();
     if (roomError || !room?.id) throw new Error(`personal_room_create_failed: ${roomError?.message || 'unknown'}`);
 
-    await supabaseAdmin.from('loft_room_member').upsert({ loft_room_id: room.id, profile_id: externalProfile.profileId, role: 'host' }, { onConflict: 'loft_room_id,profile_id' });
-    await supabaseAdmin.from('profile').update({ personal_room_id: room.id, personal_room_slug: inviteCode, can_use_personal_room: true, can_host_loft: true }).eq('id', externalProfile.profileId);
+    await supabaseAdmin.from('loft_room_member').upsert({
+      loft_room_id: room.id,
+      patron_person_id: externalProfile.patronPersonId,
+      role: 'host'
+    }, { onConflict: 'loft_room_id,patron_person_id' });
 
     return jsonResponse(req, {
       success: true,

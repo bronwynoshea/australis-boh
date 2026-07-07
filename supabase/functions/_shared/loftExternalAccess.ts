@@ -76,7 +76,7 @@ export async function assertPatronInTenant(
 ): Promise<any> {
   const { data, error } = await supabaseAdmin
     .from('patron_person')
-    .select('id, tenant_id, email, first_name, last_name, display_name, person_type_key, external_app_context')
+    .select('id, tenant_id, email, first_name, last_name, person_type_key, external_app_context')
     .eq('id', patronPersonId)
     .eq('tenant_id', tenantId)
     .maybeSingle();
@@ -93,21 +93,48 @@ function splitName(displayName: string) {
 }
 
 export function displayNameForCaller(caller: Partial<ExternalLoftCaller>, patron?: any) {
-  const fromCaller = normalizeText(caller.displayName);
-  if (fromCaller) return fromCaller;
-  const patronName = normalizeText(patron?.display_name) || [patron?.first_name, patron?.last_name].filter(Boolean).join(' ').trim();
-  if (patronName) return patronName;
-  return normalizeText(caller.email) || normalizeText(patron?.email) || 'Loft Guest';
+  const firstName = normalizeText(patron?.first_name);
+  const lastName = normalizeText(patron?.last_name);
+  if (!firstName || !lastName) throw new Error('patron_onboarding_incomplete');
+  return `${firstName} ${lastName}`;
+}
+
+function displayNameForProfile(profile: any) {
+  const firstName = normalizeText(profile?.first_name);
+  const lastName = normalizeText(profile?.last_name);
+  if (!firstName || !lastName) throw new Error('boh_user_onboarding_incomplete');
+  return `${firstName} ${lastName}`;
+}
+
+export async function resolveInternalLoftProfileByEmail(
+  supabaseAdmin: any,
+  caller: Pick<ExternalLoftCaller, 'tenantId' | 'email'>,
+): Promise<{ profileId: null; bohUserId: string; created: false; displayName: string; source: 'boh_user' } | null> {
+  const email = normalizeText(caller.email).toLowerCase();
+  if (!email) return null;
+
+  const { data: bohUser, error: bohUserError } = await supabaseAdmin
+    .from('boh_user')
+    .select('id, auth_user_id, email, first_name, last_name, status')
+    .eq('tenant_id', caller.tenantId)
+    .ilike('email', email)
+    .maybeSingle();
+
+  if (bohUserError) throw new Error(`boh_user_lookup_failed: ${bohUserError.message}`);
+  if (!bohUser?.id) return null;
+
+  const displayName = displayNameForProfile(bohUser);
+  return { profileId: null, bohUserId: String(bohUser.id), created: false, displayName, source: 'boh_user' };
 }
 
 export async function ensureExternalLoftProfile(
   supabaseAdmin: any,
   caller: ExternalLoftCaller,
   patron?: any,
-): Promise<{ profileId: string; created: boolean; displayName: string }> {
+): Promise<{ profileId: null; patronPersonId: string; created: boolean; displayName: string }> {
   const { data: existing, error: existingError } = await supabaseAdmin
     .from('loft_external_profile_link')
-    .select('profile_id, display_name')
+    .select('display_name')
     .eq('tenant_id', caller.tenantId)
     .eq('patron_person_id', caller.patronPersonId)
     .eq('app_context', caller.appContext)
@@ -115,26 +142,9 @@ export async function ensureExternalLoftProfile(
 
   if (existingError) throw new Error(`external_profile_lookup_failed: ${existingError.message}`);
   const displayName = displayNameForCaller(caller, patron);
-  const { firstName, lastName } = splitName(displayName);
   const email = normalizeText(caller.email) || normalizeText(patron?.email) || null;
 
-  const canUsePersonalRoom = caller.persona === 'recruiter' || caller.persona === 'coach' || caller.persona === 'staff';
-  const canAutoHostLoft = caller.persona === 'staff';
-
-  if (existing?.profile_id) {
-    await supabaseAdmin
-      .from('profile')
-      .update({
-        email,
-        display_name: displayName,
-        full_name: displayName,
-        first_name: firstName || null,
-        last_name: lastName || null,
-        can_use_personal_room: canUsePersonalRoom,
-        can_host_loft: canAutoHostLoft,
-      })
-      .eq('id', existing.profile_id);
-
+  if (existing) {
     await supabaseAdmin
       .from('loft_external_profile_link')
       .update({
@@ -149,27 +159,8 @@ export async function ensureExternalLoftProfile(
       .eq('patron_person_id', caller.patronPersonId)
       .eq('app_context', caller.appContext);
 
-    return { profileId: existing.profile_id, created: false, displayName };
+    return { profileId: null, patronPersonId: caller.patronPersonId, created: false, displayName };
   }
-
-  const profileId = crypto.randomUUID();
-
-  const { error: profileError } = await supabaseAdmin
-    .from('profile')
-    .insert({
-      id: profileId,
-      user_id: null,
-      email,
-      display_name: displayName,
-      full_name: displayName,
-      first_name: firstName || null,
-      last_name: lastName || null,
-      can_use_personal_room: canUsePersonalRoom,
-      can_host_loft: canAutoHostLoft,
-      user_type_id: null,
-    });
-
-  if (profileError) throw new Error(`external_profile_create_failed: ${profileError.message}`);
 
   const { error: linkError } = await supabaseAdmin
     .from('loft_external_profile_link')
@@ -177,7 +168,6 @@ export async function ensureExternalLoftProfile(
       tenant_id: caller.tenantId,
       patron_person_id: caller.patronPersonId,
       patron_organisation_id: caller.patronOrganisationId || null,
-      profile_id: profileId,
       app_context: caller.appContext,
       persona: caller.persona,
       external_auth_user_id: caller.externalAuthUserId || null,
@@ -192,7 +182,7 @@ export async function ensureExternalLoftProfile(
 
   if (linkError) throw new Error(`external_profile_link_failed: ${linkError.message}`);
 
-  return { profileId, created: true, displayName };
+  return { profileId: null, patronPersonId: caller.patronPersonId, created: true, displayName };
 }
 
 export function isDailyRoomAlreadyExists(resp: Response, body: unknown) {
@@ -222,6 +212,8 @@ export async function createDailyMeetingToken(params: {
   userName: string;
   isOwner: boolean;
   expiresInSeconds?: number;
+  closeTabOnExit?: boolean;
+  redirectOnMeetingExit?: string;
 }) {
   const resp = await fetch('https://api.daily.co/v1/meeting-tokens', {
     method: 'POST',
@@ -236,6 +228,8 @@ export async function createDailyMeetingToken(params: {
         user_name: params.userName,
         is_owner: params.isOwner,
         enable_prejoin_ui: false,
+        close_tab_on_exit: Boolean(params.closeTabOnExit),
+        ...(params.redirectOnMeetingExit ? { redirect_on_meeting_exit: params.redirectOnMeetingExit } : {}),
         exp: Math.floor(Date.now() / 1000) + (params.expiresInSeconds || 4 * 60 * 60),
       },
     }),

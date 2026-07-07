@@ -163,10 +163,10 @@ const PersonalRoomGrid: React.FC<PersonalRoomGridProps> = ({
 
     if (shouldUseComfortGrid) {
       return (
-        <div className="personal-room-comfort-grid flex min-h-full w-full items-center justify-center overflow-y-auto p-4 pb-28 md:p-6 md:pb-28">
-          <div className="personal-room-comfort-grid-inner mx-auto flex w-full max-w-5xl flex-wrap justify-center gap-4 md:gap-5 xl:gap-6">
+        <div className="flex min-h-full w-full items-center justify-center p-4 md:p-6">
+          <div className="mx-auto flex w-full max-w-5xl flex-wrap justify-center gap-4 md:gap-5 xl:gap-6">
             {sortedParticipants.map((participant) => (
-              <div key={participant.id} className="personal-room-comfort-tile w-[min(100%,18rem)] md:w-[min(31%,18.5rem)]">
+              <div key={participant.id} className="w-[min(100%,18rem)] md:w-[min(31%,18.5rem)]">
                 <PersonalRoomParticipantCard
                   participant={{
                     ...participant,

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import BohSlideOver from './boh/BohSlideOver';
@@ -20,6 +20,22 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [codeSentMessage, setCodeSentMessage] = useState('');
 
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const hadDarkTheme = root.classList.contains('dark');
+
+    // BOH login is intentionally theme-neutral/light. Embedded apps such as Loft
+    // can leave the global `dark` class on <html> after logout, which otherwise
+    // makes the public BOH login inherit the workspace/app dark background.
+    root.classList.remove('dark');
+
+    return () => {
+      if (hadDarkTheme) {
+        root.classList.add('dark');
+      }
+    };
+  }, []);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -307,9 +323,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         <section className="login-panel" aria-label="Back of House access">
           <div className="login-box">
-            <div className="login-brand" aria-label="Australis">
-              <img src="/Assets/australis-logo-mark.png" alt="" aria-hidden="true" />
-              <span className="logo-main">Australis</span>
+            <div className="login-brand login-brand-boh" aria-label="Back of House">
+              <img src="/assets/brand/boh-refined-mark.png" alt="" aria-hidden="true" />
+              <span className="logo-main">BOH</span>
+              <span className="logo-sub">Back of House</span>
             </div>
             <h1>{authMode === 'create' ? 'Create your BOH account' : 'Sign in to Back of House'}</h1>
 

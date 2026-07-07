@@ -4,88 +4,55 @@ import { corsHeaders } from "../_shared/cors.ts"
 
 serve(async (req) => {
   const requestCorsHeaders = corsHeaders(req.headers.get('origin'))
-
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: requestCorsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: requestCorsHeaders })
 
   try {
     const { slug, guestName } = await req.json()
-
     if (!slug) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required field: slug' }),
-        { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      )
+      return new Response(JSON.stringify({ error: 'Missing required field: slug' }), { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 400 })
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SB_SECRET_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Get room details and access status
     const { data: roomData, error: roomError } = await supabase
-      .from('loft_room as lr')
-      .select(`
-        lr.id,
-        lr.title,
-        lr.is_open,
-        lr.public_join_enabled,
-        lr.host_profile_id,
-        p.display_name,
-        p.full_name,
-        p.avatar_url
-      `)
-      .innerJoin('profile as p', 'lr.id', 'p.personal_room_id')
-      .eq('p.personal_room_slug', slug)
-      .single()
+      .from('loft_room')
+      .select('id, title, is_open, public_join_enabled, invite_code, host_boh_user_id')
+      .ilike('invite_code', String(slug).trim())
+      .eq('room_origin', 'personal')
+      .neq('status', 'deleted')
+      .maybeSingle()
 
     if (roomError || !roomData) {
-      return new Response(
-        JSON.stringify({ error: 'Room not found' }),
-        { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-      )
+      return new Response(JSON.stringify({ error: 'Room not found' }), { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 404 })
     }
 
-    // Check if guest is already on waitlist (SECURE: service role with strict filtering)
+    const { data: host } = roomData.host_boh_user_id
+      ? await supabase.from('boh_user').select('id, first_name, last_name, email, avatar_url').eq('id', roomData.host_boh_user_id).maybeSingle()
+      : { data: null }
+    const hostName = [host?.first_name, host?.last_name].filter(Boolean).join(' ').trim() || host?.email || 'Host'
+
     let userApprovalStatus = undefined
     if (guestName) {
-      console.log('[Get Personal Room Access] Checking waitlist for guest:', guestName, 'room:', roomData.id);
-      
-      // Use service role client but with VERY specific filtering to minimize security risk
-      const serviceClient = createClient(supabaseUrl, supabaseKey, {
-        global: {
-          headers: { Authorization: `Bearer ${supabaseKey}` }
-        }
-      });
-      
-      // SECURITY: Only select the ONE specific field we need, with exact matching
-      const { data: waitlistData, error: waitlistError } = await serviceClient
+      const { data: waitlistData, error: waitlistError } = await supabase
         .from('loft_room_waitlist')
-        .select('status') // ONLY select status - no other fields
-        .eq('loft_room_id', roomData.id) // Exact room match
-        .eq('guest_name', guestName) // Exact guest name match
-        .single() // Only return one record
-
-      console.log('[Get Personal Room Access] Waitlist query result:', { waitlistData, waitlistError });
-
-      if (waitlistError) {
-        console.error('[Get Personal Room Access] Waitlist query error:', waitlistError);
-        // Don't fail the whole request, just continue without approval status
-      } else if (waitlistData) {
-        userApprovalStatus = waitlistData.status
-        console.log('[Get Personal Room Access] Guest approval status:', userApprovalStatus);
-      }
+        .select('status')
+        .eq('loft_room_id', roomData.id)
+        .eq('guest_name', guestName)
+        .maybeSingle()
+      if (!waitlistError && waitlistData) userApprovalStatus = waitlistData.status
     }
 
     const response = {
       roomId: roomData.id,
       title: roomData.title || 'Personal Room',
-      hostName: roomData.display_name || roomData.full_name || 'Host',
+      hostName,
       hostDetails: {
-        profileId: roomData.host_profile_id,
-        displayName: roomData.display_name || roomData.full_name,
-        avatarUrl: roomData.avatar_url
+        profileId: null,
+        bohUserId: roomData.host_boh_user_id || null,
+        displayName: hostName,
+        avatarUrl: host?.avatar_url || null
       },
       accessStatus: {
         isOpen: roomData.is_open,
@@ -94,16 +61,9 @@ serve(async (req) => {
       userApprovalStatus
     }
 
-    return new Response(
-      JSON.stringify(response),
-      { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-    )
-
-  } catch (error) {
+    return new Response(JSON.stringify(response), { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 200 })
+  } catch (error: any) {
     console.error('Function error:', error)
-    return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
-      { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    )
+    return new Response(JSON.stringify({ error: 'Internal server error', details: error.message }), { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 500 })
   }
 })

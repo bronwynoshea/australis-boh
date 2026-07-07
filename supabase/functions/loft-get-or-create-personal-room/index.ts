@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 function json(req: Request, data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -15,47 +16,24 @@ function isDailyRoomAlreadyExists(resp: Response, body: unknown) {
   return resp.status === 400 && /room named .* already exists/i.test(bodyText);
 }
 
-async function createDailyRoom(params: {
-  dailyApiKey: string;
-  name: string;
-}) {
-  const { dailyApiKey, name } = params;
-
+async function createDailyRoom(params: { dailyApiKey: string; name: string }) {
   const resp = await fetch("https://api.daily.co/v1/rooms", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${dailyApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      name,
-      privacy: "private",
-    }),
+    headers: { Authorization: `Bearer ${params.dailyApiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: params.name, privacy: "private" }),
   });
-
   const jsonBody = await resp.json().catch(() => ({}));
-
-  // If the room name already exists, that's fine; we can reuse it.
-  // Daily may return either 409 or a 400 invalid-request-error for this case.
-  if (isDailyRoomAlreadyExists(resp, jsonBody)) return { name };
-
-  if (!resp.ok) {
-    throw new Error(`daily_room_create_error_${resp.status}: ${JSON.stringify(jsonBody)}`);
-  }
-
+  if (isDailyRoomAlreadyExists(resp, jsonBody)) return { name: params.name };
+  if (!resp.ok) throw new Error(`daily_room_create_error_${resp.status}: ${JSON.stringify(jsonBody)}`);
   return jsonBody;
 }
 
 const INVITE_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
 function generateInviteCode(length = 8) {
-  const characters = INVITE_CODE_ALPHABET;
   const bytes = new Uint32Array(length);
   crypto.getRandomValues(bytes);
   let code = '';
-  for (let i = 0; i < length; i++) {
-    code += characters[bytes[i] % characters.length];
-  }
+  for (let i = 0; i < length; i++) code += INVITE_CODE_ALPHABET[bytes[i] % INVITE_CODE_ALPHABET.length];
   return code;
 }
 
@@ -68,74 +46,31 @@ serve(async (req: Request) => {
     const serviceRoleKey = Deno.env.get("SB_SECRET_KEY");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const dailyApiKey = Deno.env.get("DAILY_API_KEY");
-
-    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
-      return json(req, { error: "server_not_configured" }, 500);
-    }
-    if (!dailyApiKey) {
-      return json(req, { error: "daily_not_configured" }, 500);
-    }
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) return json(req, { error: "server_not_configured" }, 500);
+    if (!dailyApiKey) return json(req, { error: "daily_not_configured" }, 500);
 
     const authHeader = req.headers.get("Authorization") ?? "";
-
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
     const supabaseAuthed = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseAuthed.auth.getUser();
+    const { data: { user }, error: userError } = await supabaseAuthed.auth.getUser();
+    if (userError || !user) return json(req, { error: "not_authenticated" }, 401);
 
-    if (userError || !user) {
-      return json(req, { error: "not_authenticated" }, 401);
-    }
-
-    // Get user's profile
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profile")
-      .select("id, display_name, full_name, first_name, last_name, personal_room_id, can_use_personal_room, can_host_loft, is_loft_admin, user_type_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (profileError || !profile) {
-      return json(req, { error: "profile_not_found" }, 404);
-    }
-
-    if (!profile.can_use_personal_room) {
-      return json(req, {
-        error: "permission_denied",
-        message: "Personal Rooms are limited to JOBZCAFE® staff and recruiters with explicit Personal Room access. Clubhouse-style host approval does not create a Personal Room.",
-      }, 403);
-    }
-
-    const profileId = String(profile.id);
-    const userName = profile.display_name || profile.full_name || profile.first_name || 'Host';
-
-    const { data: bohUser, error: bohUserError } = await supabaseAdmin
-      .from("boh_user")
-      .select("tenant_id")
-      .eq("auth_user_id", user.id)
-      .single();
-
-    if (bohUserError || !bohUser?.tenant_id) {
-      return json(req, { error: "tenant_not_found" }, 403);
+    const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
+    const userName = identity.displayName;
+    if (!identity.firstName || !identity.lastName) {
+      return json(req, { error: "boh_user_onboarding_incomplete", message: "First name and last name are required before creating a Personal Table." }, 400);
     }
 
     const { data: tenant, error: tenantError } = await supabaseAdmin
       .from("boh_tenant")
       .select("id, slug")
-      .eq("id", bohUser.tenant_id)
+      .eq("id", identity.tenantId)
       .single();
-
-    if (tenantError || !tenant?.slug) {
-      return json(req, { error: "tenant_not_found" }, 403);
-    }
+    if (tenantError || !tenant?.slug) return json(req, { error: "tenant_not_found" }, 403);
 
     const tenantId = String(tenant.id);
     const tenantSlug = String(tenant.slug).toLowerCase();
@@ -151,77 +86,40 @@ serve(async (req: Request) => {
       }
       if (!existingRoom.tenant_id) updates.tenant_id = tenantId;
       if (existingRoom.room_origin !== 'personal') updates.room_origin = 'personal';
-      if (!Array.isArray(existingRoom.tags) || !existingRoom.tags.includes('personal-room')) {
-        updates.tags = [...new Set([...(existingRoom.tags || []), 'personal-room'])];
-      }
+      if (!Array.isArray(existingRoom.tags) || !existingRoom.tags.includes('personal-room')) updates.tags = [...new Set([...(existingRoom.tags || []), 'personal-room'])];
       if (Object.keys(updates).length > 0) {
         updates.updated_at = new Date().toISOString();
         await supabaseAdmin.from("loft_room").update(updates).eq("id", existingRoom.id);
       }
 
-      // Daily rooms can disappear when the Daily account/domain/API key changes,
-      // while BOH still has a valid personal-room row. Reconcile the external
-      // Daily room before returning the existing DB row so old Personal Rooms
-      // keep working after Daily configuration changes.
       await createDailyRoom({ dailyApiKey, name: existingRoom.daily_room_name });
-
-      if (profile.personal_room_id !== existingRoom.id) {
-        await supabaseAdmin.from("profile").update({ personal_room_id: existingRoom.id }).eq("id", profileId);
-      }
-
       await supabaseAdmin
         .from("loft_room_member")
-        .upsert({ loft_room_id: existingRoom.id, profile_id: profileId, role: "host" }, { onConflict: "loft_room_id,profile_id" });
+        .upsert({ loft_room_id: existingRoom.id, boh_user_id: identity.bohUserId, role: "host" }, { onConflict: "loft_room_id,boh_user_id" });
 
-      return json(req, {
-        roomId: existingRoom.id,
-        dailyRoomName: existingRoom.daily_room_name,
-        title: expectedTitle,
-        inviteCode,
-        tenantSlug,
-        isNew: false,
-      });
-    }
-
-    // Check if user already has a personal room. The DB enforces one active
-    // personal room per tenant + host; this lookup also covers old profiles whose
-    // profile.personal_room_id was not backfilled.
-    if (profile.personal_room_id) {
-      const { data: existingRoom, error: roomError } = await supabaseAdmin
-        .from("loft_room")
-        .select("id, title, daily_room_name, invite_code, tenant_id, tags, room_origin")
-        .eq("id", profile.personal_room_id)
-        .maybeSingle();
-
-      if (!roomError && existingRoom) return returnExistingPersonalRoom(existingRoom);
+      return json(req, { roomId: existingRoom.id, dailyRoomName: existingRoom.daily_room_name, title: expectedTitle, inviteCode, tenantSlug, isNew: false });
     }
 
     const { data: hostPersonalRoom, error: hostRoomError } = await supabaseAdmin
       .from("loft_room")
       .select("id, title, daily_room_name, invite_code, tenant_id, tags, room_origin")
       .eq("tenant_id", tenantId)
-      .eq("host_profile_id", profileId)
+      .eq("host_boh_user_id", identity.bohUserId)
       .eq("room_origin", "personal")
       .neq("status", "deleted")
       .limit(1)
       .maybeSingle();
-
     if (hostRoomError) return json(req, { error: "db_error", details: hostRoomError }, 500);
     if (hostPersonalRoom) return returnExistingPersonalRoom(hostPersonalRoom);
 
-    // Create new personal room
-    const dailyRoomName = `loft-personal-${profileId}`;
+    const dailyRoomName = `loft-personal-${identity.bohUserId}`;
     const inviteCode = generateInviteCode();
-
-    await createDailyRoom({
-      dailyApiKey,
-      name: dailyRoomName,
-    });
+    await createDailyRoom({ dailyApiKey, name: dailyRoomName });
 
     const insertRow = {
       app_context: 'cafe',
       tenant_id: tenantId,
-      host_profile_id: profileId,
+      host_boh_user_id: identity.bohUserId,
       title: `${userName}'s Personal Room`,
       description: 'Personal meeting room - always available',
       visibility: 'unlisted',
@@ -238,35 +136,12 @@ serve(async (req: Request) => {
       business_context: null,
     };
 
-    const { data: room, error: insertError } = await supabaseAdmin
-      .from("loft_room")
-      .insert(insertRow)
-      .select("*")
-      .single();
+    const { data: room, error: insertError } = await supabaseAdmin.from("loft_room").insert(insertRow).select("*").single();
+    if (insertError || !room) return json(req, { error: "db_error", details: insertError }, 500);
 
-    if (insertError || !room) {
-      return json(req, { error: "db_error", details: insertError }, 500);
-    }
+    await supabaseAdmin.from("loft_room_member").insert({ loft_room_id: room.id, boh_user_id: identity.bohUserId, role: "host" });
 
-    // Update profile with personal room ID
-    await supabaseAdmin
-      .from("profile")
-      .update({ personal_room_id: room.id })
-      .eq("id", profileId);
-
-    // Ensure host is a member
-    await supabaseAdmin
-      .from("loft_room_member")
-      .insert({ loft_room_id: room.id, profile_id: profileId, role: "host" });
-
-    return json(req, {
-      roomId: room.id,
-      dailyRoomName: room.daily_room_name,
-      title: room.title,
-      inviteCode,
-      tenantSlug,
-      isNew: true,
-    });
+    return json(req, { roomId: room.id, dailyRoomName: room.daily_room_name, title: room.title, inviteCode, tenantSlug, isNew: true });
   } catch (e) {
     return json(req, { error: "unexpected_error", details: String((e as any)?.message || e) }, 500);
   }

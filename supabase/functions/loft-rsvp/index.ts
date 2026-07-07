@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 type RsvpBody = {
   roomId?: string;
@@ -72,19 +73,11 @@ serve(async (req: Request) => {
     const statusRaw = String(body.status || "going").toLowerCase();
     const status = statusRaw === "cancelled" ? "cancelled" : "going";
 
-    // Resolve caller profile
-    const byUserId = await supabaseAdmin.from("profile").select("id").eq("user_id", user.id).maybeSingle();
-    const profile = byUserId.data?.id
-      ? byUserId.data
-      : (await supabaseAdmin.from("profile").select("id").eq("id", user.id).maybeSingle()).data;
-
-    if (!profile?.id) {
-      return json(req, { error: "profile_not_found" }, 400);
-    }
+    const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
 
     const { data: room, error: roomError } = await supabaseAdmin
       .from("loft_room")
-      .select("id, app_context, host_profile_id, visibility, max_participants")
+      .select("id, app_context, host_boh_user_id, visibility, max_participants")
       .eq("id", loftRoomId)
       .eq("app_context", appContext)
       .single();
@@ -93,7 +86,7 @@ serve(async (req: Request) => {
       return json(req, { error: "room_not_found", details: roomError }, 404);
     }
 
-    const isOwner = profile.id === room.host_profile_id;
+    const isOwner = identity.bohUserId === room.host_boh_user_id;
 
     if (isOwner) {
       return json(req, { error: "host_cannot_rsvp" }, 400);
@@ -104,7 +97,7 @@ serve(async (req: Request) => {
         .from("loft_room_member")
         .select("id")
         .eq("loft_room_id", room.id)
-        .eq("profile_id", profile.id)
+        .eq("boh_user_id", identity.bohUserId)
         .maybeSingle();
 
       if (memberError) {
@@ -124,7 +117,7 @@ serve(async (req: Request) => {
         .from("loft_room_rsvp")
         .select("status")
         .eq("loft_room_id", loftRoomId)
-        .eq("profile_id", profile.id)
+        .eq("boh_user_id", identity.bohUserId)
         .maybeSingle();
 
       if (existingRsvpError) {
@@ -158,10 +151,10 @@ serve(async (req: Request) => {
       .upsert(
         {
           loft_room_id: loftRoomId,
-          profile_id: profile.id,
+          boh_user_id: identity.bohUserId,
           status,
         },
-        { onConflict: "loft_room_id,profile_id" },
+        { onConflict: "loft_room_id,boh_user_id" },
       );
 
     if (rsvpError) {
@@ -174,11 +167,11 @@ serve(async (req: Request) => {
         .from("loft_room_member")
         .upsert({
           loft_room_id: loftRoomId,
-          profile_id: profile.id,
+          boh_user_id: identity.bohUserId,
           role: "listener",
           is_active: false,
           left_at: null,
-        }, { onConflict: "loft_room_id,profile_id" });
+        }, { onConflict: "loft_room_id,boh_user_id" });
 
       if (memberError) {
         return json(req, { error: "member_upsert_failed", details: memberError }, 500);
@@ -190,7 +183,7 @@ serve(async (req: Request) => {
         .from("loft_room_member")
         .delete()
         .eq("loft_room_id", loftRoomId)
-        .eq("profile_id", profile.id)
+        .eq("boh_user_id", identity.bohUserId)
         .eq("role", "listener");
 
       if (memberDeleteError) {
@@ -205,7 +198,7 @@ serve(async (req: Request) => {
         .insert({
           app_context: room.app_context,
           loft_room_id: loftRoomId,
-          asker_profile_id: profile.id,
+          asker_boh_user_id: identity.bohUserId,
           is_anonymous: isAnonymous,
           source: "rsvp",
           question_text: questionText,

@@ -217,7 +217,7 @@ const AppRail: React.FC<AppRailProps> = ({
             aria-label="Back of House"
             onClick={onBrandClick}
           >
-            <span className="boh-dashboard-logo-text">B</span>
+            <span className="boh-dashboard-logo-mark" aria-hidden="true"><img src="/assets/brand/boh-refined-mark.png" alt="" /></span>
             <span className="boh-dashboard-logo-label">Back of House</span>
           </button>
         </div>
@@ -290,7 +290,7 @@ const AppRail: React.FC<AppRailProps> = ({
           aria-label="Back of House"
           onClick={onBrandClick}
         >
-          <span className="boh-rail-logo-text">B</span>
+          <img className="boh-rail-logo-mark" src="/assets/brand/boh-refined-mark.png" alt="" aria-hidden="true" />
         </button>
       </div>
 

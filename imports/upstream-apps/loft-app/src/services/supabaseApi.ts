@@ -3,7 +3,6 @@ import { supabase } from './supabaseClient';
 import {
   UserProfile,
   LoftRoom,
-  LoftRoomStatus,
   JoinTokenResponse,
   LoftMemberHydration,
   LoftProfileSummary,
@@ -23,9 +22,8 @@ const assignDebugSnapshot = (key: string, value: unknown) => {
 };
 
 const normalizeProfile = (profileRow: any, fallbackName: string): UserProfile => {
+  const canonicalId = profileRow.bohUserId || profileRow.boh_user_id || profileRow.id;
   const nameFromSchema =
-    profileRow.display_name ||
-    profileRow.full_name ||
     [profileRow.first_name, profileRow.last_name].filter(Boolean).join(' ') ||
     profileRow.name ||
     fallbackName ||
@@ -42,7 +40,10 @@ const normalizeProfile = (profileRow: any, fallbackName: string): UserProfile =>
   const personalRoomId = canUsePersonalRoom ? profileRow.personal_room_id || profileRow.personalRoomId || undefined : undefined;
 
   return {
-    id: profileRow.id,
+    id: canonicalId,
+    bohUserId: profileRow.bohUserId || profileRow.boh_user_id || canonicalId,
+    authUserId: profileRow.authUserId || profileRow.auth_user_id || undefined,
+    legacyProfileId: profileRow.legacyProfileId ?? profileRow.legacy_profile_id ?? null,
     name: nameFromSchema,
     avatarUrl: profileRow.avatar_url ?? profileRow.avatarUrl ?? undefined,
     defaultBgId: profileRow.default_bg_id ?? profileRow.defaultBgId ?? undefined,
@@ -131,52 +132,9 @@ const getAuthedUserAndProfile = async (): Promise<{
     }
   }
 
-  const profileSelect = 'id, display_name, full_name, first_name, last_name, subscription_level, access_override, avatar_url, default_bg_id, can_host_loft, can_use_personal_room, personal_room_slug, personal_room_id, is_loft_admin, user_type_id';
-  const byUserId = await supabase
-    .from('profile')
-    .select(profileSelect)
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  const byProfileId = byUserId.data?.id
-    ? { data: null, error: null }
-    : await supabase
-        .from('profile')
-        .select(profileSelect)
-        .eq('id', user.id)
-        .maybeSingle();
-
-  const profileRow = byUserId.data?.id ? byUserId.data : byProfileId.data;
-  const profileErr = byUserId.error || byProfileId.error;
-
-  if (profileErr || !profileRow?.id) {
-    try {
-      return await fetchCurrentProfileFromEdge();
-    } catch {
-      return {
-        user: { id: user.id, email: user.email || undefined },
-        profile: null,
-      };
-    }
-  }
-
-  const profile = normalizeProfile(profileRow, user.email || 'Loft member');
-
-  if ((import.meta as any)?.env?.DEV) {
-    // eslint-disable-next-line no-console
-    console.debug('[Loft][SupabaseUser] profile fetched', {
-      profileId: profile.id,
-      avatarUrl: profile.avatarUrl || null,
-      name: profile.name,
-      canUsePersonalRoom: profile.canUsePersonalRoom,
-      personalRoomSlug: profile.personalRoomSlug || null,
-    });
-    assignDebugSnapshot('__loftDebugProfile', profile);
-  }
-
   return {
     user: { id: user.id, email: user.email || undefined },
-    profile,
+    profile: null,
   };
 };
 
@@ -410,6 +368,7 @@ const EDGE_FN_MAP: Record<string, string> = {
   review_host_application: 'loft-review-host-application',
   loft_admin_list_personal_tables: 'loft-admin-list-personal-tables',
   loft_admin_manage_personal_table: 'loft-admin-manage-personal-table',
+  loft_update_current_profile: 'loft-update-current-profile',
 };
 
 const getCurrentAccessToken = async (): Promise<string | undefined> => {
@@ -495,140 +454,6 @@ export const callEdgeFunction = async <T>(
   }
 
   return data as T;
-};
-
-const fetchRoomsDirectDeprecated = async (filter: string, options?: { includeEnded?: boolean }) => {
-  const { profile } = await getAuthedUserAndProfile();
-  const profileId = profile?.id || null;
-
-  const selectRooms = async (table: 'loft_room_with_counts' | 'loft_room') => {
-    let q = supabase
-      .from(table)
-      .select(`
-        *,
-        profile!loft_room_host_profile_id_fkey (
-          id,
-          display_name,
-          full_name,
-          first_name,
-          last_name,
-          avatar_url
-        )
-      `);
-
-    const includeEnded = !!options?.includeEnded;
-
-    if (filter === 'mine') {
-      if (!profileId) return [];
-      q = q.eq('host_profile_id', profileId);
-
-      if (!includeEnded) {
-        q = q.in('status', [LoftRoomStatus.LIVE, LoftRoomStatus.SCHEDULED]);
-      }
-    } else if (filter === 'registered') {
-      if (!profileId) return [];
-      const { data: rsvps, error: rsvpErr } = await supabase
-        .from('loft_room_rsvp')
-        .select('loft_room_id')
-        .eq('profile_id', profileId)
-        .eq('status', 'going');
-      if (rsvpErr) throw rsvpErr;
-      const ids = (rsvps || []).map((r: any) => r.loft_room_id).filter(Boolean);
-      if (ids.length === 0) return [];
-      q = q.in('id', ids);
-    } else {
-      q = q.in('visibility', ['public', 'unlisted']);
-    }
-
-    if (filter !== 'mine' || includeEnded) {
-      const statusSet = includeEnded
-        ? [LoftRoomStatus.LIVE, LoftRoomStatus.SCHEDULED, LoftRoomStatus.ENDED]
-        : [LoftRoomStatus.LIVE, LoftRoomStatus.SCHEDULED];
-      q = q.in('status', statusSet);
-    }
-
-    q = q
-      .order('status', { ascending: true })
-      .order('scheduled_start_at', { ascending: true, nullsFirst: false })
-      .order('created_at', { ascending: false });
-
-    const { data, error } = await q;
-    if (error) throw error;
-
-    const normalizedRooms = (data || [])
-      .filter((room: any) => {
-        // 🔥 FILTER: Exclude personal rooms from lobby
-        // Personal rooms have an invite_code, regular Loft rooms don't
-        const isPersonalRoom = !!room.invite_code;
-        
-        if (isPersonalRoom) {
-          console.log(`[fetchRooms] Filtering out personal room: ${room.title}`);
-          return false;
-        }
-        
-        return true;
-      })
-      .map((room: any) => {
-      const hostProfile = room?.profile;
-      
-      const hostProfileName =
-        hostProfile?.display_name ||
-        hostProfile?.full_name ||
-        [hostProfile?.first_name, hostProfile?.last_name].filter(Boolean).join(' ') ||
-        '';
-      
-      // Generate public URL for avatar if it exists
-      let publicAvatarUrl = null;
-      if (hostProfile?.avatar_url) {
-        try {
-          // Check if it's already a public URL or needs to be converted
-          if (hostProfile.avatar_url.startsWith('https://') && hostProfile.avatar_url.includes('supabase')) {
-            // It's already a public URL, use as-is
-            publicAvatarUrl = hostProfile.avatar_url;
-          } else {
-            // It's a storage path, generate public URL
-            const { data: publicData } = supabase.storage.from('avatars').getPublicUrl(hostProfile.avatar_url);
-            publicAvatarUrl = publicData?.publicUrl || null;
-          }
-        } catch (error) {
-          console.warn('[fetchRooms] Failed to generate public avatar URL:', error);
-          publicAvatarUrl = null;
-        }
-      }
-      
-      const { profile, ...rest } = room;
-      const finalResult = {
-        ...rest,
-        host_name: hostProfileName || room.host_name || '',
-        host_avatar_url: publicAvatarUrl,
-      };
-      
-      return finalResult;
-    });
-
-    if ((import.meta as any)?.env?.DEV) {
-      // eslint-disable-next-line no-console
-      console.debug('[Loft][Lobby] rooms avatar snapshot', normalizedRooms.map((room: any) => ({
-        roomId: room.id,
-        hostName: room.host_name,
-        hostAvatarUrl: room.host_avatar_url || null,
-      })));
-      assignDebugSnapshot('__loftDebugLobbyRooms', normalizedRooms);
-    }
-
-    return normalizedRooms as LoftRoom[];
-  };
-
-  try {
-    return await selectRooms('loft_room_with_counts');
-  } catch (e: any) {
-    const code = e?.code;
-    const msg = e?.message || '';
-    if (code === '42P01' || msg.toLowerCase().includes('loft_room_with_counts')) {
-      return await selectRooms('loft_room');
-    }
-    throw e;
-  }
 };
 
 export const fetchRooms = async (filter: string, options?: { includeEnded?: boolean }) => {

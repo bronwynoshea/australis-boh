@@ -504,35 +504,6 @@ select:focus-visible,
     padding: 0.75rem 1rem 0.5rem !important;
   }
 
-  .personal-room-comfort-grid {
-    align-items: flex-start !important;
-    padding: 0.75rem 0.75rem 6.25rem !important;
-    scrollbar-width: none;
-  }
-
-  .personal-room-comfort-grid::-webkit-scrollbar {
-    display: none;
-  }
-
-  .personal-room-comfort-grid-inner {
-    gap: 0.75rem !important;
-    max-width: min(100%, 46rem) !important;
-  }
-
-  .personal-room-comfort-tile {
-    width: min(31.5%, 14.5rem) !important;
-    min-width: 11.25rem;
-  }
-
-  .personal-room-comfort-tile .personal-room-card > div:last-child {
-    min-height: 3rem !important;
-    padding: 0.55rem 0.75rem !important;
-  }
-
-  .personal-room-comfort-tile .personal-room-card > div:last-child span:first-child {
-    font-size: 0.78rem !important;
-  }
-
   .personal-room-transport {
     padding-top: 0.45rem !important;
     padding-bottom: max(0.45rem, env(safe-area-inset-bottom)) !important;

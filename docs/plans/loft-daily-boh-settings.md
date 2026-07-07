@@ -1,6 +1,6 @@
 # Daily settings for BOH-native Loft
 
-Daily dashboard/domain settings should no longer point at standalone `loft.jobzcafe.com` or the old JOBZCAFE® app Supabase project.
+Daily dashboard/domain settings should no longer point at standalone `retired standalone Loft hostname` or the old JOBZCAFE® app Supabase project.
 
 Use these BOH-native values:
 

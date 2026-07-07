@@ -5,6 +5,10 @@ import { LoftRoom, LoftRoomStatus } from '@/types';
 import { Calendar, Video, Clock, X, Sparkles, Loader2, FileText, CheckCircle, HelpCircle } from 'lucide-react';
 
 type ActivityRoom = LoftRoom & { __source?: 'host' | 'rsvp' };
+const getCanonicalHostId = (room: LoftRoom): string =>
+    String(room.host_boh_user_id || room.hostBohUserId || room.host_profile_id || room.hostProfileId || '').trim();
+const isRoomHost = (room: LoftRoom, profileId?: string | null): boolean =>
+    !!profileId && getCanonicalHostId(room) === String(profileId).trim();
 
 const MyLoftPage: React.FC<{ onNavigate: (path: string) => void }> = ({ onNavigate }) => {
     const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
@@ -151,7 +155,7 @@ const MyLoftPage: React.FC<{ onNavigate: (path: string) => void }> = ({ onNaviga
                             )}
 
                             {(activeTab === 'upcoming' ? reserved : history).map((room, idx) => {
-                                const isHost = !!profile?.id && profile.id === room.host_profile_id;
+                                const isHost = isRoomHost(room, profile?.id);
                                 const isRsvped = !isHost && (room.__source === 'rsvp' || room.is_registered);
                                 const showJoinButton = isHost
                                     ? room.status === LoftRoomStatus.LIVE || room.status === LoftRoomStatus.SCHEDULED

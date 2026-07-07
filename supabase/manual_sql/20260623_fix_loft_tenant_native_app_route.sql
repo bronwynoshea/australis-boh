@@ -1,4 +1,4 @@
--- Keep Loft tenant-native inside BOH instead of launching loft.jobzcafe.com.
+-- Keep Loft tenant-native inside BOH instead of launching retired standalone Loft hostnames.
 update boh_app
 set route = '/apps/loft',
     type = 'internal_tool',

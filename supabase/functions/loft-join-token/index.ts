@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { hydrateLoftMemberIdentities, identityForMemberRow, resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 type JoinTokenBody = {
   loftRoomId?: string;
@@ -142,7 +143,7 @@ serve(async (req: Request) => {
 
     let roomQuery = supabaseAdmin
       .from("loft_room")
-      .select("id, app_context, tenant_id, host_profile_id, title, daily_room_name, is_recorded, visibility, status, scheduled_start_at, started_at, is_open, opened_at, max_participants, tags")
+      .select("id, app_context, tenant_id, host_boh_user_id, host_patron_person_id, title, daily_room_name, is_recorded, visibility, status, scheduled_start_at, started_at, is_open, opened_at, max_participants, tags")
       .eq("id", loftRoomId);
 
     if (appContext) {
@@ -164,37 +165,15 @@ serve(async (req: Request) => {
 
     const authedUser = user!;
 
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profile")
-      .select("id, display_name, full_name, first_name, last_name, email, avatar_url")
-      .eq("user_id", authedUser.id)
-      .single();
-
-    if (profileError || !profile) {
-      return json(req, { error: "profile_not_found" }, 400);
-    }
-
-    const { data: bohUser, error: bohUserError } = await supabaseAdmin
-      .from("boh_user")
-      .select("id, tenant_id")
-      .eq("auth_user_id", authedUser.id)
-      .eq("app_context", "boh")
-      .maybeSingle();
-
-    if (bohUserError || !bohUser?.tenant_id) {
-      return json(req, { error: "tenant_not_found" }, 403);
-    }
-
-    const tenantId = String(bohUser.tenant_id);
+    const identity = await resolveBohLoftIdentity(supabaseAdmin, authedUser.id);
+    const tenantId = identity.tenantId;
     const roomTenantId = (room as any)?.tenant_id ? String((room as any).tenant_id) : "";
 
     if (!roomTenantId || roomTenantId !== tenantId) {
       return json(req, { error: "room_not_found" }, 404);
     }
 
-    const profileId = String((profile as any)?.id || "");
-    const hostProfileId = String((room as any)?.host_profile_id || "");
-    const isOwner = !!profileId && !!hostProfileId && profileId === hostProfileId;
+    const isOwner = String((room as any)?.host_boh_user_id || "") === identity.bohUserId;
 
     const configuredCapacity = Number((room as any)?.max_participants || 0);
     const maxParticipants = Number.isFinite(configuredCapacity) && configuredCapacity > 0 ? configuredCapacity : 30;
@@ -207,7 +186,7 @@ serve(async (req: Request) => {
         .from('loft_room_member')
         .select('id, role, is_active')
         .eq('loft_room_id', room.id)
-        .eq('profile_id', profile.id)
+        .eq('boh_user_id', identity.bohUserId)
         .maybeSingle();
       memberId = memberRow?.id ? String(memberRow.id) : null;
       memberRole = memberRow?.role ? String(memberRow.role) : null;
@@ -267,7 +246,7 @@ serve(async (req: Request) => {
         .from("loft_room_member")
         .select("id")
         .eq("loft_room_id", room.id)
-        .eq("profile_id", profile.id)
+        .eq("boh_user_id", identity.bohUserId)
         .maybeSingle();
 
       if (memberError) {
@@ -282,7 +261,7 @@ serve(async (req: Request) => {
     if (!isOwner && !memberIsActive) {
       const { data: activeMembers, error: activeMembersError } = await supabaseAdmin
         .from('loft_room_member')
-        .select('profile_id')
+        .select('boh_user_id, patron_person_id, guest_label')
         .eq('loft_room_id', room.id)
         .eq('is_active', true);
 
@@ -290,8 +269,8 @@ serve(async (req: Request) => {
         return json(req, { error: 'capacity_lookup_failed', details: activeMembersError }, 500);
       }
 
-      const activeProfileIds = new Set((activeMembers || []).map((row: any) => String(row.profile_id)).filter(Boolean));
-      const activeCount = activeProfileIds.size;
+      const activeIdentityKeys = new Set((activeMembers || []).map((row: any) => String(row.boh_user_id || row.patron_person_id || row.guest_label)).filter(Boolean));
+      const activeCount = activeIdentityKeys.size;
 
       if (activeCount >= maxParticipants) {
         return json(req, {
@@ -303,7 +282,7 @@ serve(async (req: Request) => {
 
       const { data: rsvpRows, error: rsvpRowsError } = await supabaseAdmin
         .from('loft_room_rsvp')
-        .select('profile_id, status')
+        .select('boh_user_id, patron_person_id, status')
         .eq('loft_room_id', room.id)
         .eq('status', 'going');
 
@@ -311,10 +290,11 @@ serve(async (req: Request) => {
         return json(req, { error: 'rsvp_lookup_failed', details: rsvpRowsError }, 500);
       }
 
-      const callerHasReservedSeat = (rsvpRows || []).some((row: any) => String(row.profile_id) === profileId);
+      const callerReservedKeys = new Set([identity.bohUserId].filter(Boolean));
+      const callerHasReservedSeat = (rsvpRows || []).some((row: any) => callerReservedKeys.has(String(row.boh_user_id || '')));
       const outstandingReservedSeats = (rsvpRows || []).filter((row: any) => {
-        const reservedProfileId = String(row.profile_id || '');
-        return reservedProfileId && reservedProfileId !== profileId && !activeProfileIds.has(reservedProfileId);
+        const reservedIdentityKey = String(row.boh_user_id || row.patron_person_id || '');
+        return reservedIdentityKey && !callerReservedKeys.has(reservedIdentityKey) && !activeIdentityKeys.has(reservedIdentityKey);
       }).length;
 
       if (!callerHasReservedSeat && activeCount + outstandingReservedSeats >= maxParticipants) {
@@ -339,7 +319,7 @@ serve(async (req: Request) => {
           .from('loft_room_member')
           .insert({
             loft_room_id: room.id,
-            profile_id: profile.id,
+            boh_user_id: identity.bohUserId,
             role: 'listener',
             is_active: true,
           })
@@ -360,19 +340,11 @@ serve(async (req: Request) => {
     const { data: memberRows, error: memberRowsError } = await supabaseAdmin
       .from('loft_room_member')
       .select(`
-        profile_id,
+        boh_user_id,
+        patron_person_id,
+        guest_label,
         role,
-        is_hand_raised,
-        profile:profile_id (
-          id,
-          user_id,
-          display_name,
-          full_name,
-          first_name,
-          last_name,
-          email,
-          avatar_url
-        )
+        is_hand_raised
       `)
       .eq('loft_room_id', room.id);
 
@@ -380,39 +352,32 @@ serve(async (req: Request) => {
       return json(req, { error: 'member_hydration_failed', details: memberRowsError }, 500);
     }
 
-    const deriveDisplayName = (row: any) => {
-      if (!row) return 'Guest';
-      const emailLocal = row.email ? String(row.email).split('@')[0] : '';
-      const nameFromParts = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
-      return (
-        String(row.display_name || '').trim() ||
-        String(row.full_name || '').trim() ||
-        nameFromParts ||
-        emailLocal ||
-        'Guest'
-      );
-    };
+    const memberIdentityMap = await hydrateLoftMemberIdentities(supabaseAdmin, memberRows || []);
 
     const members = (memberRows || []).map((row: any) => {
-      const profileRow = row?.profile || {};
-      const displayName = deriveDisplayName(profileRow);
+      const memberIdentity = identityForMemberRow(memberIdentityMap, row);
+      if (!memberIdentity) return null;
       return {
-        profileId: String(row?.profile_id || ''),
-        userId: profileRow?.user_id ? String(profileRow.user_id) : undefined,
-        displayName,
-        avatarUrl: profileRow?.avatar_url || undefined,
+        profileId: null,
+        bohUserId: row?.boh_user_id ? String(row.boh_user_id) : undefined,
+        patronPersonId: row?.patron_person_id ? String(row.patron_person_id) : undefined,
+        guestLabel: row?.guest_label ? String(row.guest_label) : undefined,
+        userId: memberIdentity.userId || undefined,
+        displayName: memberIdentity.displayName,
+        avatarUrl: memberIdentity.avatarUrl || undefined,
         role: String(row?.role || 'listener'),
         isHandRaised: !!row?.is_hand_raised,
       };
-    }).filter((m: any) => m.profileId);
+    }).filter(Boolean);
 
-    const hostDisplayName = deriveDisplayName(profile);
+    const hostDisplayName = identity.displayName;
 
     const currentUserProfile = {
-      profileId: String(profile.id),
+      profileId: null,
+      bohUserId: identity.bohUserId,
       userId: authedUser.id,
       displayName: hostDisplayName,
-      avatarUrl: profile?.avatar_url || null,
+      avatarUrl: identity.avatarUrl || null,
       isHost: isOwner,
     };
 
@@ -436,14 +401,15 @@ serve(async (req: Request) => {
       isRecorded: !!room.is_recorded,
       roomTitle: room.title,
       scheduledStartAt: (room as any)?.scheduled_start_at ?? undefined,
-      hostProfileId,
+      hostProfileId: null,
       members,
       currentUserProfile,
       hostDetails: {
-        profileId: profileId,
+        profileId: null,
         userId: authedUser.id,
         displayName: hostDisplayName,
-        avatarUrl: profile?.avatar_url || null,
+        bohUserId: identity.bohUserId,
+        avatarUrl: identity.avatarUrl || null,
         isHost: true,
       },
     });

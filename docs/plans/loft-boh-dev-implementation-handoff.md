@@ -9,7 +9,7 @@ No secret values were read, copied, printed, or deployed. No production Supabase
 
 ## Implemented in BOH source
 
-- BOH navigation now treats Loft as an internal BOH module at `/loft` rather than an external `dev-loft` / `loft.jobzcafe.com` launch.
+- BOH navigation now treats Loft as an internal BOH module at `/loft` rather than an external `dev-loft` / `retired standalone Loft hostname` launch.
 - The BOH dashboard routes Loft internally and places it with BOH internal apps instead of hybrid/external apps.
 - `/loft` now renders a functional BOH Loft module shell around the existing BOH Loft Edge Functions:
   - prepare/reuse a Personal Room through `loft-get-or-create-personal-room`
@@ -57,7 +57,7 @@ Source-only Studio names should not be carried forward unless a deliberate compa
 - `STUDIO_APP_URL`
 - `STUDIO_SUPABASE_ADMIN_KEY`
 - `STUDIO_SUPABASE_PUBLISHABLE_KEY`
-- `VITE_LOFT_APP_URL`
+- `BOH Loft internal route /apps/loft`
 
 ## Human BOH-DEV apply/deploy checklist
 

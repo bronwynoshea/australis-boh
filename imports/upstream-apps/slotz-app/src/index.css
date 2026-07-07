@@ -197,6 +197,8 @@ body {
 
   .slotz-selected-day,
   .slotz-calendar-today,
+  .slotz-calendar-today-number,
+  .slotz-calendar-today-card,
   .slotz-today-button {
     border-color: color-mix(in srgb, var(--primary) 70%, white) !important;
     background: linear-gradient(135deg, #746df2 0%, #635ccd 52%, #5146b8 100%) !important;
@@ -205,6 +207,8 @@ body {
 
   .slotz-selected-day *,
   .slotz-calendar-today *,
+  .slotz-calendar-today-number *,
+  .slotz-calendar-today-card *,
   .slotz-today-button * {
     color: #fff !important;
   }

@@ -122,7 +122,7 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                                 text-left transition-all duration-200
                                 hover:bg-primary-light/50 dark:hover:bg-white/10
                                 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:z-10
-                                ${!isCurrentMonth ? 'slotz-calendar-unavailable' : 'bg-white dark:bg-darkcard'}
+                                ${isToday ? 'slotz-calendar-today-card' : !isCurrentMonth ? 'slotz-calendar-unavailable' : 'bg-white dark:bg-darkcard'}
                                 ${isPast && !isToday ? 'opacity-60' : ''}
                                 ${hasCalendarItems ? 'hover:shadow-lg' : ''}
                             `}
@@ -134,7 +134,7 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                                         w-7 h-7 flex items-center justify-center rounded-full text-sm font-semibold
                                         transition-colors duration-200
                                         ${isToday
-                                            ? 'slotz-calendar-today shadow-md'
+                                            ? 'slotz-calendar-today-number shadow-md'
                                             : !isCurrentMonth
                                                 ? 'text-primary-text-muted/50 dark:text-white/30'
                                                 : 'text-primary-text dark:text-white'

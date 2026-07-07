@@ -817,6 +817,47 @@ input:checked + .theme-slider:before { transform: translateX(24px); }
     font-size: 0.92rem;
 }
 
+.boh-workspace-section-kicker {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.55rem;
+    padding-inline: 0.08rem;
+}
+
+.boh-workspace-section-kicker p {
+    margin: 0 0 0.12rem;
+    color: var(--text-light);
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.boh-workspace-section-kicker h2 {
+    margin: 0;
+    color: var(--heading-color);
+    font-size: 0.9rem;
+    font-weight: 800;
+    line-height: 1.15;
+}
+
+.boh-workspace-section-kicker span {
+    display: inline-flex;
+    min-width: 1.55rem;
+    height: 1.55rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(99, 92, 205, 0.18);
+    border-radius: 999px;
+    background: rgba(99, 92, 205, 0.06);
+    color: var(--boh-purple);
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
 .boh-workspace-columns {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(220px, 0.85fr);
@@ -2147,10 +2188,17 @@ body.dark {
 
 .dark .boh-workspace-hero p,
 .dark .boh-workspace-panel-header p,
+.dark .boh-workspace-section-kicker p,
 .dark .boh-workspace-stat p,
 .dark .boh-workspace-task-list span,
 .dark .boh-workspace-empty p {
     color: var(--boh-text-sub);
+}
+
+.dark .boh-workspace-section-kicker span {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--boh-text);
 }
 
 .dark .boh-workspace-app-tile {

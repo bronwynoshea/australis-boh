@@ -133,7 +133,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   const renderAppCard = (app: any) => {
     const hasAccess = userHasAccess(app);
     const comingSoon = isComingSoon(app);
-    const buttonLabel = comingSoon ? 'Planned' : hasAccess ? 'Open' : 'Request access';
+    const isExternal = app.app_kind === 'external' || app.type === 'external_app';
+    const buttonLabel = comingSoon ? 'Planned' : hasAccess ? (isExternal ? 'Visit' : 'Open') : 'Request access';
     const buttonClass = comingSoon ? 'card-button btn-disabled' : 'card-button btn-primary';
 
     return (
@@ -157,8 +158,15 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
     );
   };
 
-  const renderAppSection = (ariaLabel: string, apps: any[]) => (
-    <section className="boh-workspace-panel" aria-label={ariaLabel}>
+  const renderAppSection = (title: string, eyebrow: string, apps: any[]) => (
+    <section className="boh-workspace-panel" aria-labelledby={`boh-dashboard-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+      <div className="boh-workspace-section-kicker">
+        <div>
+          <p>{eyebrow}</p>
+          <h2 id={`boh-dashboard-${title.toLowerCase().replace(/\s+/g, '-')}`}>{title}</h2>
+        </div>
+        <span>{apps.length}</span>
+      </div>
       <div className="boh-workspace-app-grid">{apps.map(renderAppCard)}</div>
     </section>
   );
@@ -181,8 +189,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
             <>
               {dashboardApps.length > 0 && (
                 <div className="boh-workspace-columns">
-                  {groupedDashboardApps.suite.length > 0 && renderAppSection('BOH applications', groupedDashboardApps.suite)}
-                  {groupedDashboardApps.links.length > 0 && renderAppSection('External links', groupedDashboardApps.links)}
+                  {groupedDashboardApps.suite.length > 0 && renderAppSection('Internal apps', 'Workspace tools', groupedDashboardApps.suite)}
+                  {groupedDashboardApps.links.length > 0 && renderAppSection('External links', 'Open in a new tab', groupedDashboardApps.links)}
                 </div>
               )}
               {dashboardApps.length === 0 && (

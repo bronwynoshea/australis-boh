@@ -11,12 +11,12 @@ interface MonthlyCalendarProps {
   onSelectDate: (date: Date) => void;
 }
 
-const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({ 
-  date, 
-  bookings, 
+const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
+  date,
+  bookings,
   outlookEvents = [],
   meetingTypes,
-  onSelectDate 
+  onSelectDate
 }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -25,10 +25,10 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
         const year = date.getFullYear();
         const month = date.getMonth();
         const firstDayOfMonth = new Date(year, month, 1);
-        
+
         // Get the first day of the calendar grid (might be from previous month)
         const gridStartDate = addDays(firstDayOfMonth, -firstDayOfMonth.getDay());
-        
+
         const grid: Date[] = [];
         for (let i = 0; i < 42; i++) {
             grid.push(addDays(gridStartDate, i));
@@ -39,12 +39,12 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
     // Group bookings by date for efficient lookup
     const bookingsByDate = useMemo(() => {
         const map = new Map<string, SchedulingBooking[]>();
-        
+
         bookings.forEach(booking => {
             try {
                 const bookingDate = new Date(booking.start_time);
                 const dateKey = `${bookingDate.getFullYear()}-${bookingDate.getMonth()}-${bookingDate.getDate()}`;
-                
+
                 if (!map.has(dateKey)) {
                     map.set(dateKey, []);
                 }
@@ -53,7 +53,7 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                 console.error('Error parsing booking date:', error);
             }
         });
-        
+
         return map;
     }, [bookings]);
 
@@ -92,8 +92,8 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
             {/* Day headers */}
             <div className="grid shrink-0 grid-cols-7 bg-primary-light/30 dark:bg-white/5">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div 
-                        key={day} 
+                    <div
+                        key={day}
                         className="border-r border-primary-border/30 py-3 text-center text-xs font-semibold uppercase tracking-wider text-primary-text-muted last:border-r-0 dark:border-white/5 dark:text-white/50"
                     >
                         {day}
@@ -112,13 +112,13 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                     const hasCalendarItems = dayBookings.length + dayOutlookEvents.length > 0;
 
                     return (
-                        <button 
+                        <button
                             key={`${day.toISOString()}-${index}`}
                             onClick={() => onSelectDate(day)}
                             className={`
-                                relative flex min-h-0 flex-col items-start p-2 border-b border-r last:border-r-0 
+                                relative flex min-h-0 flex-col items-start p-2 border-b border-r last:border-r-0
                                 ${index >= 35 ? 'border-b-0' : ''}
-                                border-primary-border/30 dark:border-white/5 
+                                border-primary-border/30 dark:border-white/5
                                 text-left transition-all duration-200
                                 hover:bg-primary-light/50 dark:hover:bg-white/10
                                 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:z-10
@@ -129,14 +129,14 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                         >
                             {/* Date number */}
                             <div className="shrink-0">
-                                <div 
+                                <div
                                     className={`
                                         w-7 h-7 flex items-center justify-center rounded-full text-sm font-semibold
                                         transition-colors duration-200
-                                        ${isToday 
-                                            ? 'bg-primary text-white shadow-md' 
-                                            : !isCurrentMonth 
-                                                ? 'text-primary-text-muted/50 dark:text-white/30' 
+                                        ${isToday
+                                            ? 'slotz-calendar-today shadow-md'
+                                            : !isCurrentMonth
+                                                ? 'text-primary-text-muted/50 dark:text-white/30'
                                                 : 'text-primary-text dark:text-white'
                                         }
                                     `}
@@ -150,7 +150,7 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                                 {dayBookings.slice(0, 7).map(booking => {
                                     const colors = getBookingColors(booking, meetingTypes);
                                     const meetingType = meetingTypes.find(mt => mt.id === booking.meeting_type_id);
-                                    
+
                                     return (
                                         <div
                                             key={booking.id}
@@ -172,7 +172,7 @@ const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                                         className="slotz-external-legend-dot h-3 w-3 rounded-full border bg-transparent transition-transform duration-150 hover:scale-125"
                                     />
                                 ))}
-                                
+
                                 {/* Show "more" indicator for additional bookings */}
                                 {dayBookings.length + dayOutlookEvents.length > 7 && (
                                     <div className="text-[9px] font-semibold text-primary dark:text-primary-light px-1.5 py-0.5">

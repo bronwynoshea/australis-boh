@@ -195,6 +195,7 @@ body {
     color: #fff !important;
   }
 
+  .slotz-selected-day,
   .slotz-calendar-today,
   .slotz-today-button {
     border-color: color-mix(in srgb, var(--primary) 70%, white) !important;
@@ -202,6 +203,7 @@ body {
     color: #fff !important;
   }
 
+  .slotz-selected-day *,
   .slotz-calendar-today *,
   .slotz-today-button * {
     color: #fff !important;

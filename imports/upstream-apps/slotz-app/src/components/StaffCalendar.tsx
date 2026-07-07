@@ -20,11 +20,11 @@ const StaffCalendar: React.FC<StaffCalendarProps> = ({ selectedDate, onSelectDat
   // Start week on Sunday for consistency
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const emptyDaysStart = Array(firstDayOfMonth).fill(null);
-  
+
   // To keep height consistent, we always render 6 rows (42 cells total)
   const totalCells = 42;
   const emptyDaysEnd = Array(totalCells - (emptyDaysStart.length + days.length)).fill(null);
-  
+
   const monthName = currentViewDate.toLocaleDateString([], { month: 'long', year: 'numeric' });
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -41,14 +41,14 @@ const StaffCalendar: React.FC<StaffCalendarProps> = ({ selectedDate, onSelectDat
         if (!currentStaffId) {
           return;
         }
-        
+
         const bookingsData = await supabaseDb.getBookings();
         setBookings(bookingsData);
       } catch (error) {
         console.error('Error loading bookings:', error);
       }
     };
-    
+
     // Set up an interval to check for staff ID
     const checkStaffId = setInterval(() => {
       const currentStaffId = supabaseDb.getCurrentStaffId();
@@ -57,7 +57,7 @@ const StaffCalendar: React.FC<StaffCalendarProps> = ({ selectedDate, onSelectDat
         loadData();
       }
     }, 100);
-    
+
     return () => clearInterval(checkStaffId);
   }, [currentViewDate]);
 
@@ -104,13 +104,13 @@ const StaffCalendar: React.FC<StaffCalendarProps> = ({ selectedDate, onSelectDat
         {emptyDaysStart.map((_, i) => (
           <div key={`empty-start-${i}`} className="h-9 md:h-10 opacity-0 pointer-events-none" />
         ))}
-        
+
         {/* Actual month days */}
         {days.map(date => {
           const selected = selectedDate && isSameDay(date, selectedDate);
           const past = isPast(date);
           const isToday = isSameDay(date, today);
-          
+
           // Check if there are bookings on this date
           const dayBookings = bookings.filter(booking => {
             const bookingDate = new Date(booking.start_time);
@@ -128,7 +128,8 @@ const StaffCalendar: React.FC<StaffCalendarProps> = ({ selectedDate, onSelectDat
                 aria-label={`${date.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}${past ? ', unavailable' : selected ? ', selected' : ', available'}${dayBookings.length ? `, ${dayBookings.length} booking${dayBookings.length === 1 ? '' : 's'}` : ''}`}
                 className={`
                   h-9 md:h-10 w-full rounded-xl flex flex-col items-center justify-center text-xs transition-all relative
-                  ${selected ? 'bg-primary text-white scale-105 shadow-lg z-10 font-semibold' : 
+                  ${selected && isToday ? 'slotz-calendar-today scale-105 z-10' :
+                    selected ? 'slotz-selected-day text-white scale-105 shadow-lg z-10 font-semibold' :
                     isToday ? 'slotz-calendar-today text-white shadow-lg font-semibold cursor-pointer' :
                     past ? 'opacity-10 cursor-not-allowed' :
                     'hover:bg-primary-light dark:hover:bg-white/5 text-[var(--text-secondary)] font-semibold cursor-pointer'}

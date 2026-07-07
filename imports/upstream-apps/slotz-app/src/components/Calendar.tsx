@@ -48,11 +48,11 @@ const Calendar: React.FC<CalendarProps> = ({
   // Start week on Sunday for consistency
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const emptyDaysStart = Array(firstDayOfMonth).fill(null);
-  
+
   // To keep height consistent, we always render 6 rows (42 cells total)
   const totalCells = 42;
   const emptyDaysEnd = Array(totalCells - (emptyDaysStart.length + days.length)).fill(null);
-  
+
   const monthName = currentViewDate.toLocaleDateString([], { month: 'long', year: 'numeric' });
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -65,7 +65,7 @@ const Calendar: React.FC<CalendarProps> = ({
     const loadData = async () => {
       try {
         setLoading(true);
-        
+
         // Load availability rules and blackout dates from Supabase
         const [rules, blackout, bookings, outlookEvents] = await Promise.all([
           supabaseDb.getAvailabilityRules(),
@@ -73,7 +73,7 @@ const Calendar: React.FC<CalendarProps> = ({
           eventBookings ? Promise.resolve([]) : supabaseDb.getBookings(),
           eventOutlookEvents ? Promise.resolve([]) : supabaseDb.getOutlookEvents()
         ]);
-        
+
         setAvailabilityRules(rules);
         setBlackoutDates(blackout);
         setBookings(bookings);
@@ -84,19 +84,19 @@ const Calendar: React.FC<CalendarProps> = ({
         setLoading(false);
       }
     };
-    
+
     loadData();
   }, [currentViewDate, eventBookings, eventOutlookEvents]);
 
   const isPast = (date: Date) => {
     if (!disablePastDates) return false;
-    
+
     // Use configurable minimum notice
     const noticeHours = minimumNoticeHours ?? 24;
     const minimumNoticeDate = new Date();
     minimumNoticeDate.setHours(minimumNoticeDate.getHours() + noticeHours);
     minimumNoticeDate.setHours(0, 0, 0, 0); // Start of that day
-    
+
     return date < minimumNoticeDate; // Blocks dates within minimum notice period
   };
 
@@ -104,23 +104,23 @@ const Calendar: React.FC<CalendarProps> = ({
     if (loading || availabilityRules.length === 0) {
       return false; // Allow clicking while loading
     }
-    
+
     const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
-    
+
     // Check if it's a blackout date first
     const dateStringYYYYMMDD = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     if (blackoutDates.some(bd => bd.date === dateStringYYYYMMDD)) {
       return true;
     }
-    
+
     // Check if there's an availability rule for this day of week
     const rule = availabilityRules.find(r => r.day_of_week === dayOfWeek);
-    
+
     // If no rule exists or is disabled, the day is unavailable
     if (!rule || !rule.is_enabled) {
       return true;
     }
-    
+
     // Day is available
     return false;
   };
@@ -157,7 +157,7 @@ const Calendar: React.FC<CalendarProps> = ({
 
   return (
     <div className="bg-white dark:bg-darkcard rounded-3xl shadow-sm border border-primary-border dark:border-white/5 p-4 transition-all">
-      
+
       <div className="flex items-center justify-between mb-4 px-2">
         <h3 className="text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)] dark:text-white/80">{monthName}</h3>
         <div className="flex space-x-1">
@@ -183,7 +183,7 @@ const Calendar: React.FC<CalendarProps> = ({
         {emptyDaysStart.map((_, i) => (
           <div key={`empty-start-${i}`} className="h-9 md:h-10 opacity-0 pointer-events-none" />
         ))}
-        
+
         {/* Actual month days */}
         {days.map(date => {
           const selected = selectedDate && isSameDay(date, selectedDate);
@@ -191,7 +191,7 @@ const Calendar: React.FC<CalendarProps> = ({
           const isToday = isSameDay(date, today);
           const unavailable = isUnavailable(date);
           const disabledByAvailability = unavailable && !allowUnavailableDates;
-          
+
           // Check if there are bookings on this date
           const displayBookings = eventBookings ?? bookings;
           const displayOutlookEvents = eventOutlookEvents ?? outlookEvents;
@@ -235,7 +235,8 @@ const Calendar: React.FC<CalendarProps> = ({
                 aria-label={`${date.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}${past ? ', unavailable due to notice period' : disabledByAvailability ? ', unavailable' : selected ? ', selected' : ', available'}`}
                 className={`
                   h-9 md:h-10 w-full rounded-xl flex flex-col items-center justify-center text-xs transition-all relative
-                  ${selected || isRangeStart || isRangeEnd ? 'bg-primary text-white scale-105 shadow-lg z-10 font-semibold' : 
+                  ${(selected || isRangeStart || isRangeEnd) && isToday ? 'slotz-calendar-today scale-105 z-10' :
+                    selected || isRangeStart || isRangeEnd ? 'slotz-selected-day text-white scale-105 shadow-lg z-10 font-semibold' :
                     isToday ? 'slotz-calendar-today text-white shadow-lg font-semibold cursor-pointer' :
                     disabledByAvailability ? 'slotz-calendar-unavailable text-[var(--text-muted)] cursor-not-allowed opacity-70' :
                     'hover:bg-primary-100 dark:hover:bg-white/5 text-[var(--text-secondary)] dark:text-white/70 font-semibold cursor-pointer'}

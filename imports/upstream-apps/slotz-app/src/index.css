@@ -176,6 +176,17 @@ body {
     color: #fff !important;
   }
 
+  .slotz-calendar-health-notice,
+  .slotz-today-card {
+    border-color: color-mix(in srgb, var(--primary) 70%, white) !important;
+    background: var(--primary) !important;
+    color: #fff !important;
+  }
+
+  .slotz-calendar-health-notice * {
+    color: inherit;
+  }
+
   .slotz-notice-error {
     border-color: color-mix(in srgb, var(--danger) 32%, transparent);
     background: color-mix(in srgb, var(--danger) 12%, transparent);

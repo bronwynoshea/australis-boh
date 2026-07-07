@@ -668,19 +668,19 @@ const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ setFeedback, na
                     </header>
 
                     {outlookHealth && outlookHealth.status !== 'connected' && (
-                        <div className="mb-6 rounded-2xl border border-primary/20 bg-primary-light/80 p-4 text-[var(--text-secondary)] shadow-sm dark:border-primary/30 dark:bg-primary/10 dark:text-white">
+                        <div className="slotz-calendar-health-notice mb-6 rounded-2xl border p-4 shadow-sm">
                             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                                 <div className="flex gap-3">
-                                    <div className="mt-0.5 rounded-xl bg-primary/10 p-2 text-primary dark:bg-primary/20 dark:text-primary-200">
+                                    <div className="mt-0.5 rounded-xl bg-white/15 p-2 text-white">
                                         <AlertTriangleIcon className="h-5 w-5" />
                                     </div>
                                     <div>
                                         <p className="text-sm font-semibold">Calendar sync needs attention</p>
-                                        <p className="mt-1 text-sm font-medium text-primary-text-muted dark:text-white/70">
+                                        <p className="mt-1 text-sm font-medium text-white/82">
                                             {outlookHealth.message}
                                         </p>
                                         {outlookHealth.accountEmail && (
-                                            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary-text-muted/70 dark:text-white/50">
+                                            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/62">
                                                 Account: {outlookHealth.accountEmail}
                                             </p>
                                         )}
@@ -692,7 +692,7 @@ const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ setFeedback, na
                                         setInitialTab('integrations');
                                         navigate('staff-settings');
                                     }}
-                                    className="self-start rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary transition-colors hover:bg-primary/10 md:self-center"
+                                    className="self-start rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:bg-white/12 md:self-center"
                                 >
                                     Settings &gt; Integrations
                                 </button>
@@ -702,7 +702,7 @@ const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ setFeedback, na
 
                     <div className="grid min-h-0 grid-cols-1 items-stretch gap-6 md:gap-8 lg:grid-cols-12">
                         <div className="slotz-dashboard-sidebar flex min-h-0 flex-col lg:col-span-3">
-                            <div className="bg-primary text-white p-6 rounded-xl shadow-xl relative overflow-hidden group">
+                            <div className="slotz-today-card text-white p-6 rounded-xl shadow-xl relative overflow-hidden group">
                                 <div className="relative z-10">
                                     <p className="text-white/50 font-semibold text-[10px] uppercase tracking-[0.3em] mb-2">Today</p>
                                     <h2 className="text-5xl md:text-6xl font-semibold tracking-tight leading-none">{todayBookings}</h2>

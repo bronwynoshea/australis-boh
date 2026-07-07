@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import BohSlideOver from './boh/BohSlideOver';
@@ -20,6 +20,22 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [codeSentMessage, setCodeSentMessage] = useState('');
 
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const hadDarkTheme = root.classList.contains('dark');
+
+    // BOH login is intentionally theme-neutral/light. Embedded apps such as Loft
+    // can leave the global `dark` class on <html> after logout, which otherwise
+    // makes the public BOH login inherit the workspace/app dark background.
+    root.classList.remove('dark');
+
+    return () => {
+      if (hadDarkTheme) {
+        root.classList.add('dark');
+      }
+    };
+  }, []);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

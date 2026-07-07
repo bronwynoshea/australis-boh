@@ -35,7 +35,7 @@ serve(async (req: Request) => {
     const identity = await resolveBohLoftIdentity(supabaseAdmin, user.id);
     const { data: personalRoom, error: personalRoomError } = await supabaseAdmin
       .from("loft_room")
-      .select("id, invite_code, slug")
+      .select("id, invite_code")
       .eq("host_boh_user_id", identity.bohUserId)
       .eq("room_origin", "personal")
       .neq("status", "deleted")
@@ -57,8 +57,8 @@ serve(async (req: Request) => {
         canCreateLoftRooms: !!identity.canHostLoft,
         can_use_personal_room: !!personalRoom?.id,
         canUsePersonalRoom: !!personalRoom?.id,
-        personal_room_slug: personalRoom?.invite_code ?? personalRoom?.slug ?? null,
-        personalRoomSlug: personalRoom?.invite_code ?? personalRoom?.slug ?? null,
+        personal_room_slug: personalRoom?.invite_code ?? null,
+        personalRoomSlug: personalRoom?.invite_code ?? null,
         personal_room_id: personalRoom?.id ?? null,
         personalRoomId: personalRoom?.id ?? null,
         is_loft_admin: !!identity.isLoftAdmin,

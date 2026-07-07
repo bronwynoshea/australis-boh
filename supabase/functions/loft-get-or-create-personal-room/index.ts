@@ -76,7 +76,7 @@ serve(async (req: Request) => {
     const tenantSlug = String(tenant.slug).toLowerCase();
 
     async function returnExistingPersonalRoom(existingRoom: any) {
-      let inviteCode = existingRoom.invite_code || existingRoom.slug || '';
+      let inviteCode = existingRoom.invite_code || '';
       const updates: Record<string, unknown> = {};
       const expectedTitle = `${userName}'s Personal Room`;
       if (existingRoom.title !== expectedTitle) updates.title = expectedTitle;
@@ -102,7 +102,7 @@ serve(async (req: Request) => {
 
     const { data: hostPersonalRoom, error: hostRoomError } = await supabaseAdmin
       .from("loft_room")
-      .select("id, title, daily_room_name, invite_code, slug, tenant_id, tags, room_origin")
+      .select("id, title, daily_room_name, invite_code, tenant_id, tags, room_origin")
       .eq("tenant_id", tenantId)
       .eq("host_boh_user_id", identity.bohUserId)
       .eq("room_origin", "personal")

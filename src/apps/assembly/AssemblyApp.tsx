@@ -310,12 +310,14 @@ const MemosPage: React.FC<{ data: AssemblyDashboard; refresh: () => Promise<void
 
 const MeetingsPage: React.FC<{ data: AssemblyDashboard; refresh: () => Promise<void>; notify: (message: string, tone?: 'success' | 'error') => void }> = ({ data, refresh, notify }) => {
   const [title, setTitle] = useState('');
+  const [meetingType, setMeetingType] = useState<AssemblyMeeting['meeting_type']>('operating');
   const [minutesByMeeting, setMinutesByMeeting] = useState<Record<string, string>>({});
 
   const createMeeting = async (event: React.FormEvent) => {
     event.preventDefault();
-    await createAssemblyMeeting({ title, meeting_type: 'operating' });
+    await createAssemblyMeeting({ title, meeting_type: meetingType });
     setTitle('');
+    setMeetingType('operating');
     await refresh();
     notify('Meeting created.', 'success');
   };
@@ -329,8 +331,9 @@ const MeetingsPage: React.FC<{ data: AssemblyDashboard; refresh: () => Promise<v
   return (
     <div className="space-y-6">
       <Card>
-        <form onSubmit={createMeeting} className="flex flex-col gap-3 md:flex-row">
-          <input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="New meeting title" className={`${assemblyFieldClass} min-w-0 flex-1`} />
+        <form onSubmit={createMeeting} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_auto]">
+          <input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="New meeting title" className={`${assemblyFieldClass} min-w-0`} />
+          <ThemedSelect value={meetingType} label="Meeting type" onChange={(value) => setMeetingType(value as AssemblyMeeting['meeting_type'])} options={[{ value: 'operating', label: 'Operating meeting' }, { value: 'board', label: 'Board meeting' }, { value: 'shareholder', label: 'Shareholder meeting' }, { value: 'review', label: 'Review meeting' }]} />
           <PrimaryButton type="submit">Create meeting</PrimaryButton>
         </form>
       </Card>
@@ -438,12 +441,124 @@ const OutcomesPage: React.FC<{ data: AssemblyDashboard; refresh: () => Promise<v
   );
 };
 
-const GovernancePage: React.FC<{ data: AssemblyDashboard }> = ({ data }) => (
-  <div className="grid gap-6 lg:grid-cols-2">
-    <Card><h2 className="text-lg font-semibold text-boh-text-light dark:text-boh-text">Governance meetings</h2><div className="mt-4 space-y-3">{data.meetings.filter((meeting) => ['board', 'shareholder'].includes(meeting.meeting_type)).map((meeting) => <div key={meeting.id} className="rounded-xl border border-boh-border-light p-4 dark:border-boh-border"><h3 className="font-semibold text-boh-text-light dark:text-boh-text">{meeting.title}</h3><p className="text-sm text-boh-text-sub-light dark:text-boh-text-sub">{statusLabel(meeting.meeting_type)} meeting</p></div>)}{data.meetings.filter((meeting) => ['board', 'shareholder'].includes(meeting.meeting_type)).length === 0 && <EmptyState title="No governance meetings" body="Board and shareholder records are kept separate from informal operating notes." />}</div></Card>
-    <Card><h2 className="text-lg font-semibold text-boh-text-light dark:text-boh-text">Resolutions</h2><div className="mt-4 space-y-3">{data.resolutions.map((resolution) => <div key={resolution.id} className="rounded-xl border border-boh-border-light p-4 dark:border-boh-border"><h3 className="font-semibold text-boh-text-light dark:text-boh-text">{resolution.title}</h3><span className={badgeClasses(resolution.status === 'approved' ? 'green' : 'slate')}>{statusLabel(resolution.status)}</span></div>)}{data.resolutions.length === 0 && <EmptyState title="No resolutions recorded" body="Formal approvals and written consents will appear here once recorded." />}</div></Card>
-  </div>
-);
+type GovernanceDocumentKey = 'board_agendas' | 'board_minutes' | 'shareholder_agendas' | 'shareholder_minutes' | 'written_consents' | 'resolutions';
+
+const GovernancePage: React.FC<{ data: AssemblyDashboard }> = ({ data }) => {
+  const [activeDocumentType, setActiveDocumentType] = useState<GovernanceDocumentKey>('board_agendas');
+  const governanceMeetings = data.meetings.filter((meeting) => ['board', 'shareholder'].includes(meeting.meeting_type));
+  const boardMeetings = governanceMeetings.filter((meeting) => meeting.meeting_type === 'board');
+  const shareholderMeetings = governanceMeetings.filter((meeting) => meeting.meeting_type === 'shareholder');
+  const writtenConsents = data.resolutions.filter((resolution) => resolution.resolution_type === 'written_consent');
+  const formalResolutions = data.resolutions.filter((resolution) => resolution.resolution_type !== 'written_consent');
+
+  const documentTypes: Array<{ key: GovernanceDocumentKey; label: string; description: string; count: number }> = [
+    { key: 'board_agendas', label: 'Board agendas', description: 'Agenda packets for board meetings.', count: boardMeetings.length },
+    { key: 'board_minutes', label: 'Board minutes', description: 'Recorded board meeting minutes.', count: boardMeetings.filter((meeting) => meeting.minutes_summary).length },
+    { key: 'shareholder_agendas', label: 'Shareholder meeting agendas', description: 'Agenda records for shareholder meetings.', count: shareholderMeetings.length },
+    { key: 'shareholder_minutes', label: 'Shareholder meeting minutes', description: 'Formal shareholder meeting minutes.', count: shareholderMeetings.filter((meeting) => meeting.minutes_summary).length },
+    { key: 'written_consents', label: 'Written consents', description: 'Written approvals not tied to a live meeting.', count: writtenConsents.length },
+    { key: 'resolutions', label: 'Resolutions', description: 'Board and shareholder resolutions.', count: formalResolutions.length },
+  ];
+
+  const renderMeetingDocuments = (meetings: AssemblyMeeting[], mode: 'agenda' | 'minutes', emptyTitle: string, emptyBody: string) => (
+    <div className="space-y-3">
+      {meetings.map((meeting) => {
+        const agenda = data.agendaItems.filter((item) => item.meeting_id === meeting.id);
+        const minutesReady = Boolean(meeting.minutes_summary?.trim());
+        if (mode === 'minutes' && !minutesReady) return null;
+        return (
+          <div key={meeting.id} className="rounded-xl border border-boh-border-light bg-boh-surface-light p-4 dark:border-boh-border dark:bg-boh-card">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-boh-text-light dark:text-boh-text">{meeting.title}</h3>
+                <p className="mt-1 text-sm text-boh-text-sub-light dark:text-boh-text-sub">{statusLabel(meeting.meeting_type)} meeting · {mode === 'agenda' ? `${agenda.length} agenda items` : statusLabel(meeting.status)}</p>
+              </div>
+              <span className={badgeClasses(mode === 'minutes' ? 'green' : 'blue')}>{mode === 'agenda' ? 'Agenda' : 'Minutes'}</span>
+            </div>
+            {mode === 'agenda' ? (
+              <div className="mt-4 space-y-2">
+                {agenda.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-boh-border-light bg-boh-bg-light px-3 py-2 text-sm dark:border-boh-border dark:bg-boh-surface">
+                    <span className="font-medium text-boh-text-light dark:text-boh-text">{item.sort_order}. {item.title}</span>
+                    <span className="ml-2 text-boh-text-sub-light dark:text-boh-text-sub">{statusLabel(item.purpose)}</span>
+                  </div>
+                ))}
+                {agenda.length === 0 && <p className="text-sm text-boh-text-sub-light dark:text-boh-text-sub">No agenda items are attached yet.</p>}
+              </div>
+            ) : (
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-boh-text-light dark:text-boh-text">{meeting.minutes_summary}</p>
+            )}
+          </div>
+        );
+      })}
+      {meetings.filter((meeting) => mode === 'agenda' || meeting.minutes_summary?.trim()).length === 0 && <EmptyState title={emptyTitle} body={emptyBody} />}
+    </div>
+  );
+
+  const renderResolutionDocuments = (items: typeof data.resolutions, emptyTitle: string, emptyBody: string) => (
+    <div className="space-y-3">
+      {items.map((resolution) => (
+        <div key={resolution.id} className="rounded-xl border border-boh-border-light bg-boh-surface-light p-4 dark:border-boh-border dark:bg-boh-card">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="font-semibold text-boh-text-light dark:text-boh-text">{resolution.title}</h3>
+              <p className="mt-1 text-sm text-boh-text-sub-light dark:text-boh-text-sub">{statusLabel(resolution.resolution_type)}</p>
+            </div>
+            <span className={badgeClasses(resolution.status === 'approved' || resolution.status === 'filed' ? 'green' : 'slate')}>{statusLabel(resolution.status)}</span>
+          </div>
+          {resolution.summary && <p className="mt-4 text-sm leading-6 text-boh-text-light dark:text-boh-text">{resolution.summary}</p>}
+        </div>
+      ))}
+      {items.length === 0 && <EmptyState title={emptyTitle} body={emptyBody} />}
+    </div>
+  );
+
+  const activeCopy = documentTypes.find((item) => item.key === activeDocumentType) || documentTypes[0];
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+      <Card>
+        <h2 className="text-lg font-semibold text-boh-text-light dark:text-boh-text">Governance documents</h2>
+        <p className="mt-2 text-sm leading-6 text-boh-text-sub-light dark:text-boh-text-sub">Board, shareholder, written consent, minutes, agenda, and resolution records are grouped separately from operating notes.</p>
+        <div className="mt-5 space-y-2" role="tablist" aria-label="Governance document types">
+          {documentTypes.map((item) => {
+            const active = item.key === activeDocumentType;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveDocumentType(item.key)}
+                className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${active ? 'border-boh-primary bg-boh-primary/10 text-boh-primary dark:border-boh-accent dark:bg-boh-accent/10 dark:text-boh-accent' : 'border-boh-border-light bg-boh-surface-light text-boh-text-light hover:border-boh-primary/40 hover:bg-boh-bg-light dark:border-boh-border dark:bg-boh-card dark:text-boh-text dark:hover:border-boh-accent/40 dark:hover:bg-boh-surface'}`}
+              >
+                <span className="flex items-center justify-between gap-3">
+                  <span className="font-semibold">{item.label}</span>
+                  <span className="rounded-full border border-current/20 px-2 py-0.5 text-xs">{item.count}</span>
+                </span>
+                <span className={`mt-1 block text-xs ${active ? 'text-boh-primary/80 dark:text-boh-accent/80' : 'text-boh-text-sub-light dark:text-boh-text-sub'}`}>{item.description}</span>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-boh-text-sub-light dark:text-boh-text-sub">Document register</p>
+          <h2 className="mt-1 text-xl font-semibold text-boh-text-light dark:text-boh-text">{activeCopy.label}</h2>
+          <p className="mt-1 text-sm text-boh-text-sub-light dark:text-boh-text-sub">{activeCopy.description}</p>
+        </div>
+        {activeDocumentType === 'board_agendas' && renderMeetingDocuments(boardMeetings, 'agenda', 'No board agendas', 'Board agenda records will appear here once board meetings are created and memos are accepted.')}
+        {activeDocumentType === 'board_minutes' && renderMeetingDocuments(boardMeetings, 'minutes', 'No board minutes', 'Board minutes will appear here after minutes are recorded for board meetings.')}
+        {activeDocumentType === 'shareholder_agendas' && renderMeetingDocuments(shareholderMeetings, 'agenda', 'No shareholder agendas', 'Shareholder meeting agenda records will appear here once shareholder meetings are created.')}
+        {activeDocumentType === 'shareholder_minutes' && renderMeetingDocuments(shareholderMeetings, 'minutes', 'No shareholder minutes', 'Shareholder meeting minutes will appear here after minutes are recorded.')}
+        {activeDocumentType === 'written_consents' && renderResolutionDocuments(writtenConsents, 'No written consents', 'Written consent records will appear here once formal approvals are recorded.')}
+        {activeDocumentType === 'resolutions' && renderResolutionDocuments(formalResolutions, 'No resolutions recorded', 'Board and shareholder resolutions will appear here once recorded.')}
+      </Card>
+    </div>
+  );
+};
 
 const ReviewsPage: React.FC<{ data: AssemblyDashboard }> = ({ data }) => (
   <Card>

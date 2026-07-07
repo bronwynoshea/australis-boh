@@ -476,7 +476,7 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ setFeedback, initia
                             )}
 
                             {visibleOutlookStatusMessage && (
-                                <div className="slotz-notice mb-6 px-3 py-2 text-xs font-medium">
+                                <div className="slotz-notice slotz-integration-notice mb-6 px-3 py-2 text-xs font-medium">
                                     {visibleOutlookStatusMessage}
                                 </div>
                             )}
@@ -687,7 +687,7 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ setFeedback, initia
                         )}
 
                         {visibleGoogleStatusMessage && (
-                            <div className="slotz-notice mb-6 px-3 py-2 text-xs font-medium">
+                            <div className="slotz-notice slotz-integration-notice mb-6 px-3 py-2 text-xs font-medium">
                                 {visibleGoogleStatusMessage}
                             </div>
                         )}
@@ -719,7 +719,7 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ setFeedback, initia
                                 <button
                                     onClick={handleGoogleSyncNow}
                                     disabled={isGoogleSyncingNow}
-                                    className="inline-flex items-center justify-center rounded-lg border border-primary/25 bg-primary px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-primary-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="slotz-google-action inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {isGoogleSyncingNow ? 'Syncing...' : 'Sync now'}
                                 </button>
@@ -734,7 +734,7 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ setFeedback, initia
                         ) : (
                             <button
                                 onClick={handleConnectGoogle}
-                                className="inline-flex rounded-lg border border-primary/20 bg-primary-light px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] shadow-sm transition-all hover:bg-primary-border/70 active:scale-95 dark:border-primary/30 dark:bg-primary/15 dark:text-white dark:hover:bg-primary/25"
+                                className="slotz-google-action inline-flex rounded-lg px-4 py-2.5 text-sm font-medium shadow-sm transition-all active:scale-95"
                             >
                                 Connect Google
                             </button>

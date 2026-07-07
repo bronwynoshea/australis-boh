@@ -152,10 +152,71 @@ body {
   }
 
   .slotz-notice {
-    border: 1px solid rgba(99, 92, 205, 0.24);
-    background: rgba(99, 92, 205, 0.1);
-    color: var(--text-muted);
+    border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent);
+    background: color-mix(in srgb, var(--primary) 10%, var(--bg-secondary));
+    color: var(--text-secondary);
     border-radius: 0.75rem;
+  }
+
+  .dark .slotz-notice,
+  [data-theme="dark"] .slotz-notice {
+    border-color: color-mix(in srgb, var(--primary) 70%, white);
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 14px 34px -24px color-mix(in srgb, var(--primary) 70%, #000);
+  }
+
+  .slotz-integration-notice,
+  .slotz-feedback-notice {
+    border-color: color-mix(in srgb, var(--primary) 70%, white) !important;
+    background: linear-gradient(135deg, #746df2 0%, #635ccd 52%, #5146b8 100%) !important;
+    color: #fff !important;
+  }
+
+  .slotz-integration-notice *,
+  .slotz-feedback-notice * {
+    color: #fff !important;
+  }
+
+  .slotz-calendar-health-notice,
+  .slotz-today-card {
+    border-color: color-mix(in srgb, var(--primary) 70%, white) !important;
+    background: linear-gradient(135deg, #746df2 0%, #635ccd 52%, #5146b8 100%) !important;
+    color: #fff !important;
+  }
+
+  .slotz-calendar-health-notice * {
+    color: inherit;
+  }
+
+  .slotz-today-card *,
+  .slotz-today-card p,
+  .slotz-today-card h2 {
+    color: #fff !important;
+  }
+
+  .slotz-selected-day,
+  .slotz-calendar-today,
+  .slotz-calendar-today-number,
+  .slotz-calendar-today-card,
+  .slotz-google-action,
+  .slotz-today-button {
+    border-color: color-mix(in srgb, var(--primary) 70%, white) !important;
+    background: linear-gradient(135deg, #746df2 0%, #635ccd 52%, #5146b8 100%) !important;
+    color: #fff !important;
+  }
+
+  .slotz-selected-day *,
+  .slotz-calendar-today *,
+  .slotz-calendar-today-number *,
+  .slotz-calendar-today-card *,
+  .slotz-google-action *,
+  .slotz-today-button * {
+    color: #fff !important;
+  }
+
+  .slotz-google-action:hover {
+    filter: brightness(1.05);
   }
 
   .slotz-notice-error {

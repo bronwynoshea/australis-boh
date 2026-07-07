@@ -10,9 +10,9 @@ interface BookingCalendarProps {
   minimumNoticeHours?: number; // Configurable minimum notice hours
 }
 
-const BookingCalendar: React.FC<BookingCalendarProps> = ({ 
-  selectedDate, 
-  onSelectDate, 
+const BookingCalendar: React.FC<BookingCalendarProps> = ({
+  selectedDate,
+  onSelectDate,
   disablePastDates = true,
   isDateAvailable,
   minimumNoticeHours = 24
@@ -25,10 +25,10 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
 
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const emptyDaysStart = Array(firstDayOfMonth).fill(null);
-  
+
   const totalCells = 42;
   const emptyDaysEnd = Array(totalCells - (emptyDaysStart.length + days.length)).fill(null);
-  
+
   const monthName = currentViewDate.toLocaleDateString([], { month: 'long', year: 'numeric' });
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -38,12 +38,12 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
 
   const isPast = (date: Date) => {
     if (!disablePastDates) return false;
-    
+
     // ✅ Use configurable minimum notice
     const minimumNoticeDate = new Date();
     minimumNoticeDate.setHours(minimumNoticeDate.getHours() + minimumNoticeHours);
     minimumNoticeDate.setHours(0, 0, 0, 0); // Start of that day
-    
+
     return date < minimumNoticeDate; // Blocks dates within minimum notice period
   };
 
@@ -73,15 +73,15 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
           {monthName}
         </h3>
         <div className="flex space-x-1">
-          <button 
-            onClick={prevMonth} 
+          <button
+            onClick={prevMonth}
             className="p-2 hover:bg-primary-light dark:hover:bg-white/5 rounded-xl transition-colors text-primary-text-muted hover:text-primary"
             aria-label="Previous month"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <button 
-            onClick={nextMonth} 
+          <button
+            onClick={nextMonth}
             className="p-2 hover:bg-primary-light dark:hover:bg-white/5 rounded-xl transition-colors text-primary-text-muted hover:text-primary"
             aria-label="Next month"
           >
@@ -93,8 +93,8 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-1 mb-1">
         {dayHeaders.map(day => (
-          <div 
-            key={day.key} 
+          <div
+            key={day.key}
             className="text-center text-[9px] font-semibold text-primary-text-muted dark:text-white/55 py-1 uppercase"
             aria-label={day.name}
           >
@@ -109,7 +109,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
         {emptyDaysStart.map((_, i) => (
           <div key={`empty-start-${i}`} className="h-9 md:h-10 opacity-0 pointer-events-none" />
         ))}
-        
+
         {/* Current month days */}
         {days.map(date => {
           const selected = selectedDate && isSameDay(date, selectedDate);
@@ -129,22 +129,24 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
                 aria-label={`${date.toLocaleDateString()}, ${unavailable ? 'unavailable' : 'available'}`}
                 className={`
                   h-12 md:h-14 w-full rounded-xl flex flex-col items-center justify-center text-xs transition-all relative
-                  ${selected 
-                    ? 'bg-primary text-white scale-105 shadow-lg z-10 font-semibold' 
-                    : unavailable 
-                      ? 'text-[var(--text-muted)] cursor-not-allowed opacity-35' 
+                  ${selected && isToday
+                    ? 'slotz-calendar-today scale-105 z-10'
+                    : selected
+                    ? 'slotz-selected-day text-white scale-105 shadow-lg z-10 font-semibold'
+                    : unavailable
+                      ? 'text-[var(--text-muted)] cursor-not-allowed opacity-35'
                       : past
                         ? 'text-[var(--text-muted)] cursor-not-allowed opacity-35'
                         : 'hover:bg-primary-light dark:hover:bg-white/5 text-[var(--text-secondary)] font-semibold cursor-pointer hover:scale-105'
                   }
-                  ${isToday && !selected && !unavailable ? 'ring-2 ring-primary/30 font-semibold text-primary' : ''}
+                  ${isToday && !selected && !unavailable ? 'slotz-calendar-today' : ''}
                 `}
               >
                 <span>{date.getDate()}</span>
-                
+
                 {/* Today indicator */}
                 {isToday && !selected && !unavailable && (
-                  <span className="absolute bottom-1 w-1 h-1 bg-primary rounded-full" />
+                  <span className="absolute bottom-1 w-1 h-1 bg-white rounded-full" />
                 )}
               </button>
             </div>

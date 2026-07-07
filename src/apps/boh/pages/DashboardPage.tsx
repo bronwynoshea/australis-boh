@@ -81,6 +81,25 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
 
   const dashboardApps = accessibleApps;
 
+  const groupedDashboardApps = useMemo(() => {
+    const groups = {
+      suite: [] as any[],
+      links: [] as any[],
+    };
+
+    dashboardApps.forEach((app) => {
+      if (app.app_kind === 'external' || app.type === 'external_app') {
+        groups.links.push(app);
+      } else {
+        groups.suite.push(app);
+      }
+    });
+
+    groups.suite.sort((a, b) => a.name.localeCompare(b.name));
+    groups.links.sort((a, b) => a.name.localeCompare(b.name));
+
+    return groups;
+  }, [dashboardApps]);
 
   const handleAppClick = (app: any) => {
     if (isComingSoon(app)) return;
@@ -94,7 +113,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
       ? app.external_url
       : '';
     if (externalUrl) {
-      window.open(externalUrl, '_blank', 'noopener,noreferrer');
+      navigate(`/boh/external/${app.slug}`);
       return;
     }
 
@@ -114,7 +133,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
   const renderAppCard = (app: any) => {
     const hasAccess = userHasAccess(app);
     const comingSoon = isComingSoon(app);
-    const buttonLabel = comingSoon ? 'Planned' : hasAccess ? 'Open' : 'Request access';
+    const isExternal = app.app_kind === 'external' || app.type === 'external_app';
+    const buttonLabel = comingSoon ? 'Planned' : hasAccess ? (isExternal ? 'Launch' : 'Open') : 'Request access';
     const buttonClass = comingSoon ? 'card-button btn-disabled' : 'card-button btn-primary';
 
     return (
@@ -138,6 +158,18 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
     );
   };
 
+  const renderAppSection = (title: string, eyebrow: string, apps: any[]) => (
+    <section className="boh-workspace-panel" aria-labelledby={`boh-dashboard-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+      <div className="boh-workspace-section-kicker">
+        <div>
+          <p>{eyebrow}</p>
+          <h2 id={`boh-dashboard-${title.toLowerCase().replace(/\s+/g, '-')}`}>{title}</h2>
+        </div>
+        <span>{apps.length}</span>
+      </div>
+      <div className="boh-workspace-app-grid">{apps.map(renderAppCard)}</div>
+    </section>
+  );
 
   return (
     <section id="dashboard-section" className="main-section active">
@@ -156,8 +188,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({
           ) : (
             <>
               {dashboardApps.length > 0 && (
-                <div className="boh-workspace-app-grid boh-workspace-app-grid-unified">
-                  {dashboardApps.map(renderAppCard)}
+                <div className="boh-workspace-columns">
+                  {groupedDashboardApps.suite.length > 0 && renderAppSection('Internal apps', 'Workspace tools', groupedDashboardApps.suite)}
+                  {groupedDashboardApps.links.length > 0 && renderAppSection('External links', 'Connected surfaces', groupedDashboardApps.links)}
                 </div>
               )}
               {dashboardApps.length === 0 && (

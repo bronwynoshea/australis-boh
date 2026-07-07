@@ -163,9 +163,9 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
             <div className="grid grid-cols-[60px_repeat(7,1fr)]">
                 <div className="h-20 border-b border-r border-primary-border/50 dark:border-white/10"></div>
                 {days.map(day => (
-                    <div key={day.toISOString()} className={`p-3 text-center border-b border-l border-primary-border/50 dark:border-primary/20 ${isSameDay(day, today) ? 'bg-primary-light/50 dark:bg-primary/10' : ''}`}>
-                        <p className="text-xs font-semibold text-[var(--text-muted)] uppercase">{day.toLocaleDateString([], { weekday: 'short' })}</p>
-                        <p className={`text-xl font-semibold mt-1 ${isSameDay(day, today) ? 'text-primary' : 'text-[var(--text-secondary)]'}`}>{day.getDate()}</p>
+                    <div key={day.toISOString()} className={`p-3 text-center border-b border-l border-primary-border/50 dark:border-primary/20 ${isSameDay(day, today) ? 'slotz-calendar-today-card' : ''}`}>
+                        <p className={`text-xs font-semibold uppercase ${isSameDay(day, today) ? 'text-white' : 'text-[var(--text-muted)]'}`}>{day.toLocaleDateString([], { weekday: 'short' })}</p>
+                        <p className={`text-xl font-semibold mt-1 ${isSameDay(day, today) ? 'text-white' : 'text-[var(--text-secondary)]'}`}>{day.getDate()}</p>
                     </div>
                 ))}
             </div>

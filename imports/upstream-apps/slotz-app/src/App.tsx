@@ -560,7 +560,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen selection:bg-primary/20 selection:text-primary flex flex-col">
       {feedback && (
-        <div className="slotz-notice fixed bottom-8 left-1/2 z-[100] max-w-[min(92vw,34rem)] -translate-x-1/2 px-5 py-3 text-sm font-normal shadow-lg shadow-black/20 backdrop-blur-md animate-fade-in">
+        <div className="slotz-notice slotz-feedback-notice fixed bottom-8 left-1/2 z-[100] max-w-[min(92vw,34rem)] -translate-x-1/2 px-5 py-3 text-sm font-normal shadow-lg shadow-black/20 backdrop-blur-md animate-fade-in">
           {feedback}
         </div>
       )}

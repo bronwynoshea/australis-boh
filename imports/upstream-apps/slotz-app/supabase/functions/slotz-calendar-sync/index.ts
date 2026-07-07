@@ -51,7 +51,7 @@ serve(async (req: Request) => {
   try {
     const supabaseClient = createClient(
       requiredAnyEnv(['SUPABASE_URL', 'SLOTZ_SUPABASE_URL']),
-      requiredAnyEnv(['SUPABASE_SERVICE_ROLE_KEY', 'SLOTZ_SUPABASE_ADMIN_KEY'])
+      getSupabaseAdminKey()
     )
 
     console.log('Starting calendar sync...')
@@ -61,7 +61,7 @@ serve(async (req: Request) => {
     // Get enabled sync configs
     let syncQuery = supabaseClient
       .from('outlook_calendar_sync')
-      .select('*, scheduling_staff_profiles(id, email, timezone, full_name)')
+      .select('*, scheduling_staff_profiles(id, tenant_id, email, timezone, full_name)')
       .eq('is_enabled', true)
 
     if (requestedStaffId) {
@@ -82,7 +82,7 @@ serve(async (req: Request) => {
 
     for (const syncConfig of syncConfigs || []) {
       try {
-        const profile = syncConfig.scheduling_staff_profiles
+        const profile = await resolveStaffProfile(supabaseClient, syncConfig)
         
         if (!profile) {
           console.log(`No profile found for sync config ${syncConfig.id}`)
@@ -235,6 +235,7 @@ serve(async (req: Request) => {
         for (const event of externalOutlookEvents) {
           const insertPayload = {
             staff_id: profile.id,
+            tenant_id: profile.tenant_id,
             outlook_event_id: event.id,
             external_event_id: event.id,
             calendar_provider: 'outlook',
@@ -330,7 +331,7 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: formatError(error)
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -377,7 +378,7 @@ async function syncGoogleCalendars(supabaseClient: any, requestedStaffId: string
   try {
     let syncQuery = supabaseClient
       .from('google_calendar_sync')
-      .select('*, scheduling_staff_profiles(id, email, timezone, full_name)')
+      .select('*, scheduling_staff_profiles(id, tenant_id, email, timezone, full_name)')
       .eq('is_enabled', true)
 
     if (requestedStaffId) {
@@ -398,7 +399,7 @@ async function syncGoogleCalendars(supabaseClient: any, requestedStaffId: string
 
     for (const syncConfig of syncConfigs || []) {
       try {
-        const profile = syncConfig.scheduling_staff_profiles
+        const profile = await resolveStaffProfile(supabaseClient, syncConfig)
         if (!profile) continue
 
         const { data: tokenData, error: tokenError } = await supabaseClient
@@ -489,6 +490,7 @@ async function syncGoogleCalendars(supabaseClient: any, requestedStaffId: string
             .from('outlook_synced_events')
             .insert({
               staff_id: profile.id,
+              tenant_id: profile.tenant_id,
               outlook_event_id: event.id,
               external_event_id: event.id,
               external_calendar_id: calendarId,
@@ -620,10 +622,68 @@ function requiredAnyEnv(names: string[]) {
   throw new Error(`Missing one of ${names.join(', ')}`)
 }
 
+function getSupabaseAdminKey() {
+  const candidates = [
+    Deno.env.get('SLOTZ_SUPABASE_ADMIN_KEY'),
+    Deno.env.get('SUPABASE_SECRET_KEY'),
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
+  ]
+
+  const secretKeys = Deno.env.get('SUPABASE_SECRET_KEYS')
+  if (secretKeys) {
+    try {
+      const parsed = JSON.parse(secretKeys)
+      if (Array.isArray(parsed)) candidates.unshift(...parsed)
+      if (parsed && typeof parsed === 'object') candidates.unshift(...Object.values(parsed).filter((value) => typeof value === 'string') as string[])
+    } catch (_) {
+      candidates.unshift(...secretKeys.split(',').map((value) => value.trim()))
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    if ([...candidate].some((char) => char.charCodeAt(0) > 127)) continue
+    if (candidate.includes('…') || candidate.includes('...')) continue
+    return candidate
+  }
+
+  throw new Error('Missing usable Supabase admin key')
+}
+
 function isMissingProviderColumnError(error: any) {
   if (!error) return false
   const message = String(error.message || error.details || '')
   return message.includes('calendar_provider') || message.includes('external_event_id')
+}
+
+function formatError(error: unknown) {
+  if (error instanceof Error) return error.message
+  try {
+    return JSON.stringify(error)
+  } catch (_) {
+    return String(error)
+  }
+}
+
+async function resolveStaffProfile(supabaseClient: any, syncConfig: any) {
+  const embeddedProfile = Array.isArray(syncConfig.scheduling_staff_profiles)
+    ? syncConfig.scheduling_staff_profiles[0]
+    : syncConfig.scheduling_staff_profiles
+
+  if (embeddedProfile?.id && embeddedProfile?.tenant_id) return embeddedProfile
+
+  const { data: profile, error } = await supabaseClient
+    .from('scheduling_staff_profiles')
+    .select('id, tenant_id, email, timezone, full_name')
+    .eq('id', syncConfig.staff_id)
+    .single()
+
+  if (error || !profile?.id || !profile?.tenant_id) {
+    console.error('Could not resolve staff profile for calendar sync:', syncConfig.staff_id, error)
+    return null
+  }
+
+  return profile
 }
 
 async function getRequestedStaffId(req: Request, supabaseClient: any) {

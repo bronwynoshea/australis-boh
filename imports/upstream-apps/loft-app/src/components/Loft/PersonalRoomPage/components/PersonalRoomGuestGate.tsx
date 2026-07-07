@@ -300,7 +300,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
 
   if (isLoading) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-[var(--loft-bg)] text-main text-xs font-black tracking-[0.4em] uppercase">
+      <div className="min-h-screen w-full flex items-center justify-center bg-[var(--loft-bg)] text-main text-xs font-semibold tracking-[0.32em] uppercase">
         Loading table...
       </div>
     );
@@ -311,10 +311,10 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
       <PersonalGuestShell hostName={hostName} roomTitle={roomTitle}>
         <div className="space-y-5">
           <div className="space-y-2">
-            <h2 className="text-xl font-black uppercase tracking-tight text-main">You're checked in</h2>
+            <h2 className="text-lg font-semibold uppercase tracking-tight text-main">You're checked in</h2>
             {hostName && <p className="text-sm font-semibold text-muted">Hosted by {hostName}</p>}
           </div>
-          <div className="rounded-2xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-5 py-4 text-center text-sm font-semibold leading-relaxed text-muted">
+          <div className="rounded-2xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-5 py-4 text-center text-sm font-normal leading-relaxed text-muted">
             {isHostRoomOpen
               ? 'Thanks for checking in. We will bring you into the session as soon as the host is ready.'
               : 'Thanks for checking in. This table will open as soon as the host is ready.'}
@@ -322,7 +322,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
           <div className="flex justify-center">
             <div className="h-9 w-9 rounded-full border-2 border-cafe border-t-transparent animate-spin" />
           </div>
-          <p className="text-center text-[11px] font-black uppercase tracking-[0.24em] text-muted/70">
+          <p className="text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-muted/70">
             This page will update automatically
           </p>
         </div>
@@ -351,15 +351,15 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
     <PersonalGuestShell hostName={hostName} roomTitle={roomTitle}>
       <div className="space-y-5">
         <div className="space-y-2">
-          <h2 className="text-xl font-black uppercase tracking-tight text-main">Request access</h2>
-          <p className="text-sm font-semibold leading-relaxed text-muted">
+          <h2 className="text-lg font-semibold uppercase tracking-tight text-main">Request access</h2>
+          <p className="text-sm font-normal leading-relaxed text-muted">
             Add your details so the host can welcome you in.
           </p>
         </div>
 
         <div className="grid gap-3">
           <label className="block text-left">
-            <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.24em] text-muted">Name</span>
+            <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.22em] text-muted">Name</span>
             <input
               type="text"
               value={guestName}
@@ -369,14 +369,14 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
               }}
               onKeyPress={handleKeyPress}
               placeholder="Enter your name"
-              className="w-full rounded-2xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-5 py-4 text-sm font-semibold text-main placeholder:text-muted/70 shadow-inner focus:outline-none focus:ring-2 focus:ring-cafe/50"
+              className="w-full rounded-2xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-5 py-4 text-sm font-normal text-main placeholder:text-muted/70 shadow-inner focus:outline-none focus:ring-2 focus:ring-cafe/50"
               maxLength={50}
               autoComplete="name"
               disabled={isLoading}
             />
           </label>
           <label className="block text-left">
-            <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.24em] text-muted">Email</span>
+            <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.22em] text-muted">Email</span>
             <input
               type="email"
               value={guestEmail}
@@ -386,7 +386,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
               }}
               onKeyPress={handleKeyPress}
               placeholder="Enter your email"
-              className="w-full rounded-2xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-5 py-4 text-sm font-semibold text-main placeholder:text-muted/70 shadow-inner focus:outline-none focus:ring-2 focus:ring-cafe/50"
+              className="w-full rounded-2xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-5 py-4 text-sm font-normal text-main placeholder:text-muted/70 shadow-inner focus:outline-none focus:ring-2 focus:ring-cafe/50"
               maxLength={120}
               autoComplete="email"
               disabled={isLoading}
@@ -401,7 +401,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
             type="button"
             onClick={() => handleJoinRoom(guestName, guestEmail)}
             disabled={!guestName.trim() || !guestEmail.trim() || isLoading}
-            className={`flex w-full items-center justify-center gap-3 rounded-2xl px-6 py-4 text-[11px] font-black uppercase tracking-[0.28em] shadow-lg transition-all ${
+            className={`flex w-full items-center justify-center gap-3 rounded-2xl px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.22em] shadow-lg transition-all ${
               !guestName.trim() || !guestEmail.trim() || isLoading
                 ? 'border border-[var(--loft-border)] bg-[var(--loft-surface-2)] text-muted cursor-not-allowed'
                 : 'bg-cafe text-white shadow-cafe/25 hover:brightness-110 active:scale-95'
@@ -445,17 +445,17 @@ const PersonalGuestShell = ({
             aria-label="Loft home"
           >
             <LoftIcon className="h-10 w-10" />
-            <span className="text-2xl font-black uppercase tracking-tight text-cafe">Loft</span>
+            <span className="text-xl font-semibold uppercase tracking-tight text-cafe">Loft</span>
           </button>
         </header>
 
         <div className="flex flex-1 items-center py-8 lg:py-6 xl:py-10">
           <div className="w-full max-w-2xl space-y-5 2xl:space-y-8">
             <div className="space-y-4">
-              <h1 className="max-w-4xl text-3xl md:text-4xl xl:text-5xl 2xl:text-6xl font-black tracking-tight leading-[0.98] text-main">
+              <h1 className="max-w-3xl text-2xl md:text-3xl xl:text-4xl 2xl:text-5xl font-semibold tracking-tight leading-[1.06] text-main">
                 {hostName ? `Join ${hostName}'s table.` : 'Join this private table.'}
               </h1>
-              <p className="max-w-xl text-base xl:text-[1.05rem] 2xl:text-lg leading-relaxed text-muted">
+              <p className="max-w-xl text-sm xl:text-base leading-relaxed text-muted">
                 You are in the right place for this private JOBZCAFE® Loft table. Add your details and the host will welcome you in when the session is ready.
               </p>
             </div>
@@ -471,7 +471,7 @@ const PersonalGuestShell = ({
           </div>
         </div>
 
-        <footer className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-[var(--loft-border)] pt-5 text-[10px] font-black uppercase tracking-[0.28em] text-muted">
+        <footer className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-[var(--loft-border)] pt-5 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted">
           <span>A JOBZCAFE® product</span>
           <span>{roomTitle || 'Private table access'}</span>
         </footer>
@@ -488,8 +488,8 @@ const PersonalGuestShell = ({
           <div className="flex items-center gap-3 rounded-2xl bg-black/35 border border-white/15 px-4 py-3 text-white backdrop-blur-md">
             <LoftIcon className="h-8 w-8" />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/60">Personal table</p>
-              <p className="text-sm font-black">{hostName || 'Hosted session'}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/60">Personal table</p>
+              <p className="text-sm font-semibold">{hostName || 'Hosted session'}</p>
             </div>
           </div>
         </div>
@@ -503,8 +503,8 @@ const PersonalGuestShell = ({
               <div className={`mb-6 flex h-9 w-9 items-center justify-center rounded-xl ${index === 0 ? 'bg-cafe' : index === 1 ? 'bg-[#57cbe4]' : 'bg-[#6ee7b7]'}`}>
                 {index === 1 ? <UserRound className="h-4 w-4" /> : index === 2 ? <Video className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
               </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/55">{label}</p>
-              <p className="mt-1 text-sm font-black">{detail}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/55">{label}</p>
+              <p className="mt-1 text-sm font-semibold">{detail}</p>
             </div>
           ))}
         </div>
@@ -516,7 +516,7 @@ const PersonalGuestShell = ({
 const GuestTrustItem = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
   <div className="flex items-center gap-2 rounded-2xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-4 py-3 text-main">
     <span className="text-cafe">{icon}</span>
-    <span className="text-[10px] font-black uppercase tracking-[0.2em]">{label}</span>
+    <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">{label}</span>
   </div>
 );
 

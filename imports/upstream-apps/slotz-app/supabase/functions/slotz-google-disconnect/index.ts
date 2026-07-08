@@ -15,7 +15,7 @@ serve(async (req: Request) => {
 
     const supabase = createClient(
       requiredAnyEnv(['SUPABASE_URL', 'SLOTZ_SUPABASE_URL']),
-      requiredAnyEnv(['SUPABASE_SERVICE_ROLE_KEY', 'SLOTZ_SUPABASE_ADMIN_KEY'])
+      requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
     )
     const authToken = authHeader.replace(/^Bearer\s+/i, '')
     const { data: { user }, error: userError } = await supabase.auth.getUser(authToken)

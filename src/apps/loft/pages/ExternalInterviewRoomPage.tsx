@@ -94,7 +94,10 @@ const ExternalInterviewRoomPage: React.FC = () => {
 
   return (
     <div className="loft-shell loft-scope min-h-screen w-full overflow-hidden bg-[var(--loft-bg)] text-main dark:text-white">
-      <PersonalRoomPage roomId={normalizedRoomId} onLeave={() => navigate('/daily-redirect', { replace: true })} />
+      <PersonalRoomPage
+        roomId={normalizedRoomId}
+        onLeave={() => navigate('/daily-redirect', { replace: true, state: { source: 'talent-interview' } })}
+      />
     </div>
   );
 };

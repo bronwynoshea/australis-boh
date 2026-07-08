@@ -1755,12 +1755,16 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
         
         if (hostTokenString && isHost) {
           try {
-            // Do not trust an existing host token as the source of truth. A token
-            // can survive in sessionStorage after the external Daily room has
-            // been deleted/recreated by an account or domain/API-key change.
-            // Continue to loft-join-token below; the Edge Function reconciles
-            // Daily room existence before issuing a fresh token.
-            JSON.parse(hostTokenString);
+            const hostTokenData = JSON.parse(hostTokenString);
+            if (hostTokenData?.token && hostTokenData?.dailyRoomName) {
+              setTokenData(hostTokenData);
+              setHostName('Personal Table');
+              setHostUserData({
+                name: hostTokenData.currentUserProfile?.displayName || hostTokenData.displayName || 'Host',
+                avatarUrl: hostTokenData.currentUserProfile?.avatarUrl,
+              });
+              return;
+            }
           } catch (err) {
               }
         }

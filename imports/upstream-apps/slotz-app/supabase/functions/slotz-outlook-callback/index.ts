@@ -44,7 +44,7 @@ serve(async (req: Request) => {
 
     const supabase = createClient(
       requiredAnyEnv(['SUPABASE_URL', 'SLOTZ_SUPABASE_URL']),
-      requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
+      requiredEnv('SLOTZ_SUPABASE_ADMIN_KEY')
     )
     const codeVerifier = String(statePayload.codeVerifier || '')
     if (!codeVerifier) throw new Error('Missing OAuth code verifier')
@@ -71,7 +71,7 @@ async function completeOutlookConnection(code: string, state: string) {
 
   const supabase = createClient(
     requiredAnyEnv(['SUPABASE_URL', 'SLOTZ_SUPABASE_URL']),
-    requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
+    requiredEnv('SLOTZ_SUPABASE_ADMIN_KEY')
   )
   const codeVerifier = String(statePayload.codeVerifier || '')
   if (!codeVerifier) throw new Error('Missing OAuth code verifier')
@@ -158,7 +158,7 @@ async function recordCallbackFailure(req: Request, reason: string) {
 
     const supabase = createClient(
       requiredAnyEnv(['SUPABASE_URL', 'SLOTZ_SUPABASE_URL']),
-      requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
+      requiredEnv('SLOTZ_SUPABASE_ADMIN_KEY')
     )
 
     await supabase
@@ -228,7 +228,7 @@ async function verifyState(state: string): Promise<Record<string, unknown>> {
 
   const key = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])),
+    new TextEncoder().encode(requiredEnv('SLOTZ_SUPABASE_ADMIN_KEY')),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['verify']

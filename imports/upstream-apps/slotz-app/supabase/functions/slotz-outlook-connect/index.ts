@@ -14,7 +14,7 @@ serve(async (req: Request) => {
     if (!authHeader) return json({ error: 'Missing authorization header' }, 401)
 
     const supabaseUrl = requiredAnyEnv(['SUPABASE_URL', 'SLOTZ_SUPABASE_URL'])
-    const adminKey = requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
+    const adminKey = requiredEnv('SLOTZ_SUPABASE_ADMIN_KEY')
     const clientId = getAzureClientId()
     const tenantId = getAzureTenantId()
     const redirectUri = getRedirectUri()
@@ -56,7 +56,7 @@ serve(async (req: Request) => {
 
 async function signState(payload: Record<string, unknown>) {
   const encodedPayload = base64UrlEncode(JSON.stringify(payload))
-  const secret = requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
+  const secret = requiredEnv('SLOTZ_SUPABASE_ADMIN_KEY')
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(secret),

@@ -226,7 +226,7 @@ serve(async (req: Request) => {
     const { data: hostUser } = room.host_boh_user_id
       ? await supabaseAdmin
           .from("boh_user")
-          .select("id, first_name, last_name, email")
+          .select("id, first_name, last_name, full_name, display_name, email")
           .eq("id", room.host_boh_user_id)
           .maybeSingle()
       : { data: null };
@@ -275,8 +275,8 @@ serve(async (req: Request) => {
     return json(req, {
       token: tokenResp.token,
       dailyRoomName: room.daily_room_name,
-      roomTitle: room.title || `${[hostUser?.first_name, hostUser?.last_name].filter(Boolean).join(' ').trim() || hostUser?.email || tenant.name || 'Host'}'s Room`,
-      hostName: [hostUser?.first_name, hostUser?.last_name].filter(Boolean).join(' ').trim() || hostUser?.email || tenant.name || 'Host',
+      roomTitle: room.title || `${String(hostUser?.full_name || hostUser?.display_name || [hostUser?.first_name, hostUser?.last_name].filter(Boolean).join(' ') || hostUser?.email || tenant.name || 'Host').trim()}'s Room`,
+      hostName: String(hostUser?.full_name || hostUser?.display_name || [hostUser?.first_name, hostUser?.last_name].filter(Boolean).join(' ') || hostUser?.email || tenant.name || 'Host').trim(),
     });
 
   } catch (e) {

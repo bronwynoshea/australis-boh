@@ -38,7 +38,7 @@ export function canonicalName(row: any, type: "boh_user" | "patron_person" | "gu
   if (!firstName || !lastName) {
     throw new Error(type === "patron_person" ? "patron_onboarding_incomplete" : "boh_user_onboarding_incomplete");
   }
-  return `${firstName} ${lastName}`;
+  return normalizeText(row?.full_name) || normalizeText(row?.display_name) || `${firstName} ${lastName}`;
 }
 
 export function isAdminRole(value: unknown): boolean {
@@ -48,7 +48,7 @@ export function isAdminRole(value: unknown): boolean {
 export async function resolveBohLoftIdentity(supabaseAdmin: any, authUserId: string): Promise<LoftBohIdentity> {
   const { data: bohUser, error: bohUserError } = await supabaseAdmin
     .from("boh_user")
-    .select("id, tenant_id, auth_user_id, first_name, last_name, avatar_url, primary_role_hint")
+    .select("id, tenant_id, auth_user_id, first_name, last_name, full_name, display_name, avatar_url, primary_role_hint")
     .eq("auth_user_id", authUserId)
     .eq("app_context", "boh")
     .maybeSingle();

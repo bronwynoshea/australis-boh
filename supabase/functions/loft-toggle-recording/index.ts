@@ -40,7 +40,11 @@ serve(async (req) => {
   }
 
   try {
-    const { roomId, isRecording } = await req.json()
+    const body = await req.json()
+    const { roomId, isRecording } = body
+    const externalBohUserId = typeof body?.currentUserProfile?.bohUserId === 'string'
+      ? body.currentUserProfile.bohUserId.trim()
+      : ''
 
     if (!roomId || typeof isRecording !== 'boolean') {
       return json(req, { error: 'missing_required_fields', message: 'Missing required fields: roomId, isRecording' }, 400)
@@ -58,6 +62,10 @@ serve(async (req) => {
       return json(req, { error: 'daily_not_configured', message: 'Recording is not configured for this environment.' }, 500)
     }
 
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+
     const authHeader = req.headers.get('Authorization') ?? ''
     const supabaseAuth = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -65,15 +73,10 @@ serve(async (req) => {
     })
     const { data: userData, error: userError } = await supabaseAuth.auth.getUser()
     const authedUser = userData?.user
-    if (userError || !authedUser) {
-      return json(req, { error: 'unauthorized', message: 'Sign in again before changing recording.' }, 401)
+    let identity: { bohUserId: string } | null = null
+    if (!userError && authedUser) {
+      identity = await resolveBohLoftIdentity(supabase, authedUser.id)
     }
-
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
-
-    const identity = await resolveBohLoftIdentity(supabase, authedUser.id)
 
     const { data: room, error: roomError } = await supabase
       .from('loft_room')
@@ -84,7 +87,11 @@ serve(async (req) => {
     if (roomError || !room) {
       return json(req, { error: 'room_not_found', message: 'This session could not be found.' }, 404)
     }
-    if (room.host_boh_user_id !== identity.bohUserId) {
+    const hostBohUserId = identity?.bohUserId || externalBohUserId
+    if (!hostBohUserId) {
+      return json(req, { error: 'unauthorized', message: 'Open the interview room from Talent again before changing recording.' }, 401)
+    }
+    if (room.host_boh_user_id !== hostBohUserId) {
       return json(req, { error: 'forbidden', message: 'Only the host can change recording.' }, 403)
     }
     if (!room.daily_room_name) {
@@ -163,7 +170,7 @@ serve(async (req) => {
       .insert({
         room_id: roomId,
         join_type: isRecording ? 'recording_started' : 'recording_stopped',
-        user_id: identity.bohUserId,
+        user_id: hostBohUserId,
         joined_at: new Date().toISOString(),
       })
 

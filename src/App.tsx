@@ -356,6 +356,7 @@ function App() {
       <Route path="/central/*" element={renderProtectedRoute(<CentralApp isAdmin={isSuperAdmin} />)} />
       <Route path="/keep/*" element={renderProtectedRoute(<KeepApp isAdmin={isSuperAdmin} />)} />
       <Route path="/daily-redirect" element={<DailyRedirectPage />} />
+      <Route path="/apps/loft/interview-room/:roomId" element={<ExternalInterviewRoomPage />} />
       <Route path="/loft/interview-room/:roomId" element={<ExternalInterviewRoomPage />} />
       <Route path="/t/:tenantSlug/loft/join/:slug" element={<PersonalRoomPublicJoinPage />} />
       <Route path="/loft/join/:slug" element={<PersonalRoomPublicJoinPage />} />

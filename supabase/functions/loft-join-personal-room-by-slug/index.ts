@@ -226,7 +226,7 @@ serve(async (req: Request) => {
     const { data: hostUser } = room.host_boh_user_id
       ? await supabaseAdmin
           .from("boh_user")
-          .select("id, first_name, last_name, email")
+          .select("id, first_name, last_name, full_name, display_name, email")
           .eq("id", room.host_boh_user_id)
           .maybeSingle()
       : { data: null };
@@ -272,7 +272,7 @@ serve(async (req: Request) => {
     console.log('[join-personal-room] Success for slug:', sanitizedSlug);
 
     // ✅ NEVER RETURN ROOM ID - only what's needed to join
-    const hostName = [hostUser?.first_name, hostUser?.last_name].filter(Boolean).join(' ').trim() || hostUser?.email || '';
+    const hostName = String(hostUser?.full_name || hostUser?.display_name || [hostUser?.first_name, hostUser?.last_name].filter(Boolean).join(' ') || hostUser?.email || '').trim();
     if (!hostName) return json(req, { error: "host_onboarding_incomplete" }, 400);
 
     return json(req, {

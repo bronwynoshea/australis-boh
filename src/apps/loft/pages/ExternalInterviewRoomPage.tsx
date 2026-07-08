@@ -41,7 +41,18 @@ const ExternalInterviewRoomPage: React.FC = () => {
   const [ready, setReady] = useState(false);
   const [payloadError, setPayloadError] = useState(false);
   const normalizedRoomId = roomId.trim();
-  const payload = useMemo(() => decodePayload(searchParams.get('payload')), [searchParams]);
+  const payload = useMemo(() => {
+    const fromUrl = decodePayload(searchParams.get('payload'));
+    if (fromUrl) return fromUrl;
+
+    try {
+      const windowPayload = JSON.parse(window.name || '{}');
+      const encodedPayload = typeof windowPayload?.loftRoomPayload === 'string' ? windowPayload.loftRoomPayload : null;
+      return decodePayload(encodedPayload);
+    } catch {
+      return null;
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!normalizedRoomId || !payload) {
@@ -58,6 +69,8 @@ const ExternalInterviewRoomPage: React.FC = () => {
       sessionStorage.setItem('personalRoomIsHost', payload.role === 'host' ? 'true' : 'false');
       sessionStorage.setItem('personalRoomToken', JSON.stringify(tokenPayload));
       sessionStorage.setItem('userExplicitlyJoined', 'true');
+      window.name = '';
+      window.history.replaceState(window.history.state, document.title, window.location.pathname);
       localStorage.removeItem('isPersonalRoomGuest');
       localStorage.removeItem('loft_approval_status');
       setReady(true);

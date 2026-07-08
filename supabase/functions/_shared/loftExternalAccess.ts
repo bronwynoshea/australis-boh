@@ -103,7 +103,7 @@ function displayNameForProfile(profile: any) {
   const firstName = normalizeText(profile?.first_name);
   const lastName = normalizeText(profile?.last_name);
   const explicitName = normalizeText(profile?.full_name) || normalizeText(profile?.display_name);
-  const displayName = [firstName, lastName].filter(Boolean).join(' ') || explicitName;
+  const displayName = explicitName || [firstName, lastName].filter(Boolean).join(' ');
   if (!firstName || !lastName) throw new Error('boh_user_onboarding_incomplete');
   return displayName;
 }

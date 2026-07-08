@@ -15,7 +15,7 @@ serve(async (req: Request) => {
   try {
     const supabase = createClient(
       requiredAnyEnv(['SUPABASE_URL', 'SLOTZ_SUPABASE_URL']),
-      requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
+      requiredEnv('SLOTZ_SUPABASE_ADMIN_KEY')
     )
 
     const { data: jobs, error } = await supabase

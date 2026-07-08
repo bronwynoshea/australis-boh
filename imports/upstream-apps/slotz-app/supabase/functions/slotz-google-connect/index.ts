@@ -14,7 +14,7 @@ serve(async (req: Request) => {
     if (!authHeader) return json({ error: 'Missing authorization header' }, 401)
 
     const supabaseUrl = requiredAnyEnv(['SUPABASE_URL', 'SLOTZ_SUPABASE_URL'])
-    const adminKey = requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
+    const adminKey = requiredEnv('SLOTZ_SUPABASE_ADMIN_KEY')
     const appUrl = await getAppUrl(req)
 
     const adminClient = createClient(supabaseUrl, adminKey)
@@ -55,7 +55,7 @@ async function signState(payload: Record<string, unknown>) {
   const encodedPayload = base64UrlEncode(JSON.stringify(payload))
   const key = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])),
+    new TextEncoder().encode(requiredEnv('SLOTZ_SUPABASE_ADMIN_KEY')),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']

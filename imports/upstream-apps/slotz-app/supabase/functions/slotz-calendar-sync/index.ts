@@ -623,31 +623,7 @@ function requiredAnyEnv(names: string[]) {
 }
 
 function getSupabaseAdminKey() {
-  const candidates = [
-    Deno.env.get('SLOTZ_SUPABASE_ADMIN_KEY'),
-    Deno.env.get('SUPABASE_SECRET_KEY'),
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
-  ]
-
-  const secretKeys = Deno.env.get('SUPABASE_SECRET_KEYS')
-  if (secretKeys) {
-    try {
-      const parsed = JSON.parse(secretKeys)
-      if (Array.isArray(parsed)) candidates.unshift(...parsed)
-      if (parsed && typeof parsed === 'object') candidates.unshift(...Object.values(parsed).filter((value) => typeof value === 'string') as string[])
-    } catch (_) {
-      candidates.unshift(...secretKeys.split(',').map((value) => value.trim()))
-    }
-  }
-
-  for (const candidate of candidates) {
-    if (!candidate) continue
-    if ([...candidate].some((char) => char.charCodeAt(0) > 127)) continue
-    if (candidate.includes('…') || candidate.includes('...')) continue
-    return candidate
-  }
-
-  throw new Error('Missing usable Supabase admin key')
+  return requiredEnv('SLOTZ_SUPABASE_ADMIN_KEY')
 }
 
 function isMissingProviderColumnError(error: any) {

@@ -45,15 +45,16 @@ serve(async (req: Request) => {
     const tenantId = await getTenantId(supabaseAdmin, tenantSlug);
     let query = supabaseAdmin
       .from("loft_room")
-      .select("id, title, is_open, opened_at, invite_code, host_boh_user_id, tags, tenant_id")
+      .select("id, title, is_open, opened_at, invite_code, host_boh_user_id, tags, tenant_id, room_origin")
       .ilike("invite_code", slug.toUpperCase())
-      .eq("room_origin", "personal")
       .neq("status", "deleted")
       .limit(1);
     if (tenantId) query = query.eq("tenant_id", tenantId);
 
     const { data: room, error: roomError } = await query.maybeSingle();
-    if (roomError || !room) return json(req, { error: "personal_room_not_found", message: "No Personal Room found with this guest link" }, 404);
+    const roomTags = Array.isArray(room?.tags) ? room.tags.map((tag: unknown) => String(tag)) : [];
+    const isJoinablePersonalRoom = room?.room_origin === "personal" || roomTags.includes("interview-room") || roomTags.includes("external-recruiter");
+    if (roomError || !room || !isJoinablePersonalRoom) return json(req, { error: "personal_room_not_found", message: "No Personal Room found with this guest link" }, 404);
 
     const { data: host } = room.host_boh_user_id
       ? await supabaseAdmin.from("boh_user").select("id, email, first_name, last_name").eq("id", room.host_boh_user_id).maybeSingle()

@@ -144,20 +144,18 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
               muted={!!participant.isLocal}
               className="absolute inset-0 h-full w-full bg-black object-contain"
             />
+          ) : displayAvatarUrl ? (
+            <img
+              src={displayAvatarUrl}
+              alt={participant.name}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center p-6 md:p-8">
               <div className="aspect-square h-[min(72%,22rem)] rounded-[1.75rem] border border-[var(--loft-border)] bg-[var(--loft-surface-2)] shadow-inner flex items-center justify-center overflow-hidden">
-                {displayAvatarUrl ? (
-                  <img
-                    src={displayAvatarUrl}
-                    alt={participant.name}
-                    className="h-full w-full object-contain"
-                  />
-                ) : (
                   <span className="text-5xl font-black text-cafe/55 uppercase md:text-6xl">
                     {participant.name.charAt(0)}
                   </span>
-                )}
               </div>
             </div>
           )}
@@ -229,20 +227,18 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
               muted={!!participant.isLocal}
               className="absolute inset-0 h-full w-full bg-black object-contain"
             />
+          ) : displayAvatarUrl ? (
+            <img
+              src={displayAvatarUrl}
+              alt={participant.name}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
           ) : (
             <div className="absolute inset-x-0 top-8 bottom-14 flex items-center justify-center px-3 pb-3 pt-2">
               <div className={`${spotlightMode ? 'h-20 w-20 bg-transparent shadow-none' : 'h-16 w-16 bg-[var(--loft-surface-2)] shadow-inner md:h-20 md:w-20'} rounded-xl border border-[var(--loft-border)] flex items-center justify-center overflow-hidden`}>
-                {displayAvatarUrl ? (
-                  <img
-                    src={displayAvatarUrl}
-                    alt={participant.name}
-                    className="h-full w-full object-contain"
-                  />
-                ) : (
                   <span className="text-xl font-black text-cafe/55 uppercase">
                     {participant.name.charAt(0)}
                   </span>
-                )}
               </div>
             </div>
           )}
@@ -314,20 +310,18 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
               muted={!!participant.isLocal}
               className="absolute inset-0 h-full w-full rounded-[inherit] bg-black object-contain"
             />
+          ) : displayAvatarUrl ? (
+            <img
+              src={displayAvatarUrl}
+              alt={participant.name}
+              className="absolute inset-0 h-full w-full rounded-[inherit] object-cover"
+            />
           ) : (
             <div className={`absolute inset-0 flex items-center justify-center ${compact ? 'px-4 pb-3 pt-4 md:px-5 md:pb-4 md:pt-5' : 'p-3 md:p-5'}`}>
               <div className={`${compact ? 'aspect-square h-[min(78%,5rem)] max-h-20 min-h-12' : 'aspect-square h-[min(100%,11rem)] max-w-full'} ${avatarRadiusClass} ${transparentSecondaryCard ? 'bg-transparent shadow-none' : 'bg-[var(--loft-surface-2)] shadow-inner'} border border-[var(--loft-border)] flex items-center justify-center overflow-hidden`}>
-                {displayAvatarUrl ? (
-                  <img 
-                    src={displayAvatarUrl} 
-                    alt={participant.name}
-                    className="w-full h-full object-contain rounded-[inherit]"
-                  />
-                ) : (
                   <span className={`${compact ? 'text-lg md:text-2xl' : 'text-lg md:text-3xl'} font-black text-cafe/55 uppercase`}>
                     {participant.name.charAt(0)}
                   </span>
-                )}
               </div>
             </div>
           )}

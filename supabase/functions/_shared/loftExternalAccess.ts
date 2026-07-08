@@ -102,8 +102,10 @@ export function displayNameForCaller(caller: Partial<ExternalLoftCaller>, patron
 function displayNameForProfile(profile: any) {
   const firstName = normalizeText(profile?.first_name);
   const lastName = normalizeText(profile?.last_name);
+  const explicitName = normalizeText(profile?.full_name) || normalizeText(profile?.display_name);
+  const displayName = [firstName, lastName].filter(Boolean).join(' ') || explicitName;
   if (!firstName || !lastName) throw new Error('boh_user_onboarding_incomplete');
-  return `${firstName} ${lastName}`;
+  return displayName;
 }
 
 export async function resolveInternalLoftProfileByEmail(
@@ -115,7 +117,7 @@ export async function resolveInternalLoftProfileByEmail(
 
   const { data: bohUser, error: bohUserError } = await supabaseAdmin
     .from('boh_user')
-    .select('id, auth_user_id, email, first_name, last_name, status')
+    .select('id, auth_user_id, email, first_name, last_name, full_name, display_name, status')
     .eq('tenant_id', caller.tenantId)
     .ilike('email', email)
     .maybeSingle();

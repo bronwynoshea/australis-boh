@@ -2194,7 +2194,9 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
       const recordingResult = await callEdgeFunction('loft-toggle-recording', {
         roomId,
         isRecording: newRecordingState,
-        userId: profile?.id
+        userId: profile?.id,
+        videoSessionId: tokenData?.videoSessionId,
+        currentUserProfile: tokenData?.currentUserProfile,
       });
       const confirmedRecordingState = typeof (recordingResult as any)?.isRecording === 'boolean'
         ? (recordingResult as any).isRecording

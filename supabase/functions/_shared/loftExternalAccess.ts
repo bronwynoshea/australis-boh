@@ -100,10 +100,32 @@ export function displayNameForCaller(caller: Partial<ExternalLoftCaller>, patron
 }
 
 function displayNameForProfile(profile: any) {
+  const explicitName = normalizeText(profile?.full_name) || normalizeText(profile?.display_name) || normalizeText(profile?.name);
   const firstName = normalizeText(profile?.first_name);
   const lastName = normalizeText(profile?.last_name);
-  if (!firstName || !lastName) throw new Error('boh_user_onboarding_incomplete');
-  return `${firstName} ${lastName}`;
+  const combinedName = [firstName, lastName].filter(Boolean).join(' ');
+  const displayName = explicitName || combinedName;
+  if (!displayName) throw new Error('boh_user_onboarding_incomplete');
+  return displayName;
+}
+
+async function resolveLegacyProfileDisplayName(supabaseAdmin: any, bohUser: any) {
+  try {
+    let query = supabaseAdmin
+      .from('profile')
+      .select('id, email, first_name, last_name, full_name, display_name')
+      .limit(1);
+
+    if (bohUser?.id) query = query.eq('id', bohUser.id);
+    else if (bohUser?.email) query = query.ilike('email', String(bohUser.email).toLowerCase());
+    else return '';
+
+    const { data, error } = await query.maybeSingle();
+    if (error || !data) return '';
+    return displayNameForProfile(data);
+  } catch {
+    return '';
+  }
 }
 
 export async function resolveInternalLoftProfileByEmail(
@@ -123,7 +145,8 @@ export async function resolveInternalLoftProfileByEmail(
   if (bohUserError) throw new Error(`boh_user_lookup_failed: ${bohUserError.message}`);
   if (!bohUser?.id) return null;
 
-  const displayName = displayNameForProfile(bohUser);
+  const legacyProfileDisplayName = await resolveLegacyProfileDisplayName(supabaseAdmin, bohUser);
+  const displayName = legacyProfileDisplayName || displayNameForProfile(bohUser);
   return { profileId: null, bohUserId: String(bohUser.id), created: false, displayName, source: 'boh_user' };
 }
 

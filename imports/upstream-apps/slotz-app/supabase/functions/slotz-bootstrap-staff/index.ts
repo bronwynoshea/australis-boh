@@ -19,7 +19,7 @@ serve(async (req: Request) => {
     if (!authHeader) return json({ error: 'Missing authorization header' }, 401)
 
     const supabaseUrl = requiredAnyEnv(['SUPABASE_URL', 'SLOTZ_SUPABASE_URL'])
-    const adminKey = requiredAnyEnv(['SUPABASE_SERVICE_ROLE_KEY', 'SLOTZ_SUPABASE_ADMIN_KEY'])
+    const adminKey = requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
     const adminClient = createClient(supabaseUrl, adminKey)
     const authToken = authHeader.replace(/^Bearer\s+/i, '')
     const { data: { user }, error: userError } = await adminClient.auth.getUser(authToken)

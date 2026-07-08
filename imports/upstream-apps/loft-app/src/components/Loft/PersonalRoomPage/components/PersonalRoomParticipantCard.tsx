@@ -142,7 +142,13 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
               autoPlay
               playsInline
               muted={!!participant.isLocal}
-              className="absolute inset-0 h-full w-full bg-black object-contain"
+              className="absolute inset-0 h-full w-full bg-black object-cover"
+            />
+          ) : displayAvatarUrl ? (
+            <img
+              src={displayAvatarUrl}
+              alt={participant.name}
+              className="absolute inset-0 h-full w-full object-cover"
             />
           ) : displayAvatarUrl ? (
             <img
@@ -225,7 +231,13 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
               autoPlay
               playsInline
               muted={!!participant.isLocal}
-              className="absolute inset-0 h-full w-full bg-black object-contain"
+              className="absolute inset-0 h-full w-full bg-black object-cover"
+            />
+          ) : displayAvatarUrl ? (
+            <img
+              src={displayAvatarUrl}
+              alt={participant.name}
+              className="absolute inset-0 h-full w-full object-cover"
             />
           ) : displayAvatarUrl ? (
             <img
@@ -285,7 +297,7 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
 
   return (
     <div className="relative">
-      <div className={`personal-room-card relative overflow-hidden group flex flex-col ${compact && sidebarMode ? 'aspect-video' : compact ? 'aspect-square' : 'min-h-0'} w-full transition-[border-color,box-shadow,transform] duration-300 hover:border-cafe/40 ${tileRadiusClass} ${transparentSecondaryCard ? 'bg-transparent shadow-none' : shouldShowVideo ? 'bg-transparent shadow-2xl' : 'bg-[var(--loft-surface)]/75 shadow-2xl'} border ${isSpeaking ? 'border-cafe shadow-cafe/25 ring-2 ring-cafe/70 ring-offset-2 ring-offset-[var(--loft-bg)]' : 'border-[var(--loft-border)]'}`} style={transparentSecondaryCard ? {
+      <div className={`personal-room-card relative overflow-hidden group flex flex-col ${compact ? 'aspect-video' : 'min-h-0'} w-full transition-[border-color,box-shadow,transform] duration-300 hover:border-cafe/40 ${tileRadiusClass} ${transparentSecondaryCard ? 'bg-transparent shadow-none' : shouldShowVideo ? 'bg-transparent shadow-2xl' : 'bg-[var(--loft-surface)]/75 shadow-2xl'} border ${isSpeaking ? 'border-cafe shadow-cafe/25 ring-2 ring-cafe/70 ring-offset-2 ring-offset-[var(--loft-bg)]' : 'border-[var(--loft-border)]'}`} style={transparentSecondaryCard ? {
         backgroundColor: 'transparent',
         background: 'transparent',
         backgroundImage: 'none',
@@ -308,7 +320,13 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
               autoPlay
               playsInline
               muted={!!participant.isLocal}
-              className="absolute inset-0 h-full w-full rounded-[inherit] bg-black object-contain"
+              className="absolute inset-0 h-full w-full rounded-[inherit] bg-black object-cover"
+            />
+          ) : displayAvatarUrl ? (
+            <img
+              src={displayAvatarUrl}
+              alt={participant.name}
+              className="absolute inset-0 h-full w-full rounded-[inherit] object-cover"
             />
           ) : displayAvatarUrl ? (
             <img

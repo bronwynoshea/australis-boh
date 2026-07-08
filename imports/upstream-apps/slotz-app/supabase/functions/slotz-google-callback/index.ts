@@ -38,7 +38,7 @@ serve(async (req: Request) => {
 
     const supabase = createClient(
       requiredAnyEnv(['SUPABASE_URL', 'SLOTZ_SUPABASE_URL']),
-      requiredAnyEnv(['SUPABASE_SERVICE_ROLE_KEY', 'SLOTZ_SUPABASE_ADMIN_KEY'])
+      requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
     )
 
     await saveGoogleConnection(supabase, staffId, code, codeVerifier)
@@ -176,7 +176,7 @@ async function recordCallbackFailure(req: Request, reason: string) {
 
     const supabase = createClient(
       requiredAnyEnv(['SUPABASE_URL', 'SLOTZ_SUPABASE_URL']),
-      requiredAnyEnv(['SUPABASE_SERVICE_ROLE_KEY', 'SLOTZ_SUPABASE_ADMIN_KEY'])
+      requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
     )
 
     await supabase
@@ -199,7 +199,7 @@ async function verifyState(state: string): Promise<Record<string, unknown>> {
 
   const key = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(requiredAnyEnv(['SUPABASE_SERVICE_ROLE_KEY', 'SLOTZ_SUPABASE_ADMIN_KEY'])),
+    new TextEncoder().encode(requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['verify']

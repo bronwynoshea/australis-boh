@@ -14,7 +14,7 @@ serve(async (req: Request) => {
     if (!authHeader) return json({ error: 'Missing authorization header' }, 401)
 
     const supabaseUrl = requiredAnyEnv(['SUPABASE_URL', 'SLOTZ_SUPABASE_URL'])
-    const adminKey = requiredAnyEnv(['SUPABASE_SERVICE_ROLE_KEY', 'SLOTZ_SUPABASE_ADMIN_KEY'])
+    const adminKey = requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])
     const appUrl = await getAppUrl(req)
 
     const adminClient = createClient(supabaseUrl, adminKey)
@@ -55,7 +55,7 @@ async function signState(payload: Record<string, unknown>) {
   const encodedPayload = base64UrlEncode(JSON.stringify(payload))
   const key = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(requiredAnyEnv(['SUPABASE_SERVICE_ROLE_KEY', 'SLOTZ_SUPABASE_ADMIN_KEY'])),
+    new TextEncoder().encode(requiredAnyEnv(['SLOTZ_SUPABASE_ADMIN_KEY', 'SUPABASE_SERVICE_ROLE_KEY'])),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
@@ -91,6 +91,10 @@ function normalizeAllowedAppUrl(value: string) {
     const allowedOrigins = new Set([
       'https://slotz.jobzcafe.com',
       'https://dev-slotz.jobzcafe.com',
+      'https://boh.jobzcafe.com',
+      'https://dev-boh.jobzcafe.com',
+      'https://boh.australis.cloud',
+      'https://dev-boh.australis.cloud',
       'http://localhost:5173',
       'http://127.0.0.1:5173',
       'http://localhost:5174',

@@ -104,7 +104,7 @@ serve(async (req: Request) => {
     // Do not expose the Slotz manage/reschedule route for Talent-led interviews.
     // Candidates should only receive the Talent/Loft session link selected by the recruiter.
     const manageUrl = null;
-    const joinUrl = loftResult.joinUrl ? absoluteUrl(Deno.env.get('BOH_APP_URL'), loftResult.joinUrl) : null;
+    const joinUrl = loftResult.joinUrl ? absoluteUrl(Deno.env.get('BOH_LOFT_APP_URL') || Deno.env.get('BOH_APP_URL'), loftResult.joinUrl) : null;
     if (!joinUrl) throw new Error('loft_join_url_required');
     const candidateInviteUrl = joinUrl;
 

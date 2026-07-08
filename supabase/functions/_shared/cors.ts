@@ -12,6 +12,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "https://boh.australis.cloud",
   "https://jobzcafe.com",
   "https://www.jobzcafe.com",
+  "https://loft.jobzcafe.com",
   "https://dev.boh-ccm.pages.dev",
   "https://boh-ccm.pages.dev",
   "https://dev.australis-boh.pages.dev",

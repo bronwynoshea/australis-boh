@@ -56,8 +56,10 @@ function sanitizeGuestName(name: string): string {
 function deriveDisplayName(row: any): string {
   if (!row) return 'Host';
   const emailLocal = row.email ? String(row.email).split('@')[0] : '';
+  const explicitName = String(row.full_name || row.display_name || '').trim();
   const nameFromParts = [row.first_name, row.last_name].filter(Boolean).join(' ').trim();
   return (
+    explicitName ||
     nameFromParts ||
     emailLocal ||
     'Host'
@@ -211,7 +213,7 @@ serve(async (req: Request) => {
     const { data: hostProfile, error: hostProfileError } = room.host_boh_user_id
       ? await supabaseAdmin
           .from("boh_user")
-          .select("id, auth_user_id, first_name, last_name, email, avatar_url")
+          .select("id, auth_user_id, first_name, last_name, full_name, display_name, email, avatar_url")
           .eq("id", room.host_boh_user_id)
           .maybeSingle()
       : { data: null, error: null };

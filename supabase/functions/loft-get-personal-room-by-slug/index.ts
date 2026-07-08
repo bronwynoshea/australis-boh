@@ -11,7 +11,7 @@ function json(req: Request, data: unknown, status = 200) {
 
 const cleanCode = (value: unknown) => String(value || '').trim().replace(/[^a-z0-9-_]/gi, '');
 const displayHostName = (user: any, fallback = 'Host') =>
-  [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim() || user?.email || fallback;
+  String(user?.full_name || user?.display_name || [user?.first_name, user?.last_name].filter(Boolean).join(' ') || user?.email || fallback).trim();
 
 async function getTenantId(supabaseAdmin: any, tenantSlug: string) {
   if (!tenantSlug) return null;
@@ -57,7 +57,7 @@ serve(async (req: Request) => {
     if (roomError || !room || !isJoinablePersonalRoom) return json(req, { error: "personal_room_not_found", message: "No Personal Room found with this guest link" }, 404);
 
     const { data: host } = room.host_boh_user_id
-      ? await supabaseAdmin.from("boh_user").select("id, email, first_name, last_name").eq("id", room.host_boh_user_id).maybeSingle()
+      ? await supabaseAdmin.from("boh_user").select("id, email, first_name, last_name, full_name, display_name").eq("id", room.host_boh_user_id).maybeSingle()
       : { data: null };
     const hostName = displayHostName(host);
     const resolvedTenantSlug = await getTenantSlug(supabaseAdmin, room.tenant_id ?? tenantId);

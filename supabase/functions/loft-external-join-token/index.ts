@@ -14,7 +14,6 @@ import {
   normalizeAppContext,
   normalizePersona,
   normalizeText,
-  resolveInternalLoftProfileByEmail,
   resolveTenant,
   validateServerBearer,
 } from "../_shared/loftExternalAccess.ts";
@@ -51,9 +50,7 @@ serve(async (req: Request) => {
       email: body.email || patron.email || null,
       displayName: body.displayName || displayNameForCaller({}, patron),
     };
-    const loftProfile =
-      await resolveInternalLoftProfileByEmail(supabaseAdmin, caller) ||
-      await ensureExternalLoftProfile(supabaseAdmin, caller, patron);
+    const loftProfile = await ensureExternalLoftProfile(supabaseAdmin, caller, patron);
 
     let videoSession: any = null;
     let loftRoomId = normalizeText(body.loftRoomId);

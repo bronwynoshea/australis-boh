@@ -14,7 +14,6 @@ import {
   normalizeAppContext,
   normalizePersona,
   normalizeText,
-  resolveInternalLoftProfileByEmail,
   resolveTenant,
   validateServerBearer,
 } from "../_shared/loftExternalAccess.ts";
@@ -34,9 +33,7 @@ async function ensureExternalPersonalRoom(supabaseAdmin: any, dailyApiKey: strin
     email: input.hostEmail || hostPatron.email || null,
     displayName: input.hostDisplayName || displayNameForCaller({}, hostPatron),
   };
-  const loftProfile =
-    await resolveInternalLoftProfileByEmail(supabaseAdmin, caller) ||
-    await ensureExternalLoftProfile(supabaseAdmin, caller, hostPatron);
+  const loftProfile = await ensureExternalLoftProfile(supabaseAdmin, caller, hostPatron);
 
   const isInternalHost = (loftProfile as any).source === 'boh_user';
 

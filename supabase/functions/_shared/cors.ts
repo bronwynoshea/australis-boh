@@ -6,6 +6,8 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "http://localhost:3001", // Local dev (Vite preview)
   "http://localhost:5173", // Local Vite dev
   "http://127.0.0.1:5173", // Local Vite dev
+  "https://dev-boh.jobzcafe.com",
+  "https://boh.jobzcafe.com",
   "https://dev-boh.australis.cloud",
   "https://boh.australis.cloud",
   "https://loft.boh.australis.cloud",

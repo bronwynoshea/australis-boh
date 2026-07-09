@@ -1,24 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabaseDb } from '../services/supabaseDb';
+import { supabase } from '../services/supabaseClient';
 import { SchedulingMeetingType, SchedulingStaffProfile } from '../types';
 import { CopyIcon, PlusIcon, TrashIcon, MoreVerticalIcon, PowerIcon } from './Icons';
 import ConfirmationModal from './ConfirmationModal';
 
+const SLOTZ_PUBLIC_ORIGIN = 'https://slotz.boh.australis.cloud';
+
 interface MeetingCardProps {
     meetingType: SchedulingMeetingType;
+    tenantSlug: string;
     staffSlug: string;
     onUpdate: (id: string, field: keyof SchedulingMeetingType, value: any) => void;
     onDelete: (meetingType: SchedulingMeetingType) => void;
     onCopyLink: (slug: string) => void;
 }
 
-const MeetingCard: React.FC<MeetingCardProps> = ({ meetingType, staffSlug, onUpdate, onDelete, onCopyLink }) => {
+const MeetingCard: React.FC<MeetingCardProps> = ({ meetingType, tenantSlug, staffSlug, onUpdate, onDelete, onCopyLink }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const [localSlug, setLocalSlug] = useState(meetingType.slug);
     const [hasCopied, setHasCopied] = useState(false);
     const [isEditingLink, setIsEditingLink] = useState(false);
-    const bookingPathPreview = `.../${staffSlug}/${meetingType.slug}`;
+    const bookingPathPreview = `${SLOTZ_PUBLIC_ORIGIN}/${tenantSlug}/${staffSlug}/${meetingType.slug}`;
 
     useEffect(() => {
         setLocalSlug(meetingType.slug);
@@ -136,7 +140,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({ meetingType, staffSlug, onUpd
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                         <a
-                            href={`/#/${staffSlug}/${meetingType.slug}`}
+                            href={`${SLOTZ_PUBLIC_ORIGIN}/${tenantSlug}/${staffSlug}/${meetingType.slug}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="slotz-settings-control flex min-h-9 items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition-colors dark:text-white"
@@ -159,7 +163,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({ meetingType, staffSlug, onUpd
                         <label className="slotz-settings-label mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em]">Edit link slug</label>
                         <div className="flex items-center gap-2">
                              <div className="slotz-settings-control slotz-public-link-font flex min-w-0 flex-1 items-center overflow-hidden rounded-lg">
-                                <span className="slotz-settings-link-prefix slotz-public-link-font whitespace-nowrap py-2.5 pl-3 pr-1">.../{staffSlug}/</span>
+                                <span className="slotz-settings-link-prefix slotz-public-link-font whitespace-nowrap py-2.5 pl-3 pr-1">.../{tenantSlug}/{staffSlug}/</span>
                                 <input
                                     type="text"
                                     value={localSlug}
@@ -194,6 +198,7 @@ const MeetingTypesEditor: React.FC<{
 }> = ({ setFeedback }) => {
     const [meetingTypes, setMeetingTypes] = useState<SchedulingMeetingType[]>([]);
     const [staffProfile, setStaffProfile] = useState<SchedulingStaffProfile | null>(null);
+    const [tenantSlug, setTenantSlug] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [meetingToDelete, setMeetingToDelete] = useState<SchedulingMeetingType | null>(null);
 
@@ -206,6 +211,22 @@ const MeetingTypesEditor: React.FC<{
                 ]);
                 setStaffProfile(profile);
                 setMeetingTypes(types);
+
+                if (profile?.tenant_id) {
+                    const { data: tenant, error: tenantError } = await supabase
+                        .from('boh_tenant')
+                        .select('slug')
+                        .eq('id', profile.tenant_id)
+                        .single();
+
+                    if (tenantError || !tenant?.slug) {
+                        throw new Error('Unable to resolve BOH tenant for SLOTZ booking links.');
+                    }
+
+                    setTenantSlug(tenant.slug);
+                } else {
+                    throw new Error('Staff profile is missing BOH tenant.');
+                }
             } catch (error) {
                 console.error('Error loading meeting types:', error);
             } finally {
@@ -266,8 +287,8 @@ const MeetingTypesEditor: React.FC<{
     };
 
     const handleCopyToClipboard = (slug: string) => {
-        if (!staffProfile) return;
-        const url = `${window.location.origin}/#/${staffProfile.slug}/${slug}`;
+        if (!staffProfile || !tenantSlug) return;
+        const url = `${SLOTZ_PUBLIC_ORIGIN}/${tenantSlug}/${staffProfile.slug}/${slug}`;
         navigator.clipboard.writeText(url);
         setFeedback("Booking link copied to clipboard!");
     };
@@ -281,11 +302,11 @@ const MeetingTypesEditor: React.FC<{
         );
     }
 
-    if (!staffProfile) {
+    if (!staffProfile || !tenantSlug) {
         return (
             <div className="bg-white dark:bg-darkcard p-8 rounded-xl border border-primary-border dark:border-white/10 shadow-lg text-center">
                 <div role="alert" className="slotz-notice slotz-notice-error px-4 py-3 text-sm font-medium">
-                    Staff profile could not be found.
+                    Staff profile or BOH tenant could not be found.
                 </div>
             </div>
         );
@@ -317,6 +338,7 @@ const MeetingTypesEditor: React.FC<{
                         <MeetingCard
                             key={mt.id}
                             meetingType={mt}
+                            tenantSlug={tenantSlug}
                             staffSlug={staffProfile.slug}
                             onUpdate={handleUpdate}
                             onDelete={handleDelete}

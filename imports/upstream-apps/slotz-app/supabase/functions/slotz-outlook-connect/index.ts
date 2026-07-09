@@ -99,10 +99,8 @@ function normalizeAllowedAppUrl(value: string) {
     const url = new URL(value)
     const origin = url.origin
     const allowedOrigins = new Set([
-      'https://slotz.jobzcafe.com',
-      'https://dev-slotz.jobzcafe.com',
-      'https://boh.jobzcafe.com',
-      'https://dev-boh.jobzcafe.com',
+      'https://slotz.boh.australis.cloud',
+      'https://dev-slotz.boh.australis.cloud',
       'https://boh.australis.cloud',
       'https://dev-boh.australis.cloud',
       'http://localhost:5173',

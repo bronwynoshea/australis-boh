@@ -74,25 +74,48 @@ const syncCalendarNow = async (provider: 'outlook' | 'google') => {
   return syncedCount;
 };
 
+type PublicBookingParts = {
+  tenantSlug: string;
+  staffSlug: string;
+  meetingSlug: string;
+};
+
+const getPublicBookingParts = (): PublicBookingParts | null => {
+  const pathParts = window.location.pathname.split('/').filter(Boolean);
+
+  if (pathParts[0] === 'slotz' && pathParts.length === 4 && pathParts[1] !== 'manage') {
+    return { tenantSlug: pathParts[1], staffSlug: pathParts[2], meetingSlug: pathParts[3] };
+  }
+
+  if (pathParts.length === 3 && pathParts[0] !== 'manage') {
+    return { tenantSlug: pathParts[0], staffSlug: pathParts[1], meetingSlug: pathParts[2] };
+  }
+
+  return null;
+};
+
+const getManagedBookingId = () => {
+  const pathParts = window.location.pathname.split('/').filter(Boolean);
+  if (pathParts[0] === 'slotz' && pathParts[1] === 'manage' && pathParts[2]) return pathParts[2];
+  if (pathParts[0] === 'manage' && pathParts[1]) return pathParts[1];
+
+  return null;
+};
+
 const App: React.FC = () => {
   // Check for public booking URL immediately to prevent login flash
   const getInitialPage = (): Page => {
-    const hash = window.location.hash;
-    if (hash.startsWith('#/')) {
-      const pathParts = hash.substring(2).split('/');
-      if (pathParts.length === 2) {
-        return 'book'; // Show booking page directly for public URLs
-      }
-    }
+    if (getPublicBookingParts()) return 'book';
+    if (getManagedBookingId()) return 'manage-booking';
     return 'home'; // Default to home for other cases
   };
 
   const [page, setPage] = useState<Page>(getInitialPage());
   const [isStaff, setIsStaff] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  
+
   const [managedBookingId, setManagedBookingId] = useState<string | null>(null);
-  
+
   const [selectedMeetingType, setSelectedMeetingType] = useState<SchedulingMeetingType | null>(null);
   const [lastBooking, setLastBooking] = useState<SchedulingBooking | null>(null);
   const [rescheduleBooking, setRescheduleBooking] = useState<SchedulingBooking | null>(null);
@@ -105,6 +128,30 @@ const App: React.FC = () => {
   const [initialSettingsTab, setInitialSettingsTab] = useState<SettingsPage>('availability');
   const [integrationMessage, setIntegrationMessage] = useState<string | null>(null);
   const [theme, setThemeState] = useState<SlotzTheme>(() => syncSlotzThemeTokens(getDocumentTheme()));
+
+  useEffect(() => {
+    if (page === 'book' && selectedMeetingType) {
+      document.title = `${selectedMeetingType.name} | SLOTZ booking`;
+      return;
+    }
+
+    if (page === 'manage-booking') {
+      document.title = 'Manage booking | SLOTZ';
+      return;
+    }
+
+    if (page === 'confirm') {
+      document.title = 'Booking confirmed | SLOTZ';
+      return;
+    }
+
+    if (page === 'home') {
+      document.title = isStaff ? 'SLOTZ calendar' : 'SLOTZ booking';
+      return;
+    }
+
+    document.title = 'SLOTZ';
+  }, [isStaff, page, selectedMeetingType]);
 
   useEffect(() => {
     const applyCurrentDocumentTheme = () => {
@@ -125,7 +172,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     console.log('🚀 App initialization starting...');
-    
+
     // Force bootstrapping to complete after 3 seconds max
     const forceTimeout = setTimeout(() => {
       console.log('⚠️ Force timeout - setting bootstrapping to false');
@@ -138,19 +185,19 @@ const App: React.FC = () => {
         setFeedback(message);
         setTimeout(() => setFeedback(null), 4000);
       };
-      
+
       // Add iPad detection
       const isIPad = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       if (isIPad) {
         console.log('📱 iPad: App initialization starting');
-        
+
         // Test localStorage on iPad
         try {
           const testKey = 'ipad_test_' + Date.now();
           localStorage.setItem(testKey, 'test');
           const testValue = localStorage.getItem(testKey);
           localStorage.removeItem(testKey);
-          
+
           if (testValue === 'test') {
             console.log('📱 iPad: localStorage working correctly');
           } else {
@@ -162,9 +209,8 @@ const App: React.FC = () => {
           showFeedback('Local storage is disabled. Please enable it in Safari settings.');
         }
       }
-      
+
       try {
-        const hash = window.location.hash;
         const urlParams = new URLSearchParams(window.location.search);
 
         if (urlParams.has('code') && urlParams.has('state')) {
@@ -296,84 +342,73 @@ const App: React.FC = () => {
           }
         }
 
-        if (hash.startsWith('#manage-')) {
-          const bookingId = hash.substring(8);
-          if (bookingId) {
-            console.log('📋 Manage booking detected:', bookingId);
-            setManagedBookingId(bookingId);
-            setPage('manage-booking');
-            clearTimeout(forceTimeout);
-            setIsBootstrapping(false);
-            return;
-          }
+        const managedBookingId = getManagedBookingId();
+        if (managedBookingId) {
+          console.log('📋 Manage booking detected:', managedBookingId);
+          setManagedBookingId(managedBookingId);
+          setPage('manage-booking');
+          clearTimeout(forceTimeout);
+          setIsBootstrapping(false);
+          return;
         }
 
-        if (hash.startsWith('#/')) {
-          const pathParts = hash.substring(2).split('/');
-          console.log('🔗 Public booking URL parts:', pathParts);
-          
+        const publicBookingParts = getPublicBookingParts();
+        if (publicBookingParts) {
+          const { tenantSlug, staffSlug, meetingSlug } = publicBookingParts;
+          console.log('🔗 Public booking URL parts:', publicBookingParts);
+
           if (isIPad) {
             console.log('📱 iPad: Public booking URL detected');
           }
-          
-          if (pathParts.length === 2) {
-            const staffSlug = pathParts[0];
-            const meetingSlug = pathParts[1];
-            
-            console.log('👤 Looking up staff:', staffSlug);
-            
-            if (isIPad) {
-              console.log('📱 iPad: Querying Supabase for staff profile...');
-            }
-            
-            const { data: staffProfile, error: staffError } = await supabase
-              .from('scheduling_staff_profiles')
-              .select('*')
-              .or(`slug.eq.${staffSlug},full_name.ilike.${staffSlug}`)
-              .single();
-            
-            if (staffError || !staffProfile) {
-              console.error('❌ Staff not found:', staffError);
-              if (isIPad) {
-                console.error('📱 iPad: Staff lookup failed', staffError);
-              }
-              showFeedback("Staff member not found.");
-            } else {
-              console.log('✅ Staff found:', staffProfile);
-              if (isIPad) {
-                console.log('📱 iPad: Staff found, setting current staff...');
-              }
-              
-              supabaseDb.setCurrentStaff(staffProfile.id);
-              
-              if (isIPad) {
-                console.log('📱 iPad: Getting meeting types...');
-              }
-              
-              const meetingTypes = await supabaseDb.getMeetingTypes(false);
-              const matchingType = meetingTypes.find(mt => mt.slug === meetingSlug);
 
-              if (matchingType && matchingType.is_active) {
-                console.log('✅ Meeting type found:', matchingType);
-                if (isIPad) {
-                  console.log('📱 iPad: Meeting type found, navigating to booking page');
-                }
-                setSelectedMeetingType(matchingType);
-                setPage('book');
-              } else {
-                console.log('❌ Meeting type not found or inactive');
-                if (isIPad) {
-                  console.error('📱 iPad: Meeting type not found', { meetingSlug, availableTypes: meetingTypes.map(mt => mt.slug) });
-                }
-                showFeedback("This booking link is invalid.");
-              }
-            }
-          } else {
-            console.log('❌ Invalid public booking URL format');
+          console.log('👤 Looking up staff:', staffSlug, 'tenant:', tenantSlug);
+
+          if (isIPad) {
+            console.log('📱 iPad: Querying Supabase for tenant-scoped staff profile...');
+          }
+
+          const { data: resolvedStaffProfiles, error: staffError } = await supabase
+            .rpc('slotz_resolve_public_staff', {
+              p_tenant_slug: tenantSlug,
+              p_staff_slug: staffSlug,
+            });
+          const staffProfile = Array.isArray(resolvedStaffProfiles) ? resolvedStaffProfiles[0] : null;
+
+          if (staffError || !staffProfile) {
+            console.error('❌ Staff not found:', staffError);
             if (isIPad) {
-              console.error('📱 iPad: Invalid URL format', pathParts);
+              console.error('📱 iPad: Staff lookup failed', staffError);
             }
-            showFeedback('Invalid booking link format.');
+            showFeedback("Staff member not found.");
+          } else {
+            console.log('✅ Staff found:', staffProfile);
+            if (isIPad) {
+              console.log('📱 iPad: Staff found, setting current staff...');
+            }
+
+            supabaseDb.setCurrentStaff(staffProfile.id);
+
+            if (isIPad) {
+              console.log('📱 iPad: Getting meeting types...');
+            }
+
+            const meetingTypes = await supabaseDb.getMeetingTypes(false);
+            const matchingType = meetingTypes.find(mt => mt.slug === meetingSlug);
+
+            if (matchingType && matchingType.is_active) {
+              console.log('✅ Meeting type found:', matchingType);
+              if (isIPad) {
+                console.log('📱 iPad: Meeting type found, navigating to booking page');
+              }
+              setSelectedMeetingType(matchingType);
+              setPage('book');
+            } else {
+              console.log('❌ Meeting type not found or inactive');
+              if (isIPad) {
+                console.error('📱 iPad: Meeting type not found', { meetingSlug, availableTypes: meetingTypes.map(mt => mt.slug) });
+              }
+              showFeedback("This booking link is invalid.");
+            }
           }
         } else {
           console.log('🏠 Loading home page');
@@ -389,7 +424,7 @@ const App: React.FC = () => {
             setPage('staff-settings');
           }
         }
-        
+
       } catch (error) {
         console.error('❌ Initialization error:', error);
         if (isIPad) {
@@ -416,7 +451,7 @@ const App: React.FC = () => {
     }
     setPage(p);
   };
-  
+
   const handleShowFeedback = (message: string) => {
     if (message.toLowerCase().includes('outlook')) return;
     setFeedback(message);
@@ -427,12 +462,12 @@ const App: React.FC = () => {
     try {
       // Only use current staff ID, don't check localStorage for public links
       const staffId = supabaseDb.getCurrentStaffId();
-      
+
       if (staffId) {
         const types = await supabaseDb.getMeetingTypes();
         setSelectedMeetingType(types.length > 0 ? types[0] : null);
       }
-      
+
       setLastBooking(null);
       setRescheduleBooking(null);
       setRescheduleSource(null);
@@ -504,18 +539,18 @@ const App: React.FC = () => {
       case 'home':
         return <HomePage navigate={navigate} setIsStaff={setIsStaff} />;
       case 'book':
-        return <BookingPage 
-                  navigate={navigate} 
-                  selectedMeetingType={selectedMeetingType} 
+        return <BookingPage
+                  navigate={navigate}
+                  selectedMeetingType={selectedMeetingType}
                   setLastBooking={handleBookingComplete}
                   rescheduleBooking={rescheduleBooking}
                   onCancelReschedule={handleCancelReschedule}
                   allowRescheduleOverride={rescheduleSource === 'staff'}
                 />;
       case 'confirm':
-        return <ConfirmationPage 
-                  lastBooking={lastBooking} 
-                  handleBookAnother={handleBookAnother} 
+        return <ConfirmationPage
+                  lastBooking={lastBooking}
+                  handleBookAnother={handleBookAnother}
                   isReschedule={lastBookingWasReschedule}
                 />;
       case 'staff-dashboard':
@@ -542,9 +577,8 @@ const App: React.FC = () => {
 
   if (isBootstrapping) {
     // Check if this is a booking page to show appropriate message
-    const hash = window.location.hash;
-    const isBookingPage = hash.startsWith('#/');
-    
+    const isBookingPage = Boolean(getPublicBookingParts());
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-white dark:bg-darkbg">
         <div className="flex flex-col items-center gap-4 text-center">
@@ -564,9 +598,9 @@ const App: React.FC = () => {
           {feedback}
         </div>
       )}
-      
+
       {activeSettingsView && (
-          <SettingsView 
+          <SettingsView
               view={activeSettingsView}
               onClose={() => setActiveSettingsView(null)}
               setFeedback={handleShowFeedback}
@@ -608,20 +642,20 @@ const App: React.FC = () => {
               {isStaff && (
                 <div className="mr-1 flex items-center gap-1 border-r border-primary-border/70 pr-2 dark:border-primary/20 md:mr-2 md:gap-2 md:pr-3">
                   {page === 'staff-dashboard' || page === 'staff-settings' ? (
-                    <button 
+                    <button
                       type="button"
                       aria-label="Open public booking view"
-                      onClick={handleViewPublic} 
+                      onClick={handleViewPublic}
                       className="min-h-10 p-2 md:px-3 md:py-2 flex items-center gap-2 bg-white/0 hover:bg-primary-light dark:hover:bg-primary/10 rounded-lg font-semibold text-[10px] uppercase tracking-[0.14em] transition-all text-primary-text-muted hover:text-[var(--text-secondary)] dark:!text-white/70 dark:hover:!text-white"
                     >
                       <EyeIcon className="w-5 h-5" />
                       <span className="hidden md:inline">Public</span>
                     </button>
                   ) : (
-                    <button 
+                    <button
                       type="button"
                       aria-label="Return to staff calendar"
-                      onClick={() => navigate('staff-dashboard')} 
+                      onClick={() => navigate('staff-dashboard')}
                       className="min-h-10 p-2 md:px-3 md:py-2 flex items-center gap-2 bg-white/0 hover:bg-primary-light dark:hover:bg-primary/10 rounded-lg font-semibold text-[10px] uppercase tracking-[0.14em] transition-all text-primary-text-muted hover:text-[var(--text-secondary)] dark:!text-white/70 dark:hover:!text-white"
                     >
                       <ClockIcon className="w-5 h-5" />

@@ -53,6 +53,7 @@ export interface SchedulingStaffProfile {
   full_name: string;                    // Staff member's full name
   email: string;                        // Contact email
   slug: string;                         // URL-friendly identifier (e.g., "john-doe")
+  tenant_id?: string | null;             // BOH tenant that owns this SLOTZ profile
   avatar_url?: string | null;           // Profile picture URL
   timezone: string;                     // IANA timezone (e.g., "America/New_York")
   app_context: AppContext;              // Application context

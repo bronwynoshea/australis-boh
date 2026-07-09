@@ -136,7 +136,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({ meetingType, staffSlug, onUpd
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                         <a
-                            href={`#/${staffSlug}/${meetingType.slug}`}
+                            href={`/#/${staffSlug}/${meetingType.slug}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="slotz-settings-control flex min-h-9 items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition-colors dark:text-white"

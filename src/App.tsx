@@ -43,6 +43,10 @@ import { SidebarProvider } from './contexts/SidebarContext';
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const slotzHashPath = window.location.hash.startsWith('#/') ? window.location.hash.substring(2).split('/') : [];
+  const isSlotzPublicRoute =
+    location.pathname === '/' &&
+    (slotzHashPath.length === 2 || window.location.hash.startsWith('#manage-'));
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
@@ -343,6 +347,9 @@ function App() {
 
   return (
     <SidebarProvider>
+      {isSlotzPublicRoute ? (
+        <SlotzApp isAdmin={false} />
+      ) : (
       <Routes>
       <Route path="/boh/cookbook/slow-cook/:projectType/new" element={renderProtectedRoute(<StoryboardPage mode="create" />)} />
       <Route path="/boh/cookbook/slow-cook/:projectType" element={renderProtectedRoute(<StoryboardPage mode="edit" />)} />
@@ -378,6 +385,7 @@ function App() {
       <Route path="/" element={<Navigate to="/boh" replace />} />
       <Route path="*" element={renderBohMainUI()} />
     </Routes>
+      )}
     <Toaster 
       position="bottom-center"
       toastOptions={{

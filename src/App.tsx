@@ -28,6 +28,7 @@ import PersonalRoomPublicJoinPage from './apps/loft/pages/PersonalRoomPublicJoin
 import CellarApp from './apps/cellar/CellarApp';
 import ChatzApp from './apps/chatz/App';
 import SlotzApp from './apps/slotz/App';
+import NativeSlotzApp from '../imports/upstream-apps/slotz-app/src/App';
 import WebsiteApp from './apps/website/App';
 import AssemblyApp from './apps/assembly/AssemblyApp';
 import ExternalWorkspaceAppPage from './apps/boh/pages/ExternalWorkspaceAppPage';
@@ -43,12 +44,26 @@ import { SidebarProvider } from './contexts/SidebarContext';
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const slotzHashPath = window.location.hash.startsWith('#/') ? window.location.hash.substring(2).split('/') : [];
+  const slotzPathParts = location.pathname.split('/').filter(Boolean);
   const isSlotzPublicRoute =
-    location.pathname === '/' &&
-    (slotzHashPath.length === 2 || window.location.hash.startsWith('#manage-'));
+    (slotzPathParts[0] === 'slotz' && (
+      (slotzPathParts.length === 4 && slotzPathParts[1] !== 'manage') ||
+      (slotzPathParts.length === 3 && slotzPathParts[1] === 'manage')
+    ));
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
+
+  // Public SLOTZ booking links are external guest surfaces, not BOH workspace pages.
+  useEffect(() => {
+    if (!isSlotzPublicRoute) return;
+
+    const previousTitle = document.title;
+    document.title = 'SLOTZ booking';
+
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [isSlotzPublicRoute]);
 
   // Supabase Auth is the login source of truth. BOH data identity resolves
   // through public.boh_user after the session is present.
@@ -348,7 +363,7 @@ function App() {
   return (
     <SidebarProvider>
       {isSlotzPublicRoute ? (
-        <SlotzApp isAdmin={false} />
+        <NativeSlotzApp />
       ) : (
       <Routes>
       <Route path="/boh/cookbook/slow-cook/:projectType/new" element={renderProtectedRoute(<StoryboardPage mode="create" />)} />

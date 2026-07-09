@@ -7,6 +7,7 @@ interface PersonalRoomHeaderProps {
   roomTitle?: string;
   participantCount: number;
   isRecorded: boolean;
+  isRecordingActive?: boolean;
   isHost?: boolean;
 
   onOpenSetup: () => void;
@@ -24,6 +25,7 @@ const PersonalRoomHeader: React.FC<PersonalRoomHeaderProps> = ({
   roomTitle,
   participantCount,
   isRecorded,
+  isRecordingActive = false,
   isHost = false,
   onOpenSetup,
   onOpenSidebar,
@@ -157,14 +159,19 @@ const PersonalRoomHeader: React.FC<PersonalRoomHeaderProps> = ({
               Sharing
             </div>
           )}
-          {isHost && (
-            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[8px] md:text-[9px] font-bold uppercase tracking-widest ${
-              isRecorded 
-                ? 'bg-red-500/10 text-red-600 border-red-500/20' 
-                : 'bg-[var(--loft-surface-2)] text-muted border-[var(--loft-border)]'
-            }`}>
-              <Circle className={`w-2 h-2 ${isRecorded ? 'fill-red-500 animate-pulse' : 'fill-current'}`} />
-              {isRecorded ? 'Recording' : 'Not Recording'}
+          {isRecorded && (
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[8px] md:text-[9px] font-black uppercase tracking-widest ${
+                isRecordingActive
+                  ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/25'
+                  : 'bg-red-500/12 text-red-600 dark:text-red-300 border-red-500/30'
+              }`}
+              role="status"
+              aria-live="polite"
+              aria-label={isRecordingActive ? 'Recording is active' : 'This session is recorded'}
+            >
+              <Circle className={`w-2 h-2 fill-current ${isRecordingActive ? 'animate-pulse' : ''}`} />
+              {isRecordingActive ? 'Recording now' : 'Recorded session'}
             </div>
           )}
         </div>
@@ -223,7 +230,7 @@ const PersonalRoomHeader: React.FC<PersonalRoomHeaderProps> = ({
           <button
             onClick={handleToggleRecording}
             className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border transition-colors ${
-              isRecorded
+              isRecordingActive
                 ? 'bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20'
                 : 'bg-[var(--loft-surface-2)] border-[var(--loft-border)] text-[var(--loft-text)] hover:bg-[var(--loft-surface-strong)]'
             }`}

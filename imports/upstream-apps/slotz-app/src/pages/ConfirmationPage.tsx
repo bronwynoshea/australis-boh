@@ -11,6 +11,8 @@ interface ConfirmationPageProps {
     isReschedule: boolean;
 }
 
+const SLOTZ_PUBLIC_ORIGIN = 'https://slotz.boh.australis.cloud';
+
 const createCalendarReminderArtifacts = (
     booking: SchedulingBooking | null,
     meetingType: SchedulingMeetingType | null,
@@ -26,7 +28,7 @@ const createCalendarReminderArtifacts = (
     if (!timezone || !reminderName || !hostName) return null;
 
     const meetingLink = staffProfile?.meeting_link || booking.video_url || '';
-    const manageUrl = `${window.location.origin}/#manage-${booking.id}`;
+    const manageUrl = `${SLOTZ_PUBLIC_ORIGIN}/manage/${booking.id}`;
     const reminderTitle = `${reminderName} with ${hostName}`;
     const reminderDetails = [
         'Calendar reminder only.',

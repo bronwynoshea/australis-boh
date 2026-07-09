@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/Assets/australis-logo-mark.png" />
     <title>Australis – Back of House</title>
+    <script>
+        if (window.location.hostname === 'slotz.boh.australis.cloud' || window.location.pathname.startsWith('/slotz/')) {
+            document.title = 'SLOTZ booking';
+        }
+    </script>
 </head>
 <body>
     <div id="root"></div>

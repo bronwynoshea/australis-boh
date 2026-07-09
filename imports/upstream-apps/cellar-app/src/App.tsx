@@ -733,12 +733,12 @@ const CELLAR_BOOKING_LINKS = [
   {
     host: 'Bronwyn OShea',
     role: 'CEO',
-    url: 'https://slotz.jobzcafe.com/#/bronwyn-oshea/investor-call',
+    url: 'https://slotz.boh.australis.cloud/jobzcafe/bronwyn-oshea/investor-call',
   },
   {
     host: 'Asa Lanum',
     role: 'COO',
-    url: 'https://slotz.jobzcafe.com/#/asalanum@gmail.com-719c1238/investor-call',
+    url: 'https://slotz.boh.australis.cloud/jobzcafe/asa-lanum/investor-call',
   },
 ];
 const CELLAR_NARRATIVE_EYEBROW = 'Founder Narrative';

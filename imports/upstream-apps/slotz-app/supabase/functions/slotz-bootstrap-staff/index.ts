@@ -28,7 +28,7 @@ serve(async (req: Request) => {
     const email = user.email.trim().toLowerCase()
     const bohUser = await resolveActiveBohUser(adminClient, user.id, email)
     const fullName = resolveFullName(user, bohUser)
-    const slug = await resolveUniqueSlug(adminClient, slugify(fullName || email.split('@')[0]), email)
+    const slug = await resolveUniqueSlug(adminClient, slugify(fullName))
 
     const { data: existingProfile, error: existingError } = await adminClient
       .from('scheduling_staff_profiles')
@@ -210,9 +210,9 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, '') || 'staff'
 }
 
-async function resolveUniqueSlug(adminClient: any, baseSlug: string, email: string) {
-  const emailPrefix = slugify(email.split('@')[0])
-  const candidates = Array.from(new Set([baseSlug, `${baseSlug}-${emailPrefix}`, emailPrefix]))
+async function resolveUniqueSlug(adminClient: any, baseSlug: string) {
+  const normalizedBase = baseSlug || 'staff'
+  const candidates = [normalizedBase, ...Array.from({ length: 49 }, (_value, index) => `${normalizedBase}-${index + 2}`)]
 
   for (const candidate of candidates) {
     const { data, error } = await adminClient
@@ -234,6 +234,12 @@ function titleCase(value: string) {
     .filter(Boolean)
     .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ')
+}
+
+function requiredEnv(name: string) {
+  const value = Deno.env.get(name)
+  if (!value) throw new Error(`Missing ${name}`)
+  return value
 }
 
 function requiredAnyEnv(names: string[]) {

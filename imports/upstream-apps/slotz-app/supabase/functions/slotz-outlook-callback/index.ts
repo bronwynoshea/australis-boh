@@ -24,14 +24,14 @@ serve(async (req: Request) => {
     if (error) {
       console.error('Microsoft OAuth returned error:', error, errorDescription)
       const appUrl = await getAppUrlForCallback(req)
-      return redirect(`${appUrl}/?slotz_outlook=error`)
+      return redirect(`${appUrl}?slotz_outlook=error`)
     }
 
     const code = url.searchParams.get('code')
     const state = url.searchParams.get('state')
     if (!code || !state) {
       const appUrl = await getAppUrlForCallback(req)
-      return redirect(`${appUrl}/?slotz_outlook=error`)
+      return redirect(`${appUrl}?slotz_outlook=error`)
     }
 
     const statePayload = await verifyState(state)
@@ -51,13 +51,13 @@ serve(async (req: Request) => {
 
     await saveOutlookConnection(supabase, staffId, code, codeVerifier)
 
-    return redirect(`${appUrl}/?slotz_outlook=connected`)
+    return redirect(`${appUrl}?slotz_outlook=connected`)
   } catch (error) {
     console.error('Outlook callback error:', error)
     const reason = classifyCallbackError(error)
     await recordCallbackFailure(req, reason)
     const appUrl = await getAppUrlForCallback(req)
-    return redirect(`${appUrl}/?slotz_outlook=error&reason=${reason}`)
+    return redirect(`${appUrl}?slotz_outlook=error&reason=${reason}`)
   }
 })
 
@@ -291,7 +291,7 @@ function normalizeAllowedAppUrl(value: string) {
     ])
 
     if (!allowedOrigins.has(origin)) throw new Error('Unapproved SLOTZ app URL')
-    return origin
+    return `${origin}${url.pathname === '/' ? '' : url.pathname}`
   } catch {
     throw new Error('Invalid SLOTZ app URL')
   }

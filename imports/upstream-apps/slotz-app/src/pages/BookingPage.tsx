@@ -523,11 +523,18 @@ const BookingPage: React.FC<BookingPageProps> = ({ navigate, selectedMeetingType
             return;
         }
 
+        const currentTenantId = staffProfile?.tenant_id || supabaseDb.getCurrentTenantId();
+        if (!currentTenantId) {
+            console.error('❌ No tenant ID available for booking insert');
+            return;
+        }
+
         console.log('✅ Validation passed, creating booking...');
         const end_time = addMinutes(new Date(selectedSlot), resolvedMeetingType.duration_minutes).toISOString();
         
         const bookingData = {
             staff_id: currentStaffId,
+            tenant_id: currentTenantId,
             meeting_type_id: resolvedMeetingType.id,
             guest_name: `${customerInfo.firstName} ${customerInfo.lastName}`.trim(),
             guest_email: customerInfo.email,

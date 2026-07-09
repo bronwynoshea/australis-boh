@@ -83,6 +83,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
               // Store token data
               try {
                 localStorage.setItem('personalRoomToken', JSON.stringify(tokenResponse));
+                localStorage.setItem('personalRoomLeaveToken', String((tokenResponse as any)?.leaveToken || ''));
                 localStorage.setItem('guestName', savedGuestName);
                 localStorage.setItem('isPersonalRoomGuest', 'true');
                 localStorage.setItem('loft_approval_status', 'approved');
@@ -156,6 +157,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
           // Store token data for PersonalRoomPage
           try {
             localStorage.setItem('personalRoomToken', JSON.stringify(tokenResponse));
+            localStorage.setItem('personalRoomLeaveToken', String((tokenResponse as any)?.leaveToken || ''));
             localStorage.setItem('guestName', guestName);
             localStorage.setItem('isPersonalRoomGuest', 'true');
             localStorage.setItem('loft_approval_status', 'approved');

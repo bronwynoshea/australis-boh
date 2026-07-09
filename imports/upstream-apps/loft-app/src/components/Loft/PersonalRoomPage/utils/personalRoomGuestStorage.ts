@@ -4,6 +4,7 @@ const PERSONAL_ROOM_GUEST_ACCESS_KEYS = [
   'personalRoomSlug',
   'personalRoomTitle',
   'personalRoomHostName',
+  'personalRoomLeaveToken',
   'personalRoomGuestEmail',
   'personalRoomAccessRequestedAt',
   'isPersonalRoomGuest',

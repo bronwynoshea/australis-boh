@@ -12,8 +12,56 @@ type ExternalRoomPayload = {
   isRecorded?: boolean;
   videoSessionId?: string | null;
   loftRoomId?: string | null;
+  leaveToken?: string | null;
   currentUserProfile?: Record<string, unknown> | null;
 };
+
+const EXTERNAL_GUEST_KEYS = [
+  'guestName',
+  'isPersonalRoomGuest',
+  'loft_approval_status',
+  'personalRoomToken',
+  'personalRoomLeaveToken',
+];
+
+function clearExternalGuestStorage() {
+  EXTERNAL_GUEST_KEYS.forEach((key) => localStorage.removeItem(key));
+}
+
+function externalDisplayName(payload: ExternalRoomPayload) {
+  const profile = payload.currentUserProfile || {};
+  const displayName = typeof profile.displayName === 'string' ? profile.displayName.trim() : '';
+  return displayName || (payload.role === 'host' ? 'Host' : 'Guest');
+}
+
+function storeExternalRoomPayload(payload: ExternalRoomPayload, normalizedRoomId: string) {
+  const tokenPayload = {
+    ...payload,
+    loftRoomId: payload.loftRoomId || normalizedRoomId,
+  };
+  const isHost = payload.role === 'host';
+
+  if (isHost) {
+    clearExternalGuestStorage();
+    sessionStorage.setItem('personalRoomIsHost', 'true');
+    sessionStorage.setItem('personalRoomToken', JSON.stringify(tokenPayload));
+    sessionStorage.setItem('userExplicitlyJoined', 'true');
+    return;
+  }
+
+  sessionStorage.removeItem('personalRoomIsHost');
+  sessionStorage.removeItem('personalRoomToken');
+  sessionStorage.setItem('userExplicitlyJoined', 'true');
+  localStorage.setItem('personalRoomToken', JSON.stringify(tokenPayload));
+  localStorage.setItem('guestName', externalDisplayName(payload));
+  localStorage.setItem('isPersonalRoomGuest', 'true');
+  localStorage.setItem('loft_approval_status', 'approved');
+  if (payload.leaveToken) {
+    localStorage.setItem('personalRoomLeaveToken', payload.leaveToken);
+  } else {
+    localStorage.removeItem('personalRoomLeaveToken');
+  }
+}
 
 function decodePayload(value: string | null): ExternalRoomPayload | null {
   if (!value) return null;
@@ -62,17 +110,9 @@ const ExternalInterviewRoomPage: React.FC = () => {
     }
 
     try {
-      const tokenPayload = {
-        ...payload,
-        loftRoomId: payload.loftRoomId || normalizedRoomId,
-      };
-      sessionStorage.setItem('personalRoomIsHost', payload.role === 'host' ? 'true' : 'false');
-      sessionStorage.setItem('personalRoomToken', JSON.stringify(tokenPayload));
-      sessionStorage.setItem('userExplicitlyJoined', 'true');
+      storeExternalRoomPayload(payload, normalizedRoomId);
       window.name = '';
       window.history.replaceState(window.history.state, document.title, window.location.pathname);
-      localStorage.removeItem('isPersonalRoomGuest');
-      localStorage.removeItem('loft_approval_status');
       setReady(true);
     } catch (error) {
       console.error('[ExternalInterviewRoomPage] Could not prepare room session', error);

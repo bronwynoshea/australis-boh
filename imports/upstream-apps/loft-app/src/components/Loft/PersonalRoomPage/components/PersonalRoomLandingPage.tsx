@@ -184,6 +184,7 @@ Best regards`;
         roomTitle: string;
         hostName: string;
         roomId: string;
+        leaveToken?: string;
       }>('loft-join-personal-room-by-slug', {
         slug: inviteCode || slug,
         tenantSlug: activeTenantSlug,
@@ -201,6 +202,7 @@ Best regards`;
           roomId: response.roomId,
           isHost: false,
         }));
+        localStorage.setItem('personalRoomLeaveToken', response.leaveToken || '');
         localStorage.setItem('personalRoomTitle', response.roomTitle);
         localStorage.setItem('personalRoomHostName', response.hostName);
         localStorage.setItem('personalRoomSlug', slug);

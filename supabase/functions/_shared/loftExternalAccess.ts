@@ -273,6 +273,64 @@ export function isRoomJoinableForExternal(room: any) {
   return true;
 }
 
+function base64UrlEncodeBytes(bytes: Uint8Array) {
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function base64UrlEncodeText(value: string) {
+  return base64UrlEncodeBytes(new TextEncoder().encode(value));
+}
+
+function base64UrlDecodeText(value: string) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+  const binary = atob(padded);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+async function hmacSha256(secret: string, value: string) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value));
+  return base64UrlEncodeBytes(new Uint8Array(signature));
+}
+
+export async function createLeaveToken(secret: string, params: { loftRoomId: string; guestName: string; ttlSeconds?: number }) {
+  const payload = base64UrlEncodeText(JSON.stringify({
+    loftRoomId: normalizeText(params.loftRoomId),
+    guestName: normalizeText(params.guestName),
+    exp: Math.floor(Date.now() / 1000) + (params.ttlSeconds || 6 * 60 * 60),
+  }));
+  const signature = await hmacSha256(secret, payload);
+  return `${payload}.${signature}`;
+}
+
+export async function verifyLeaveToken(secret: string, token: string, params: { loftRoomId: string; guestName: string }) {
+  const [payload, signature] = normalizeText(token).split('.');
+  if (!payload || !signature) return false;
+  const expected = await hmacSha256(secret, payload);
+  if (expected !== signature) return false;
+  try {
+    const parsed = JSON.parse(base64UrlDecodeText(payload));
+    if (normalizeText(parsed?.loftRoomId) !== normalizeText(params.loftRoomId)) return false;
+    if (normalizeText(parsed?.guestName) !== normalizeText(params.guestName)) return false;
+    const exp = Number(parsed?.exp || 0);
+    return Number.isFinite(exp) && exp >= Math.floor(Date.now() / 1000);
+  } catch {
+    return false;
+  }
+}
+
 export function allowedBusinessContextsForPersona(persona: ExternalLoftCaller['persona']) {
   if (persona === 'recruiter') return ['interview', 'appointment', 'group_session', 'other'];
   if (persona === 'coach') return ['coaching', 'onboarding', 'appointment', 'group_session', 'other'];

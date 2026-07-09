@@ -1472,6 +1472,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
             await callEdgeFunction('update_guest_leave_status', {
               loftRoomId: roomId,
               guestName: participantName,
+              leaveToken: localStorage.getItem('personalRoomLeaveToken'),
             });
           } catch (error) {
           }
@@ -2017,8 +2018,9 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
     const handleBeforeUnload = () => {
       // Use sendBeacon for reliable delivery during page unload
       if (navigator.sendBeacon) {
+        const leaveToken = localStorage.getItem('personalRoomLeaveToken');
         const blob = new Blob(
-          [JSON.stringify({ loftRoomId: roomId, guestName })],
+          [JSON.stringify({ loftRoomId: roomId, guestName, leaveToken })],
           { type: 'application/json' }
         );
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -2170,7 +2172,8 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
             // 🔥 FIX: Remove guest from waitlist when they leave
             await callEdgeFunction('update_guest_leave_status', {
               loftRoomId: roomId,
-              guestName: guestName
+              guestName: guestName,
+              leaveToken: localStorage.getItem('personalRoomLeaveToken'),
             });
           } catch (error) {
             console.error('[PersonalRoomPage] Failed to dismiss guest from waiting room:', error);

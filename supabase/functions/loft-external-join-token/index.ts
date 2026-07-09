@@ -5,6 +5,7 @@ import { handleCors, jsonResponse } from "../_shared/cors.ts";
 import {
   assertPatronInTenant,
   createDailyMeetingToken,
+  createLeaveToken,
   displayNameForCaller,
   ensureDailyRoom,
   ensureExternalLoftProfile,
@@ -182,10 +183,18 @@ serve(async (req: Request) => {
       redirectOnMeetingExit,
     });
 
+    const leaveToken = role === 'host'
+      ? null
+      : await createLeaveToken(serviceRoleKey, {
+          loftRoomId: room.id,
+          guestName: loftProfile.displayName,
+        });
+
     return jsonResponse(req, {
       success: true,
       dailyRoomName: room.daily_room_name,
       token: tokenResult.token,
+      leaveToken: role === 'host' ? null : leaveToken,
       role,
       isRecorded: room.is_recorded !== false,
       roomTitle: room.title,

@@ -102,7 +102,11 @@ export interface SchedulingMeetingType {
  */
 export interface SchedulingBooking {
   id: string;                           // uuid - Primary key
-  staff_id: string;                     // uuid - References staff profile
+  staff_id: string;                     // uuid - Calendar/bookable staff profile
+  tenant_id?: string | null;             // BOH tenant that owns the booking
+  booking_account_staff_id?: string | null; // Staff profile/account that received the booking link
+  routed_calendar_owner_staff_id?: string | null; // Calendar owner used for availability/sync
+  routed_calendar_owner_email?: string | null; // Calendar owner email snapshot
   meeting_type_id: string;              // uuid - References meeting type
   
   // Guest Information

@@ -386,7 +386,7 @@ const App: React.FC = () => {
               console.log('📱 iPad: Staff found, setting current staff...');
             }
 
-            supabaseDb.setCurrentStaff(staffProfile.id);
+            supabaseDb.setCurrentStaff(staffProfile.id, staffProfile.tenant_id);
 
             if (isIPad) {
               console.log('📱 iPad: Getting meeting types...');

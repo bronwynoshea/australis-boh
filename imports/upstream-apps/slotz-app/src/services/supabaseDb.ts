@@ -11,14 +11,20 @@ import {
 
 class SupabaseDatabase {
   private currentStaffId: string | null = null;
+  private currentTenantId: string | null = null;
 
-  // Set the current staff user (call after login)
-  setCurrentStaff(staffId: string) {
+  // Set the current staff user (call after login or public tenant-scoped lookup)
+  setCurrentStaff(staffId: string, tenantId?: string | null) {
     this.currentStaffId = staffId;
+    if (tenantId) this.currentTenantId = tenantId;
   }
 
   getCurrentStaffId(): string | null {
     return this.currentStaffId;
+  }
+
+  getCurrentTenantId(): string | null {
+    return this.currentTenantId;
   }
 
   private async ensureCurrentStaffId(): Promise<string> {
@@ -38,7 +44,7 @@ class SupabaseDatabase {
 
     const { data: profile, error: profileError } = await supabase
       .from('scheduling_staff_profiles')
-      .select('id')
+      .select('id, tenant_id')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -51,6 +57,7 @@ class SupabaseDatabase {
     }
 
     this.currentStaffId = profile.id;
+    this.currentTenantId = profile.tenant_id || null;
     return profile.id;
   }
 

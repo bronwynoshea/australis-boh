@@ -238,12 +238,19 @@ const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ setFeedback, na
 
     const today = new Date();
 
+    const itemOverlapsRange = (startValue: string, endValue: string | null | undefined, rangeStart: Date, rangeEnd: Date): boolean => {
+        const start = new Date(startValue);
+        const end = new Date(endValue || startValue);
+        return !isNaN(start.getTime()) && !isNaN(end.getTime()) && start < rangeEnd && end > rangeStart;
+    };
+
     const { upcomingBookings, pastBookings, periodLabel, periodTitle, totalUpcomingBookings, todayBookings, weekBookingsCount, periodBookings, periodOutlookEvents } = useMemo(() => {
         const now = new Date();
         const displayBookings = filterSupersededReschedules(allBookings).filter(booking => !isExternalCalendarOnlyEvent(booking));
-        const futureOutlookEvents = outlookEvents.filter(event => {
+        const periodOutlookSource = outlookEvents.filter(event => {
+            const start = new Date(event.event_start_time);
             const end = new Date(event.event_end_time || event.event_start_time);
-            return !isNaN(end.getTime()) && end >= now;
+            return !isNaN(start.getTime()) && !isNaN(end.getTime());
         });
         const upcoming = displayBookings
             .filter(b => b.status === BookingStatus.CONFIRMED && new Date(b.end_time) > now)
@@ -271,12 +278,10 @@ const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ setFeedback, na
             const dayEnd = addDays(dayStart, 1);
             bookingsForPeriod = displayBookings.filter(b => {
                 if (b.status !== BookingStatus.CONFIRMED) return false;
-                const bookingDate = new Date(b.start_time);
-                return bookingDate >= dayStart && bookingDate < dayEnd;
+                return itemOverlapsRange(b.start_time, b.end_time, dayStart, dayEnd);
             });
-            outlookForPeriod = futureOutlookEvents.filter(event => {
-                const eventDate = new Date(event.event_start_time);
-                return eventDate >= dayStart && eventDate < dayEnd;
+            outlookForPeriod = periodOutlookSource.filter(event => {
+                return itemOverlapsRange(event.event_start_time, event.event_end_time, dayStart, dayEnd);
             });
             periodLabelText = "Selected Day";
             periodTitleText = selectedDayDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -286,14 +291,10 @@ const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ setFeedback, na
             bookingsForPeriod = displayBookings.filter(b => {
                 if (b.status !== BookingStatus.CONFIRMED) return false;
                 
-                const bookingDate = new Date(b.start_time);
-                const isInWeek = bookingDate >= weekStartDate && bookingDate < weekEndDate;
-                
-                return isInWeek;
+                return itemOverlapsRange(b.start_time, b.end_time, weekStartDate, weekEndDate);
             });
-            outlookForPeriod = futureOutlookEvents.filter(event => {
-                const eventDate = new Date(event.event_start_time);
-                return eventDate >= weekStartDate && eventDate < weekEndDate;
+            outlookForPeriod = periodOutlookSource.filter(event => {
+                return itemOverlapsRange(event.event_start_time, event.event_end_time, weekStartDate, weekEndDate);
             });
             periodLabelText = "This Week";
             periodTitleText = `${weekStartDate.toLocaleDateString([], { month: 'short', day: 'numeric' })} - ${addDays(weekStartDate, 6).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}`;
@@ -303,12 +304,10 @@ const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ setFeedback, na
             bookingsForPeriod = displayBookings.filter(b => {
                 if (b.status !== BookingStatus.CONFIRMED) return false;
                 
-                const bookingDate = new Date(b.start_time);
-                return bookingDate >= currentMonthDate && bookingDate < monthEndDate;
+                return itemOverlapsRange(b.start_time, b.end_time, currentMonthDate, monthEndDate);
             });
-            outlookForPeriod = futureOutlookEvents.filter(event => {
-                const eventDate = new Date(event.event_start_time);
-                return eventDate >= currentMonthDate && eventDate < monthEndDate;
+            outlookForPeriod = periodOutlookSource.filter(event => {
+                return itemOverlapsRange(event.event_start_time, event.event_end_time, currentMonthDate, monthEndDate);
             });
             periodLabelText = "This Month";
             periodTitleText = currentMonthDate.toLocaleDateString([], { month: 'long', year: 'numeric' });
@@ -589,6 +588,7 @@ const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ setFeedback, na
                                 <MobileWeeklyAgenda
                                     startDate={weekStartDate}
                                     bookings={periodBookings}
+                                    outlookEvents={periodOutlookEvents}
                                     onViewBookingDetails={handleViewBookingDetails}
                                 />
                             </div>

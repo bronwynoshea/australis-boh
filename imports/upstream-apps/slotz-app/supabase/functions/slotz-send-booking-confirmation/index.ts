@@ -22,6 +22,49 @@ const splitName = (fullName: string) => {
   }
 }
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+async function loadBookingWithRetry(supabaseClient: any, bookingId: string) {
+  let lastError: unknown = null
+
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    const { data: booking, error } = await supabaseClient
+      .from('scheduling_bookings')
+      .select('*')
+      .eq('id', bookingId)
+      .maybeSingle()
+
+    if (booking) return booking
+    lastError = error
+    await wait(attempt * 250)
+  }
+
+  console.error('Booking lookup failed after trigger retry window:', lastError)
+  throw new Error('Booking not found')
+}
+
+async function loadMeetingType(supabaseClient: any, meetingTypeId: string) {
+  const { data, error } = await supabaseClient
+    .from('scheduling_meeting_types')
+    .select('*')
+    .eq('id', meetingTypeId)
+    .single()
+
+  if (error || !data) throw new Error('Missing meeting type')
+  return data
+}
+
+async function loadStaffProfile(supabaseClient: any, staffId: string) {
+  const { data, error } = await supabaseClient
+    .from('scheduling_staff_profiles')
+    .select('*')
+    .eq('id', staffId)
+    .single()
+
+  if (error || !data) throw new Error('Missing staff profile context')
+  return data
+}
+
 async function upsertPatronPerson(supabaseClient: any, booking: any) {
   const email = normalizeEmail(booking.guest_email)
   const fullName = normalizeText(booking.guest_name)
@@ -89,8 +132,8 @@ serve(async (req: Request) => {
     const { bookingId } = await req.json()
     if (!bookingId) throw new Error('Missing bookingId')
 
-    const supabaseUrl = Deno.env.get('SLOTZ_SUPABASE_URL')
-    const serviceKey = Deno.env.get('SLOTZ_SUPABASE_ADMIN_KEY')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     const resendApiKey = Deno.env.get('SLOTZ_RESEND_API_KEY')
     const appUrl = Deno.env.get('SLOTZ_APP_URL')
 
@@ -101,20 +144,10 @@ serve(async (req: Request) => {
 
     const supabaseClient = createClient(supabaseUrl, serviceKey)
 
-    const { data: booking, error } = await supabaseClient
-      .from('scheduling_bookings')
-      .select(`
-        *,
-        scheduling_meeting_types(*),
-        scheduling_staff_profiles(*)
-      `)
-      .eq('id', bookingId)
-      .single()
+    const booking = await loadBookingWithRetry(supabaseClient, bookingId)
 
-    if (error || !booking) throw new Error('Booking not found')
-
-    const meetingType = booking.scheduling_meeting_types
-    const staffProfile = booking.scheduling_staff_profiles
+    const meetingType = await loadMeetingType(supabaseClient, booking.meeting_type_id)
+    const staffProfile = await loadStaffProfile(supabaseClient, booking.staff_id)
     const guestTimezone = booking.guest_timezone
 
     if (!meetingType?.name) throw new Error('Missing meeting type')
@@ -132,7 +165,7 @@ serve(async (req: Request) => {
 
     const startTime = new Date(booking.start_time)
     const endTime = new Date(booking.end_time)
-    const manageUrl = `${appUrl}/#manage-${booking.id}`
+    const manageUrl = `${appUrl}/manage/${booking.id}`
 
     const formatDate = (date: Date, timeZone: string) => date.toLocaleDateString('en-US', {
       weekday: 'long',

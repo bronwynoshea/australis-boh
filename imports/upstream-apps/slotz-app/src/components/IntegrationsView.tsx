@@ -266,8 +266,9 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ setFeedback, initia
         setStatusMessage(null);
         outlook.clearBrowserAuthState();
 
+        const appUrl = `${window.location.origin}${window.location.pathname}`;
         const { data, error } = await invokeStaffFunction<any>('slotz-outlook-connect', {
-            body: { appUrl: window.location.origin },
+            body: { appUrl },
         });
         if (error || data?.error || !data?.authUrl) {
             setStatus(SyncStatus.ERROR);

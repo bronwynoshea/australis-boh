@@ -114,7 +114,7 @@ function normalizeAllowedAppUrl(value: string) {
     ])
 
     if (!allowedOrigins.has(origin)) throw new Error('Unapproved SLOTZ app URL')
-    return origin
+    return `${origin}${url.pathname === '/' ? '' : url.pathname}`
   } catch {
     throw new Error('Invalid SLOTZ app URL')
   }

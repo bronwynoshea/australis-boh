@@ -368,8 +368,16 @@ const ManualBookingModal: React.FC<ManualBookingModalProps> = ({
                 throw new Error('Invalid date/time selected');
             }
 
+            if (!staffProfile.tenant_id) {
+                throw new Error('Staff profile tenant is missing. Please reload SLOTZ and try again.');
+            }
+
             const newBooking = {
                 staff_id: staffProfile.id,
+                tenant_id: staffProfile.tenant_id,
+                booking_account_staff_id: staffProfile.id,
+                routed_calendar_owner_staff_id: staffProfile.id,
+                routed_calendar_owner_email: staffProfile.email || null,
                 meeting_type_id: selectedMeetingType.id,
                 guest_name: customerInfo.name,
                 guest_email: customerInfo.email,

@@ -51,7 +51,19 @@ serve(async (req: Request) => {
       .limit(1);
     if (tenantId) query = query.eq("tenant_id", tenantId);
 
-    const { data: room, error: roomError } = await query.maybeSingle();
+    let { data: room, error: roomError } = await query.maybeSingle();
+
+    if (!room && tenantId) {
+      const { data: globalMatches, error: globalMatchError } = await supabaseAdmin
+        .from("loft_room")
+        .select("id, title, is_open, opened_at, invite_code, host_boh_user_id, tags, tenant_id, room_origin")
+        .ilike("invite_code", slug.toUpperCase())
+        .neq("status", "deleted")
+        .limit(2);
+      if (globalMatchError) roomError = globalMatchError;
+      if (Array.isArray(globalMatches) && globalMatches.length === 1) room = globalMatches[0];
+    }
+
     const roomTags = Array.isArray(room?.tags) ? room.tags.map((tag: unknown) => String(tag)) : [];
     const isJoinablePersonalRoom = room?.room_origin === "personal" || roomTags.includes("interview-room") || roomTags.includes("external-recruiter");
     if (roomError || !room || !isJoinablePersonalRoom) return json(req, { error: "personal_room_not_found", message: "No Personal Room found with this guest link" }, 404);

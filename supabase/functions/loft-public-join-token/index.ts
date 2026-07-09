@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { createLeaveToken } from "../_shared/loftExternalAccess.ts";
 
 const rateLimiterMap = new Map<string, { count: number; resetAt: number }>();
 
@@ -261,9 +262,15 @@ serve(async (req: Request) => {
       console.error('[loft-public-join-token] Audit log error:', logError);
     }
 
+    const leaveToken = await createLeaveToken(serviceRoleKey, {
+      loftRoomId: room.id,
+      guestName,
+    });
+
     return json(req, {
       dailyRoomName: room.daily_room_name,
       token: tokenResp.token,
+      leaveToken,
       roomTitle: room.title,
       role: "listener",
       guestName,

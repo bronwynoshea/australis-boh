@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { createLeaveToken } from "../_shared/loftExternalAccess.ts";
 
 
 // ✅ RATE LIMITING
@@ -275,11 +276,18 @@ serve(async (req: Request) => {
     const hostName = String(hostUser?.full_name || hostUser?.display_name || [hostUser?.first_name, hostUser?.last_name].filter(Boolean).join(' ') || hostUser?.email || '').trim();
     if (!hostName) return json(req, { error: "host_onboarding_incomplete" }, 400);
 
+    const leaveToken = await createLeaveToken(serviceRoleKey, {
+      loftRoomId: room.id,
+      guestName: sanitizedGuestName,
+    });
+
     return json(req, {
       token: tokenResp.token,
       dailyRoomName: room.daily_room_name,
       roomTitle: room.title || `${hostName}'s Room`,
       hostName,
+      roomId: room.id,
+      leaveToken,
     });
 
   } catch (e) {

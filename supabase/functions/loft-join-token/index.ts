@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
-import { hydrateLoftMemberIdentities, identityForMemberRow, resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
+import { canonicalName, hydrateLoftMemberIdentities, identityForMemberRow, resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
 
 type JoinTokenBody = {
   loftRoomId?: string;
@@ -100,6 +100,55 @@ async function ensureDailyRoom(params: {
   }
 
   return jsonBody;
+}
+
+async function resolveHostDetails(supabaseAdmin: any, room: any, fallbackIdentity: any, fallbackAuthUserId: string) {
+  const hostBohUserId = String(room?.host_boh_user_id || '');
+  if (hostBohUserId) {
+    const { data: host, error } = await supabaseAdmin
+      .from('boh_user')
+      .select('id, auth_user_id, first_name, last_name, full_name, display_name, avatar_url')
+      .eq('id', hostBohUserId)
+      .maybeSingle();
+    if (error) throw new Error(`host_boh_user_lookup_failed: ${error.message}`);
+    if (host?.id) {
+      return {
+        profileId: null,
+        userId: host.auth_user_id ? String(host.auth_user_id) : undefined,
+        displayName: canonicalName(host, 'boh_user'),
+        bohUserId: String(host.id),
+        avatarUrl: host.avatar_url || null,
+        isHost: true,
+      };
+    }
+  }
+
+  const hostPatronPersonId = String(room?.host_patron_person_id || '');
+  if (hostPatronPersonId) {
+    const { data: host, error } = await supabaseAdmin
+      .from('patron_person')
+      .select('id, first_name, last_name')
+      .eq('id', hostPatronPersonId)
+      .maybeSingle();
+    if (error) throw new Error(`host_patron_lookup_failed: ${error.message}`);
+    if (host?.id) {
+      return {
+        profileId: null,
+        patronPersonId: String(host.id),
+        displayName: canonicalName(host, 'patron_person'),
+        isHost: true,
+      };
+    }
+  }
+
+  return {
+    profileId: null,
+    userId: fallbackAuthUserId,
+    displayName: fallbackIdentity.displayName,
+    bohUserId: fallbackIdentity.bohUserId,
+    avatarUrl: fallbackIdentity.avatarUrl || null,
+    isHost: true,
+  };
 }
 
 serve(async (req: Request) => {
@@ -371,6 +420,7 @@ serve(async (req: Request) => {
     }).filter(Boolean);
 
     const hostDisplayName = identity.displayName;
+    const hostDetails = await resolveHostDetails(supabaseAdmin, room, identity, authedUser.id);
 
     const currentUserProfile = {
       profileId: null,
@@ -404,14 +454,7 @@ serve(async (req: Request) => {
       hostProfileId: null,
       members,
       currentUserProfile,
-      hostDetails: {
-        profileId: null,
-        userId: authedUser.id,
-        displayName: hostDisplayName,
-        bohUserId: identity.bohUserId,
-        avatarUrl: identity.avatarUrl || null,
-        isHost: true,
-      },
+      hostDetails,
     });
   } catch (e) {
     console.error('[loft-join-token] Error:', e);

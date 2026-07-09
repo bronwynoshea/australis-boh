@@ -75,6 +75,28 @@ serve(async (req: Request) => {
     const tenantId = String(tenant.id);
     const tenantSlug = String(tenant.slug).toLowerCase();
 
+    if (!identity.isLoftAdmin) {
+      const { data: loftApp, error: loftAppError } = await supabaseAdmin
+        .from("boh_app")
+        .select("id")
+        .eq("slug", "loft")
+        .maybeSingle();
+      if (loftAppError) return json(req, { error: "permission_lookup_failed", details: loftAppError }, 500);
+      const { data: loftAccess, error: loftAccessError } = await supabaseAdmin
+        .from("boh_user_app")
+        .select("id")
+        .eq("user_id", identity.bohUserId)
+        .eq("tenant_id", tenantId)
+        .eq("app_context", "boh")
+        .eq("app_id", loftApp?.id || "00000000-0000-0000-0000-000000000000")
+        .limit(1)
+        .maybeSingle();
+      if (loftAccessError) return json(req, { error: "permission_lookup_failed", details: loftAccessError }, 500);
+      if (!loftAccess?.id) {
+        return json(req, { error: "permission_denied", message: "Your profile is not enabled for Personal Room hosting yet." }, 403);
+      }
+    }
+
     async function returnExistingPersonalRoom(existingRoom: any) {
       let inviteCode = existingRoom.invite_code || '';
       const updates: Record<string, unknown> = {};

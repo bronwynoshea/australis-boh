@@ -4,7 +4,9 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import NativeSlotzApp from '../imports/upstream-apps/slotz-app/src/App';
+import NativeLoftApp from '../imports/upstream-apps/loft-app/App';
 import '../imports/upstream-apps/slotz-app/src/index.css';
+import '../imports/upstream-apps/loft-app/index.css';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -22,6 +24,11 @@ const isExternalSlotzRoute =
     (pathParts.length === 4 && pathParts[1] !== 'manage') ||
     (pathParts.length === 3 && pathParts[1] === 'manage')
   ));
+const isExternalLoftRoute = window.location.hostname === 'loft.boh.australis.cloud';
+
+if (isExternalLoftRoute) {
+  document.title = 'Loft';
+}
 
 root.render(
   <React.StrictMode>
@@ -30,6 +37,8 @@ root.render(
         <BrowserRouter>
           <NativeSlotzApp />
         </BrowserRouter>
+      ) : isExternalLoftRoute ? (
+        <NativeLoftApp />
       ) : (
         <BrowserRouter>
           <App />

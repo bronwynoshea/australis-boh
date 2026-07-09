@@ -35,9 +35,7 @@ const WeeklyCalendar: React.FC<WeeklyCalendarProps> = ({
     const gridHeight = Math.max(360, Math.min(TOTAL_HOURS * hourHeight, viewportHeight - 384));
     const timelineRef = useRef<HTMLDivElement>(null);
     const days = useMemo(() => {
-        const sunday = new Date(date);
-        sunday.setDate(date.getDate() - date.getDay());
-        return Array.from({ length: 7 }, (_, i) => addDays(sunday, i));
+        return Array.from({ length: 7 }, (_, i) => addDays(date, i));
     }, [date]);
     const today = new Date();
     

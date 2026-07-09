@@ -2895,6 +2895,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
     (!!localScreenTrack && !!activeScreenTrack && localScreenTrack.id === activeScreenTrack.id) ||
     (!!activeScreenOwnerId && !!localSessionId && activeScreenOwnerId === localSessionId);
   const canStopScreenShare = isLocalScreenShareOwner;
+  const roomIsRecorded = tokenData?.isRecorded === true;
 
   const joinedRoomUI = (
     <>
@@ -2905,7 +2906,8 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
         <PersonalRoomHeader
           roomTitle={hostName}
           participantCount={participants.length}
-          isRecorded={isRecording}
+          isRecorded={roomIsRecorded}
+          isRecordingActive={isRecording}
           isHost={isCurrentUserHost}
           onOpenSetup={() => setIsSetupOpen(true)}
           onOpenSidebar={() => setIsAdmissionSidebarOpen(true)}

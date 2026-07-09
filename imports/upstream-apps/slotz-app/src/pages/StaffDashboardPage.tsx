@@ -589,6 +589,7 @@ const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ setFeedback, na
                                 <MobileWeeklyAgenda
                                     startDate={weekStartDate}
                                     bookings={periodBookings}
+                                    outlookEvents={periodOutlookEvents}
                                     onViewBookingDetails={handleViewBookingDetails}
                                 />
                             </div>

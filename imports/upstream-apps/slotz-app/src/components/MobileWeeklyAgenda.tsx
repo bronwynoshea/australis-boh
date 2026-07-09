@@ -7,10 +7,11 @@ import { MEETING_TYPE_COLORS } from '../constants/index';
 interface MobileWeeklyAgendaProps {
   startDate: Date;
   bookings: SchedulingBooking[];
+  outlookEvents?: any[];
   onViewBookingDetails: (booking: SchedulingBooking) => void;
 }
 
-const MobileWeeklyAgenda: React.FC<MobileWeeklyAgendaProps> = ({ startDate, bookings, onViewBookingDetails }) => {
+const MobileWeeklyAgenda: React.FC<MobileWeeklyAgendaProps> = ({ startDate, bookings, outlookEvents = [], onViewBookingDetails }) => {
     const [meetingTypes, setMeetingTypes] = useState<SchedulingMeetingType[]>([]);
     
     useEffect(() => {
@@ -31,9 +32,24 @@ const MobileWeeklyAgenda: React.FC<MobileWeeklyAgendaProps> = ({ startDate, book
     return (
         <div className="space-y-4">
             {days.map(day => {
-                const dayBookings = bookings
-                    .filter(b => isSameDay(new Date(b.start_time), day))
-                    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+                const dayItems = [
+                    ...bookings
+                        .filter(b => isSameDay(new Date(b.start_time), day))
+                        .map(booking => ({
+                            kind: 'slotz' as const,
+                            id: booking.id,
+                            start: new Date(booking.start_time),
+                            booking,
+                        })),
+                    ...outlookEvents
+                        .filter(event => isSameDay(new Date(event.event_start_time), day))
+                        .map(event => ({
+                            kind: 'outlook' as const,
+                            id: event.id || event.outlook_event_id || `${event.event_start_time}-${event.event_subject}`,
+                            start: new Date(event.event_start_time),
+                            event,
+                        })),
+                ].sort((a, b) => a.start.getTime() - b.start.getTime());
 
                 const isToday = isSameDay(day, today);
 
@@ -48,22 +64,36 @@ const MobileWeeklyAgenda: React.FC<MobileWeeklyAgendaProps> = ({ startDate, book
                             </p>
                         </div>
                         <div className="p-4">
-                            {dayBookings.length > 0 ? (
+                            {dayItems.length > 0 ? (
                                 <ul className="space-y-3">
-                                    {dayBookings.map(booking => {
-                                        const meetingType = meetingTypes.find(m => m.id === booking.meeting_type_id);
-                                        const colors = MEETING_TYPE_COLORS[booking.meeting_type_id] || MEETING_TYPE_COLORS.default;
+                                    {dayItems.map(item => {
+                                        if (item.kind === 'outlook') {
+                                            return (
+                                                <li key={`outlook-${item.id}`} className="flex items-center gap-4">
+                                                    <div className="text-sm font-semibold text-primary-text-muted dark:text-white/60 w-16 text-right">
+                                                        {formatTime(new Date(item.event.event_start_time))}
+                                                    </div>
+                                                    <div className="slotz-external-calendar-event flex-1 rounded-md border-l-4 p-3 text-left w-full">
+                                                        <p className="slotz-external-calendar-event-title font-semibold text-sm truncate">{item.event.event_subject || 'External Booking'}</p>
+                                                        <p className="slotz-external-calendar-event-meta text-xs truncate">External calendar</p>
+                                                    </div>
+                                                </li>
+                                            );
+                                        }
+
+                                        const meetingType = meetingTypes.find(m => m.id === item.booking.meeting_type_id);
+                                        const colors = MEETING_TYPE_COLORS[item.booking.meeting_type_id] || MEETING_TYPE_COLORS.default;
                                         return (
-                                            <li key={booking.id} className="flex items-center gap-4">
+                                            <li key={`slotz-${item.booking.id}`} className="flex items-center gap-4">
                                                 <div className="text-sm font-semibold text-primary-text-muted dark:text-white/60 w-16 text-right">
-                                                    {formatTime(new Date(booking.start_time))}
+                                                    {formatTime(new Date(item.booking.start_time))}
                                                 </div>
-                                                <button onClick={() => onViewBookingDetails(booking)} className={`flex-1 ${colors.bg} ${colors.darkBg} border-l-4 ${colors.border} ${colors.darkBorder} p-3 rounded-md text-left w-full`}>
-                                                    <p className="font-semibold text-sm text-[var(--text-secondary)] dark:text-white">{booking.guest_name}</p>
+                                                <button onClick={() => onViewBookingDetails(item.booking)} className={`flex-1 ${colors.bg} ${colors.darkBg} border-l-4 ${colors.border} ${colors.darkBorder} p-3 rounded-md text-left w-full`}>
+                                                    <p className="font-semibold text-sm text-[var(--text-secondary)] dark:text-white">{item.booking.guest_name}</p>
                                                     <p className="text-xs text-primary-text-muted dark:text-white/60">{meetingType?.name}</p>
                                                 </button>
                                             </li>
-                                        )
+                                        );
                                     })}
                                 </ul>
                             ) : (

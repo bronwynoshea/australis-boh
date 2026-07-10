@@ -5,8 +5,8 @@ import AnimatedBackgroundBlobs from '../../AnimatedBackgroundBlobs';
 import PersonalRoomPage from '../index';
 import { clearStalePersonalGuestAccessState } from '../utils/personalRoomGuestStorage';
 
-const WAITING_FAST_POLL_MS = 12000;
-const WAITING_SLOW_POLL_MS = 60000;
+const WAITING_FAST_POLL_MS = 3000;
+const WAITING_SLOW_POLL_MS = 15000;
 const WAITING_FAST_WINDOW_MS = 2 * 60 * 1000;
 const HOST_OPEN_CHECK_MS = 60000;
 
@@ -138,7 +138,6 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
   // Poll for approval status when waiting
   useEffect(() => {
     if (!isWaitingForHost || !guestName || !slug) return;
-    if (!isHostRoomOpen) return;
     let isStopped = false;
     let timerId: number | undefined;
 

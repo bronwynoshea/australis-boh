@@ -22,6 +22,7 @@ check('public guest join response returns leave token', joinBySlug.includes('cre
 
 const externalJoinToken = read('supabase/functions/loft-external-join-token/index.ts');
 check('external join token response returns leave token for non-hosts', externalJoinToken.includes('createLeaveToken') && externalJoinToken.includes('leaveToken: role ==='));
+check('external host join opens the room for approved guests', externalJoinToken.includes("if (role === 'host')") && externalJoinToken.includes('is_open: true') && externalJoinToken.includes("status: 'live'"));
 
 const leaveStatus = read('supabase/functions/loft-update-guest-leave-status/index.ts');
 check('guest leave cleanup requires auth or leave token', leaveStatus.includes('verifyLeaveToken') && leaveStatus.includes('leave_token_required'));
@@ -31,6 +32,7 @@ check('BOH join token resolves actual host details', joinToken.includes('resolve
 
 const guestGate = read('imports/upstream-apps/loft-app/src/components/Loft/PersonalRoomPage/components/PersonalRoomGuestGate.tsx');
 check('guest link UI hides raw edge function errors', guestGate.includes('friendlyGuestLinkError') && !guestGate.includes("const errorMsg = err?.error || err?.message"));
+check('guest approval polling does not wait for stale room-open state', !guestGate.includes("if (!isHostRoomOpen) return;") && guestGate.includes('const WAITING_FAST_POLL_MS = 3000'));
 
 const requestAccess = read('supabase/functions/loft-request-personal-room-access/index.ts');
 check('guest access request accepts interview guest links', requestAccess.includes("interview-room") && requestAccess.includes("external-recruiter") && !requestAccess.includes(".eq('room_origin', 'personal')"));

@@ -4,20 +4,42 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/Assets/australis-logo-mark.png" />
-    <title>SLOTZ Calendar</title>
-    <meta name="description" content="Book a SLOTZ calendar session." />
-    <meta property="og:title" content="SLOTZ Calendar" />
-    <meta property="og:description" content="Book a SLOTZ calendar session." />
+    <title>Australis - Back of House</title>
+    <meta name="description" content="Australis Back of House business operations." />
+    <meta property="og:title" content="Australis - Back of House" />
+    <meta property="og:description" content="Australis Back of House business operations." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="SLOTZ Calendar" />
-    <meta name="twitter:description" content="Book a SLOTZ calendar session." />
+    <meta name="twitter:title" content="Australis - Back of House" />
+    <meta name="twitter:description" content="Australis Back of House business operations." />
     <script>
-        if (window.location.hostname === 'slotz.boh.australis.cloud' || window.location.pathname.startsWith('/slotz/')) {
-            document.title = 'SLOTZ booking';
-        } else {
-            document.title = 'Australis – Back of House';
-        }
+        (() => {
+            const hostname = window.location.hostname;
+            const pathname = window.location.pathname;
+            const isSlotz = hostname === 'slotz.boh.australis.cloud' || pathname.startsWith('/slotz/');
+            const isLoft = hostname === 'loft.boh.australis.cloud' || pathname.includes('/loft/');
+            const metadata = isLoft
+                ? {
+                    title: 'LOFT | Australis Back of House',
+                    description: 'Join a private LOFT table in Australis Back of House.',
+                }
+                : isSlotz
+                    ? {
+                        title: 'SLOTZ booking',
+                        description: 'Book a SLOTZ calendar session.',
+                    }
+                    : {
+                        title: 'Australis - Back of House',
+                        description: 'Australis Back of House business operations.',
+                    };
+
+            document.title = metadata.title;
+            document.querySelector('meta[name="description"]')?.setAttribute('content', metadata.description);
+            document.querySelector('meta[property="og:title"]')?.setAttribute('content', metadata.title);
+            document.querySelector('meta[property="og:description"]')?.setAttribute('content', metadata.description);
+            document.querySelector('meta[name="twitter:title"]')?.setAttribute('content', metadata.title);
+            document.querySelector('meta[name="twitter:description"]')?.setAttribute('content', metadata.description);
+        })();
     </script>
 </head>
 <body>

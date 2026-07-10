@@ -159,19 +159,15 @@ const PersonalRoomHeader: React.FC<PersonalRoomHeaderProps> = ({
               Sharing
             </div>
           )}
-          {isRecorded && (
+          {isRecordingActive && (
             <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[8px] md:text-[9px] font-black uppercase tracking-widest ${
-                isRecordingActive
-                  ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/25'
-                  : 'bg-red-500/12 text-red-600 dark:text-red-300 border-red-500/30'
-              }`}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[8px] md:text-[9px] font-black uppercase tracking-widest bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/25"
               role="status"
               aria-live="polite"
-              aria-label={isRecordingActive ? 'Recording is active' : 'This session is recorded'}
+              aria-label="Recording is active"
             >
-              <Circle className={`w-2 h-2 fill-current ${isRecordingActive ? 'animate-pulse' : ''}`} />
-              {isRecordingActive ? 'Recording now' : 'Recorded session'}
+              <Circle className="w-2 h-2 fill-current animate-pulse" />
+              Recording now
             </div>
           )}
         </div>
@@ -235,8 +231,8 @@ const PersonalRoomHeader: React.FC<PersonalRoomHeaderProps> = ({
                 : 'bg-[var(--loft-surface-2)] border-[var(--loft-border)] text-[var(--loft-text)] hover:bg-[var(--loft-surface-strong)]'
             }`}
             type="button"
-            aria-label="Toggle Recording"
-            data-loft-tooltip="Toggle recording"
+            aria-label={isRecordingActive ? 'Stop recording' : 'Start recording'}
+            data-loft-tooltip={isRecordingActive ? 'Stop recording' : 'Start recording'}
             data-loft-tooltip-placement="bottom"
           >
             <Video className="w-4 h-4" />

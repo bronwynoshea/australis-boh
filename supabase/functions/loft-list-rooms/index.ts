@@ -120,11 +120,12 @@ serve(async (req: Request) => {
         ? (rooms || []).filter((room: any) => {
             const visibility = String(room.visibility || "").toLowerCase();
             const isPersonalRoom = Array.isArray(room.tags) && room.tags.includes("personal-room");
-            if (isPersonalRoom && !isAdmin) return false;
+            const callerIsHost = isCallerHost(room);
+            if (isPersonalRoom && !isAdmin && !callerIsHost) return false;
             return (
               visibility === "public" ||
               visibility === "unlisted" ||
-              isCallerHost(room) ||
+              callerIsHost ||
               callerMemberRoomIds.has(room.id) ||
               rsvpRoomIds.has(room.id)
             );
@@ -133,7 +134,7 @@ serve(async (req: Request) => {
       ).filter((room: any) => {
         const isPersonalRoom = Array.isArray(room.tags) && room.tags.includes("personal-room");
         if (!isPersonalRoom) return true;
-        if (filter === "mine") return isCallerHost(room);
+        if (filter === "mine" || isCallerHost(room)) return true;
         return isAdmin;
       });
 

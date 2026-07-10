@@ -446,8 +446,12 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
   const selectedVideoDeviceIdRef = useRef<string>('');
   const selectedAudioDeviceIdRef = useRef<string>('');
   const accessTokenRef = useRef<string | null>(null);
+  const localAudioOverrideRef = useRef<boolean | null>(null);
   const localVideoOverrideRef = useRef<boolean | null>(null);
+  const isMicEnabledRef = useRef(isMicEnabled);
   const isVideoEnabledRef = useRef(isVideoEnabled);
+  const audioToggleSequenceRef = useRef(0);
+  const videoToggleSequenceRef = useRef(0);
   const activeScreenOwnerIdRef = useRef<string | null>(null);
   const activeScreenTrackRef = useRef<MediaStreamTrack | null>(null);
   const departedParticipantKeysRef = useRef<Set<string>>(new Set());
@@ -635,6 +639,10 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
   useEffect(() => {
     selectedAudioDeviceIdRef.current = selectedAudioDeviceId;
   }, [selectedAudioDeviceId]);
+
+  useEffect(() => {
+    isMicEnabledRef.current = isMicEnabled;
+  }, [isMicEnabled]);
 
   useEffect(() => {
     isVideoEnabledRef.current = isVideoEnabled;
@@ -1424,16 +1432,12 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
       // This ensures UI state stays in sync even after reconnects or OS-level mutes
       const isLocalParticipant = event?.participant?.local;
       if (isLocalParticipant && callObjectRef.current) {
-        const actualAudio = callObjectRef.current.localAudio();
+        const actualAudio = localAudioOverrideRef.current ?? callObjectRef.current.localAudio();
         const actualVideo = localVideoOverrideRef.current ?? callObjectRef.current.localVideo();
-        
-        // Only update if state has drifted
-        if (actualAudio !== isMicEnabled) {
-          setIsMicEnabled(actualAudio);
-        }
-        if (actualVideo !== isVideoEnabled) {
-          setIsVideoEnabled(actualVideo);
-        }
+        isMicEnabledRef.current = actualAudio;
+        isVideoEnabledRef.current = actualVideo;
+        setIsMicEnabled(actualAudio);
+        setIsVideoEnabled(actualVideo);
       }
       
       // 🔥 FIX: For remote participants, sync immediately to capture background mode changes
@@ -1493,8 +1497,12 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
         setTimeout(() => {
           const callObj = callObjectRef.current;
           if (callObj) {
-            setIsMicEnabled(callObj.localAudio());
-            setIsVideoEnabled(localVideoOverrideRef.current ?? callObj.localVideo());
+            const actualAudio = localAudioOverrideRef.current ?? callObj.localAudio();
+            const actualVideo = localVideoOverrideRef.current ?? callObj.localVideo();
+            isMicEnabledRef.current = actualAudio;
+            isVideoEnabledRef.current = actualVideo;
+            setIsMicEnabled(actualAudio);
+            setIsVideoEnabled(actualVideo);
           }
           syncDailyParticipants();
         }, 0);
@@ -1517,8 +1525,12 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
         setTimeout(() => {
           const callObj = callObjectRef.current;
           if (callObj) {
-            setIsMicEnabled(callObj.localAudio());
-            setIsVideoEnabled(localVideoOverrideRef.current ?? callObj.localVideo());
+            const actualAudio = localAudioOverrideRef.current ?? callObj.localAudio();
+            const actualVideo = localVideoOverrideRef.current ?? callObj.localVideo();
+            isMicEnabledRef.current = actualAudio;
+            isVideoEnabledRef.current = actualVideo;
+            setIsMicEnabled(actualAudio);
+            setIsVideoEnabled(actualVideo);
           }
           syncDailyParticipants();
         }, 0);
@@ -2190,10 +2202,16 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
 
   const handleToggleRecording = useCallback(async () => {
     if (!isCurrentUserHost) return;
+
+    const newRecordingState = !isRecording;
+    const callObj = callObjectRef.current;
     
     try {
-      const newRecordingState = !isRecording;
-      const hasConnectedMedia = participants.some((participant) => participant.audio || participant.video);
+      const hasLocalMedia = !!callObj && (
+        (localAudioOverrideRef.current ?? callObj.localAudio()) ||
+        (localVideoOverrideRef.current ?? callObj.localVideo())
+      );
+      const hasConnectedMedia = hasLocalMedia || participants.some((participant) => participant.audio || participant.video);
       if (newRecordingState && !hasConnectedMedia) {
         setScreenShareNotice('Turn on a microphone or camera before starting recording.');
         return;
@@ -2215,8 +2233,33 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
         : 'Recording stopped.');
     } catch (error: any) {
       const body = error?.body || {};
+      if (newRecordingState && body?.error === 'daily_recording_start_failed' && callObj?.startRecording) {
+        try {
+          await callObj.startRecording({
+            type: 'cloud',
+            layout: { preset: 'default', max_cam_streams: 20 },
+          });
+          await callEdgeFunction('loft-toggle-recording', {
+            roomId,
+            isRecording: true,
+            skipDaily: true,
+            userId: profile?.id,
+            videoSessionId: tokenData?.videoSessionId,
+            currentUserProfile: tokenData?.currentUserProfile,
+          });
+          setIsRecording(true);
+          setScreenShareNotice('Recording started. Participants can see that recording is active.');
+          return;
+        } catch (inCallError: any) {
+          console.error('[PersonalRoomPage] In-call recording start failed', {
+            edgeStatus: body?.status,
+            edgeReason: body?.dailyReason,
+            inCallError: inCallError?.message,
+          });
+        }
+      }
       const message = body?.error === 'daily_recording_start_failed'
-        ? 'Recording could not start. Turn on a microphone or camera, then try again.'
+        ? 'Recording is unavailable for this room. Check that cloud recording is enabled for the Daily account and try again.'
         : body?.error === 'daily_not_configured'
           ? 'Recording is not configured for this JOBZCAFE® environment yet.'
           : body?.message || error?.message || 'Recording could not be changed. Check recording permissions and try again.';
@@ -2241,77 +2284,65 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
   const handleToggleMic = useCallback(async () => {
     const callObj = callObjectRef.current;
     if (!callObj) return;
-    
-    // 🔥 FIX: Optimistic update for instant UI response (no delay)
-    const newState = !isMicEnabled;
+
+    const currentState = localAudioOverrideRef.current ?? isMicEnabledRef.current;
+    const newState = !currentState;
+    const toggleSequence = ++audioToggleSequenceRef.current;
+    localAudioOverrideRef.current = newState;
+    isMicEnabledRef.current = newState;
     setIsMicEnabled(newState);
     updateLocalParticipantMedia({ audio: newState });
-    
+
     try {
-      // 🔥 FIX: Call setLocalAudio immediately without requesting permissions first
-      // Daily.js will handle permission requests internally
       await callObj.setLocalAudio(newState);
-      
-      // 🔥 FIX: Verify state after a short delay and sync participants
-      setTimeout(() => {
-        const actualState = callObj.localAudio();
-        
-        // Only update if state drifted
-        if (actualState !== newState) {
-          setIsMicEnabled(actualState);
-          updateLocalParticipantMedia({ audio: actualState });
-        }
-        
-        // Sync participants to update UI
-        syncDailyParticipants();
-      }, 50);
+      if (toggleSequence !== audioToggleSequenceRef.current) return;
+      const actualState = callObj.localAudio();
+      localAudioOverrideRef.current = null;
+      isMicEnabledRef.current = actualState;
+      setIsMicEnabled(actualState);
+      updateLocalParticipantMedia({ audio: actualState });
+      syncDailyParticipants();
     } catch (e) {
-      setIsMicEnabled(!newState); // Revert on error
-      updateLocalParticipantMedia({ audio: !newState });
+      if (toggleSequence !== audioToggleSequenceRef.current) return;
+      localAudioOverrideRef.current = null;
+      const actualState = callObj.localAudio();
+      isMicEnabledRef.current = actualState;
+      setIsMicEnabled(actualState);
+      updateLocalParticipantMedia({ audio: actualState });
     }
-  }, [isMicEnabled, syncDailyParticipants, updateLocalParticipantMedia]);
+  }, [syncDailyParticipants, updateLocalParticipantMedia]);
 
   const handleToggleVideo = useCallback(async () => {
     const callObj = callObjectRef.current;
     if (!callObj) return;
-    
-    // 🔥 FIX: Optimistic update for instant UI response (no delay)
-    const newState = !isVideoEnabled;
+
+    const currentState = localVideoOverrideRef.current ?? isVideoEnabledRef.current;
+    const newState = !currentState;
+    const toggleSequence = ++videoToggleSequenceRef.current;
     localVideoOverrideRef.current = newState;
+    isVideoEnabledRef.current = newState;
     setIsVideoEnabled(newState);
     updateLocalParticipantMedia({ video: newState });
-    
+
     try {
       await callObj.setLocalVideo(newState);
-      
-      // 🔥 FIX: Verify state after a short delay and sync participants
-      setTimeout(() => {
-        const actualState = callObj.localVideo();
-        
-        // Only update if state drifted
-        if (actualState !== newState) {
-          localVideoOverrideRef.current = actualState;
-          setIsVideoEnabled(actualState);
-          updateLocalParticipantMedia({ video: actualState });
-        }
-        
-        // Sync participants to update UI
-        syncDailyParticipants();
-      }, 50);
-      setTimeout(() => {
-        localVideoOverrideRef.current = null;
-        syncDailyParticipants();
-      }, 1200);
+      if (toggleSequence !== videoToggleSequenceRef.current) return;
+      const actualState = callObj.localVideo();
+      localVideoOverrideRef.current = null;
+      isVideoEnabledRef.current = actualState;
+      setIsVideoEnabled(actualState);
+      updateLocalParticipantMedia({ video: actualState });
+      syncDailyParticipants();
     } catch (e) {
-      localVideoOverrideRef.current = !newState;
-      setIsVideoEnabled(!newState); // Revert on error
-      updateLocalParticipantMedia({ video: !newState });
-      setTimeout(() => {
-        localVideoOverrideRef.current = null;
-        syncDailyParticipants();
-      }, 500);
+      if (toggleSequence !== videoToggleSequenceRef.current) return;
+      localVideoOverrideRef.current = null;
+      const actualState = callObj.localVideo();
+      isVideoEnabledRef.current = actualState;
+      setIsVideoEnabled(actualState);
+      updateLocalParticipantMedia({ video: actualState });
+      syncDailyParticipants();
     }
-  }, [isVideoEnabled, syncDailyParticipants, updateLocalParticipantMedia]);
+  }, [syncDailyParticipants, updateLocalParticipantMedia]);
 
   const handleVideoDeviceChange = useCallback((deviceId: string) => {
     setVideoDeviceError(null);

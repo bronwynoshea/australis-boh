@@ -2193,6 +2193,11 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
     
     try {
       const newRecordingState = !isRecording;
+      const hasConnectedMedia = participants.some((participant) => participant.audio || participant.video);
+      if (newRecordingState && !hasConnectedMedia) {
+        setScreenShareNotice('Turn on a microphone or camera before starting recording.');
+        return;
+      }
       setScreenShareNotice(newRecordingState ? 'Starting recording...' : 'Stopping recording...');
       const recordingResult = await callEdgeFunction('loft-toggle-recording', {
         roomId,
@@ -2210,17 +2215,14 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
         : 'Recording stopped.');
     } catch (error: any) {
       const body = error?.body || {};
-      const reason = typeof body?.dailyReason === 'string' && body.dailyReason.trim()
-        ? ` Daily said: ${body.dailyReason.trim()}`
-        : '';
       const message = body?.error === 'daily_recording_start_failed'
-        ? `Recording could not start. Make sure at least one participant has audio or video connected, then try again.${reason}`
+        ? 'Recording could not start. Turn on a microphone or camera, then try again.'
         : body?.error === 'daily_not_configured'
           ? 'Recording is not configured for this JOBZCAFE® environment yet.'
           : body?.message || error?.message || 'Recording could not be changed. Check recording permissions and try again.';
       setScreenShareNotice(message);
     }
-  }, [isCurrentUserHost, isRecording, roomId, profile?.id]);
+  }, [isCurrentUserHost, isRecording, roomId, profile?.id, participants]);
 
   const updateLocalParticipantMedia = useCallback((next: { audio?: boolean; video?: boolean }) => {
     setParticipants((current) => current.map((participant) => {
@@ -2898,7 +2900,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
     (!!localScreenTrack && !!activeScreenTrack && localScreenTrack.id === activeScreenTrack.id) ||
     (!!activeScreenOwnerId && !!localSessionId && activeScreenOwnerId === localSessionId);
   const canStopScreenShare = isLocalScreenShareOwner;
-  const roomIsRecorded = tokenData?.isRecorded === true;
+  const roomIsRecorded = isRecording;
 
   const joinedRoomUI = (
     <>

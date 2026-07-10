@@ -2,10 +2,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from "../_shared/cors.ts"
 
-const PERSONAL_ROOM_TAG = 'personal-room'
+const JOINABLE_ROOM_TAGS = new Set(['personal-room', 'interview-room', 'external-recruiter'])
 
-const hasPersonalRoomTag = (room: { tags?: unknown } | null) =>
-  Array.isArray(room?.tags) && room.tags.includes(PERSONAL_ROOM_TAG)
+const isJoinableGuestRoom = (room: { tags?: unknown; room_origin?: unknown } | null) => {
+  if (!room) return false
+  if (room.room_origin === 'personal') return true
+  const tags = Array.isArray(room.tags) ? room.tags.map((tag) => String(tag)) : []
+  return tags.some((tag) => JOINABLE_ROOM_TAGS.has(tag))
+}
 
 async function getTenantId(supabase: any, tenantSlug: string) {
   const normalizedSlug = String(tenantSlug || '').trim().toLowerCase()
@@ -21,14 +25,30 @@ async function getTenantId(supabase: any, tenantSlug: string) {
 
 async function findPersonalRoomByInviteCode(supabase: any, inviteCode: string, tenantSlug?: string) {
   const tenantId = await getTenantId(supabase, tenantSlug || '')
+  const roomSelect = 'id, tags, tenant_id, room_origin'
   let query = supabase
     .from('loft_room')
-    .select('id, tags, tenant_id')
-    .eq('invite_code', inviteCode)
-    .eq('room_origin', 'personal')
+    .select(roomSelect)
+    .ilike('invite_code', inviteCode)
     .neq('status', 'deleted')
+    .limit(1)
   if (tenantId) query = query.eq('tenant_id', tenantId)
-  return await query.maybeSingle()
+
+  let result = await query.maybeSingle()
+  if ((!result.data || !isJoinableGuestRoom(result.data)) && tenantId) {
+    const globalMatch = await supabase
+      .from('loft_room')
+      .select(roomSelect)
+      .ilike('invite_code', inviteCode)
+      .neq('status', 'deleted')
+      .limit(2)
+    if (!globalMatch.error && Array.isArray(globalMatch.data) && globalMatch.data.length === 1) {
+      result = { data: globalMatch.data[0], error: null }
+    }
+  }
+
+  if (result.data && !isJoinableGuestRoom(result.data)) return { data: null, error: null }
+  return result
 }
 
 serve(async (req) => {
@@ -43,7 +63,7 @@ serve(async (req) => {
 
     if (!slug || !guestName) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: slug, guestName' }),
+        JSON.stringify({ error: 'missing_required_fields', message: 'Please enter your name and try again.' }),
         { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
@@ -59,16 +79,9 @@ serve(async (req) => {
 
     let { data: room, error: roomError } = await findPersonalRoomByInviteCode(supabase, normalizedCode, tenantSlug)
 
-    if (!room) {
-      return new Response(
-        JSON.stringify({ error: 'personal_room_not_found' }),
-        { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-      )
-    }
-
     if (roomError || !room?.id) {
       return new Response(
-        JSON.stringify({ error: 'personal_room_not_found' }),
+        JSON.stringify({ error: 'guest_link_not_available', message: 'This guest link is not available. Please ask the host to send a fresh link.' }),
         { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       )
     }
@@ -101,7 +114,7 @@ serve(async (req) => {
     if (error) {
       console.error('[Check Guest Status] Database error:', error)
       return new Response(
-        JSON.stringify({ error: 'Failed to check guest status', details: error.message }),
+        JSON.stringify({ error: 'status_check_failed', message: 'We could not check your request yet. This page will keep trying.' }),
         { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       )
     }
@@ -116,7 +129,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('[Check Guest Status] Function error:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'unexpected_error', message: 'Something went wrong. Please refresh and try again.' }),
       { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }

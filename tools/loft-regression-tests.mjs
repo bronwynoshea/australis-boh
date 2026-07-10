@@ -29,6 +29,16 @@ check('guest leave cleanup requires auth or leave token', leaveStatus.includes('
 const joinToken = read('supabase/functions/loft-join-token/index.ts');
 check('BOH join token resolves actual host details', joinToken.includes('resolveHostDetails') && joinToken.includes('isHost: isOwner'));
 
+const guestGate = read('imports/upstream-apps/loft-app/src/components/Loft/PersonalRoomPage/components/PersonalRoomGuestGate.tsx');
+check('guest link UI hides raw edge function errors', guestGate.includes('friendlyGuestLinkError') && !guestGate.includes("const errorMsg = err?.error || err?.message"));
+
+const requestAccess = read('supabase/functions/loft-request-personal-room-access/index.ts');
+check('guest access request accepts interview guest links', requestAccess.includes("interview-room") && requestAccess.includes("external-recruiter") && !requestAccess.includes(".eq('room_origin', 'personal')"));
+
+check('guest access request returns friendly unavailable message', requestAccess.includes('guest_link_not_available') && requestAccess.includes('Please ask the host to send a fresh link'));
+
+check('recording badge only appears when recording is active', personalRoomPage.includes('const roomIsRecorded = isRecording') && personalRoomPage.includes('Turn on a microphone or camera before starting recording.'));
+
 const failed = checks.filter((item) => !item.condition);
 if (failed.length) {
   console.error('Loft regression checks failed:');

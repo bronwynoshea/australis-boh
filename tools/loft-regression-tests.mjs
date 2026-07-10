@@ -43,6 +43,7 @@ check('guest access request accepts interview guest links', requestAccess.includ
 check('guest access request returns friendly unavailable message', requestAccess.includes('guest_link_not_available') && requestAccess.includes('Please ask the host to send a fresh link'));
 
 check('recording badge only appears when recording is active', personalRoomPage.includes('const roomIsRecorded = isRecording') && personalRoomPage.includes('Turn on a microphone or camera before starting recording.'));
+check('media toggles keep optimistic state through Daily events', personalRoomPage.includes('localAudioOverrideRef.current ?? isMicEnabledRef.current') && personalRoomPage.includes('localVideoOverrideRef.current ?? isVideoEnabledRef.current') && personalRoomPage.includes('audioToggleSequenceRef') && personalRoomPage.includes('videoToggleSequenceRef'));
 
 const failed = checks.filter((item) => !item.condition);
 if (failed.length) {

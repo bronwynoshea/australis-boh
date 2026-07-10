@@ -10,6 +10,20 @@ const WAITING_SLOW_POLL_MS = 60000;
 const WAITING_FAST_WINDOW_MS = 2 * 60 * 1000;
 const HOST_OPEN_CHECK_MS = 60000;
 
+const friendlyGuestLinkError = (error: any) => {
+  const code = error?.body?.error || error?.error || '';
+  if (code === 'guest_link_not_available' || code === 'personal_room_not_found' || error?.status === 404) {
+    return 'This guest link is not available. Please ask the host to send a fresh link.';
+  }
+  if (code === 'missing_required_fields') {
+    return 'Please enter your name and email address.';
+  }
+  if (code === 'access_request_failed' || code === 'status_check_failed') {
+    return 'We could not send your request. Please try again.';
+  }
+  return 'We could not open this guest link. Please refresh or ask the host to send a fresh link.';
+};
+
 const LoftIcon = ({ className = 'w-10 h-10' }: { className?: string }) => (
   <>
     <img src="/brand/loft-icon-signal-final-light.svg" alt="Loft" className={`${className} dark:hidden`} />
@@ -110,8 +124,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
         
       } catch (err) {
         console.error('Failed to get personal room by slug:', err);
-        const errorMsg = err instanceof Error ? err.message : 'Personal table not found';
-        setError(errorMsg);
+        setError(friendlyGuestLinkError(err));
       } finally {
         setIsLoading(false);
       }
@@ -280,9 +293,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
           error: err.error
         });
         
-        // Try multiple ways to get the error
-        const errorMsg = err?.error || err?.message || err?.error?.message || 'Failed to request access. Please try again.';
-        setError(errorMsg);
+        setError(friendlyGuestLinkError(err));
       } finally {
         setIsLoading(false);
       }
@@ -336,7 +347,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
     return (
       <div className="min-h-screen w-full flex items-center justify-center p-4">
         <div className="loft-card p-8 text-center space-y-4">
-          <h2 className="text-2xl font-bold text-[var(--loft-text)]">Table Not Available</h2>
+          <h2 className="text-2xl font-bold text-[var(--loft-text)]">Guest link unavailable</h2>
           <p className="text-[var(--loft-text-subtle)]">{error}</p>
           <button 
             onClick={() => window.location.reload()} 

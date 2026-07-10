@@ -47,6 +47,7 @@ check('media toggles keep optimistic state through Daily events', personalRoomPa
 
 const recordingFunction = read('supabase/functions/loft-toggle-recording/index.ts');
 check('recording start retries while Daily media finishes connecting', recordingFunction.includes('shouldRetryRecordingStart') && recordingFunction.includes('await wait(1500)'));
+check('recording falls back to the active Daily call before reporting unavailable', personalRoomPage.includes('callObj.startRecording') && personalRoomPage.includes('skipDaily: true') && recordingFunction.includes('isRecording && !skipDaily'));
 
 const failed = checks.filter((item) => !item.condition);
 if (failed.length) {

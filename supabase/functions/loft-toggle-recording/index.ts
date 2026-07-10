@@ -55,7 +55,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json()
-    const { roomId, isRecording } = body
+    const { roomId, isRecording, skipDaily = false } = body
     const externalBohUserId = typeof body?.currentUserProfile?.bohUserId === 'string'
       ? body.currentUserProfile.bohUserId.trim()
       : ''
@@ -112,7 +112,7 @@ serve(async (req) => {
       return json(req, { error: 'daily_room_missing', message: 'Recording cannot start because this session is missing its Daily room.' }, 400)
     }
 
-    if (isRecording) {
+    if (isRecording && !skipDaily) {
       const configResp = await dailyRequest({
         dailyRoomName: room.daily_room_name,
         dailyApiKey,
@@ -163,7 +163,7 @@ serve(async (req) => {
           status: startResp.status,
         }, 502)
       }
-    } else {
+    } else if (!isRecording && !skipDaily) {
       const stopResp = await dailyRequest({
         dailyRoomName: room.daily_room_name,
         dailyApiKey,

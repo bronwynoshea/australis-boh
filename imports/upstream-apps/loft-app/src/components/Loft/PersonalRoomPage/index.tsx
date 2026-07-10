@@ -2202,10 +2202,11 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
 
   const handleToggleRecording = useCallback(async () => {
     if (!isCurrentUserHost) return;
+
+    const newRecordingState = !isRecording;
+    const callObj = callObjectRef.current;
     
     try {
-      const newRecordingState = !isRecording;
-      const callObj = callObjectRef.current;
       const hasLocalMedia = !!callObj && (
         (localAudioOverrideRef.current ?? callObj.localAudio()) ||
         (localVideoOverrideRef.current ?? callObj.localVideo())
@@ -2232,8 +2233,33 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
         : 'Recording stopped.');
     } catch (error: any) {
       const body = error?.body || {};
+      if (newRecordingState && body?.error === 'daily_recording_start_failed' && callObj?.startRecording) {
+        try {
+          await callObj.startRecording({
+            type: 'cloud',
+            layout: { preset: 'default', max_cam_streams: 20 },
+          });
+          await callEdgeFunction('loft-toggle-recording', {
+            roomId,
+            isRecording: true,
+            skipDaily: true,
+            userId: profile?.id,
+            videoSessionId: tokenData?.videoSessionId,
+            currentUserProfile: tokenData?.currentUserProfile,
+          });
+          setIsRecording(true);
+          setScreenShareNotice('Recording started. Participants can see that recording is active.');
+          return;
+        } catch (inCallError: any) {
+          console.error('[PersonalRoomPage] In-call recording start failed', {
+            edgeStatus: body?.status,
+            edgeReason: body?.dailyReason,
+            inCallError: inCallError?.message,
+          });
+        }
+      }
       const message = body?.error === 'daily_recording_start_failed'
-        ? 'Recording could not start yet. Wait a moment for the microphone or camera to finish connecting, then try again.'
+        ? 'Recording is unavailable for this room. Check that cloud recording is enabled for the Daily account and try again.'
         : body?.error === 'daily_not_configured'
           ? 'Recording is not configured for this JOBZCAFE® environment yet.'
           : body?.message || error?.message || 'Recording could not be changed. Check recording permissions and try again.';

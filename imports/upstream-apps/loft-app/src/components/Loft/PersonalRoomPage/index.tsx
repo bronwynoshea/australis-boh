@@ -2205,7 +2205,12 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
     
     try {
       const newRecordingState = !isRecording;
-      const hasConnectedMedia = participants.some((participant) => participant.audio || participant.video);
+      const callObj = callObjectRef.current;
+      const hasLocalMedia = !!callObj && (
+        (localAudioOverrideRef.current ?? callObj.localAudio()) ||
+        (localVideoOverrideRef.current ?? callObj.localVideo())
+      );
+      const hasConnectedMedia = hasLocalMedia || participants.some((participant) => participant.audio || participant.video);
       if (newRecordingState && !hasConnectedMedia) {
         setScreenShareNotice('Turn on a microphone or camera before starting recording.');
         return;
@@ -2228,7 +2233,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
     } catch (error: any) {
       const body = error?.body || {};
       const message = body?.error === 'daily_recording_start_failed'
-        ? 'Recording could not start. Turn on a microphone or camera, then try again.'
+        ? 'Recording could not start yet. Wait a moment for the microphone or camera to finish connecting, then try again.'
         : body?.error === 'daily_not_configured'
           ? 'Recording is not configured for this JOBZCAFE® environment yet.'
           : body?.message || error?.message || 'Recording could not be changed. Check recording permissions and try again.';

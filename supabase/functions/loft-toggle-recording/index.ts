@@ -11,8 +11,22 @@ function json(req: Request, body: Record<string, unknown>, status = 200) {
 }
 
 function dailyReason(body: Record<string, unknown>) {
-  const message = body?.message ?? body?.error ?? body?.info
+  const message = body?.message ?? body?.info ?? body?.error
   return typeof message === 'string' ? message : undefined
+}
+
+const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+
+function shouldRetryRecordingStart(result: { ok: boolean; status: number; body: Record<string, unknown> }) {
+  if (result.ok || result.status === 409) return false
+  const details = JSON.stringify(result.body || {}).toLowerCase()
+  return result.status === 400 && (
+    details.includes('invalid-request-error') ||
+    details.includes('participant') ||
+    details.includes('audio') ||
+    details.includes('video') ||
+    details.includes('connected')
+  )
 }
 
 async function dailyRequest(params: {
@@ -41,7 +55,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json()
-    const { roomId, isRecording } = body
+    const { roomId, isRecording, skipDaily = false } = body
     const externalBohUserId = typeof body?.currentUserProfile?.bohUserId === 'string'
       ? body.currentUserProfile.bohUserId.trim()
       : ''
@@ -98,7 +112,7 @@ serve(async (req) => {
       return json(req, { error: 'daily_room_missing', message: 'Recording cannot start because this session is missing its Daily room.' }, 400)
     }
 
-    if (isRecording) {
+    if (isRecording && !skipDaily) {
       const configResp = await dailyRequest({
         dailyRoomName: room.daily_room_name,
         dailyApiKey,
@@ -114,7 +128,7 @@ serve(async (req) => {
         }, 502)
       }
 
-      const startResp = await dailyRequest({
+      let startResp = await dailyRequest({
         dailyRoomName: room.daily_room_name,
         dailyApiKey,
         path: '/recordings/start',
@@ -126,6 +140,21 @@ serve(async (req) => {
           backgroundColor: '#0f122a',
         },
       })
+      if (shouldRetryRecordingStart(startResp)) {
+        await wait(1500)
+        startResp = await dailyRequest({
+          dailyRoomName: room.daily_room_name,
+          dailyApiKey,
+          path: '/recordings/start',
+          body: {
+            type: 'cloud',
+            layout: { preset: 'default', max_cam_streams: 20 },
+            maxDuration: 10800,
+            minIdleTimeOut: 300,
+            backgroundColor: '#0f122a',
+          },
+        })
+      }
       if (!startResp.ok && startResp.status !== 409) {
         return json(req, {
           error: 'daily_recording_start_failed',
@@ -134,7 +163,7 @@ serve(async (req) => {
           status: startResp.status,
         }, 502)
       }
-    } else {
+    } else if (!isRecording && !skipDaily) {
       const stopResp = await dailyRequest({
         dailyRoomName: room.daily_room_name,
         dailyApiKey,

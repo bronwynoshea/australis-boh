@@ -112,7 +112,7 @@ const PersonalRoomLandingPage: React.FC<PersonalRoomLandingPageProps> = ({ onNav
   const activeTenantSlug = resolvedTenantSlug || tenantSlug || getDefaultTenantSlug();
   const guestJoinCode = inviteCode || slug;
   const personalLink = guestJoinCode
-    ? `${appOrigin}/t/${activeTenantSlug}/loft/join/${guestJoinCode.toLowerCase()}`
+    ? `${appOrigin}/t/${activeTenantSlug}/loft/join/${guestJoinCode.toLowerCase()}?guest=new`
     : '';
   const profileName =
     ((profile as any)?.name as string | undefined) ||

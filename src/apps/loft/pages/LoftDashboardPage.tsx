@@ -40,7 +40,7 @@ const LoftDashboardPage: React.FC = () => {
 
   const inviteUrl = useMemo(() => {
     if (!personalRoom?.inviteCode || !personalRoom?.tenantSlug) return '';
-    return `${window.location.origin}/t/${personalRoom.tenantSlug.toLowerCase()}/loft/join/${personalRoom.inviteCode.toLowerCase()}`;
+    return `${window.location.origin}/t/${personalRoom.tenantSlug.toLowerCase()}/loft/join/${personalRoom.inviteCode.toLowerCase()}?guest=new`;
   }, [personalRoom]);
 
   const refreshWaitlist = async (roomId: string) => {

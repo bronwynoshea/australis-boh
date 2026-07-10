@@ -31,7 +31,10 @@ const joinToken = read('supabase/functions/loft-join-token/index.ts');
 check('BOH join token resolves actual host details', joinToken.includes('resolveHostDetails') && joinToken.includes('isHost: isOwner'));
 
 const guestGate = read('imports/upstream-apps/loft-app/src/components/Loft/PersonalRoomPage/components/PersonalRoomGuestGate.tsx');
+const publicGuestPage = read('src/apps/loft/pages/PersonalRoomPublicJoinPage.tsx');
+const loftDashboard = read('src/apps/loft/pages/LoftDashboardPage.tsx');
 check('guest link UI hides raw edge function errors', guestGate.includes('friendlyGuestLinkError') && !guestGate.includes("const errorMsg = err?.error || err?.message"));
+check('new guest links clear stale browser identity before check-in', publicGuestPage.includes("get('guest') === 'new'") && publicGuestPage.includes('clearPersonalGuestAccessState') && loftDashboard.includes('?guest=new'));
 check('guest approval polling does not wait for stale room-open state', !guestGate.includes("if (!isHostRoomOpen) return;") && guestGate.includes('const WAITING_FAST_POLL_MS = 3000'));
 
 const requestAccess = read('supabase/functions/loft-request-personal-room-access/index.ts');
@@ -40,6 +43,11 @@ check('guest access request accepts interview guest links', requestAccess.includ
 check('guest access request returns friendly unavailable message', requestAccess.includes('guest_link_not_available') && requestAccess.includes('Please ask the host to send a fresh link'));
 
 check('recording badge only appears when recording is active', personalRoomPage.includes('const roomIsRecorded = isRecording') && personalRoomPage.includes('Turn on a microphone or camera before starting recording.'));
+check('media toggles keep optimistic state through Daily events', personalRoomPage.includes('localAudioOverrideRef.current ?? isMicEnabledRef.current') && personalRoomPage.includes('localVideoOverrideRef.current ?? isVideoEnabledRef.current') && personalRoomPage.includes('audioToggleSequenceRef') && personalRoomPage.includes('videoToggleSequenceRef'));
+
+const recordingFunction = read('supabase/functions/loft-toggle-recording/index.ts');
+check('recording start retries while Daily media finishes connecting', recordingFunction.includes('shouldRetryRecordingStart') && recordingFunction.includes('await wait(1500)'));
+check('recording falls back to the active Daily call before reporting unavailable', personalRoomPage.includes('callObj.startRecording') && personalRoomPage.includes('skipDaily: true') && recordingFunction.includes('isRecording && !skipDaily'));
 
 const failed = checks.filter((item) => !item.condition);
 if (failed.length) {

@@ -50,7 +50,7 @@ const getDefaultTenantSlug = () => {
 const buildGuestInviteLink = (origin: string, row: PersonalTableRow) => {
   if (!row.invite_code || !origin) return '';
   const tenantSlug = (row.tenant_slug || row.tenantSlug || getDefaultTenantSlug()).toLowerCase();
-  return `${origin}/t/${tenantSlug}/loft/join/${row.invite_code.toLowerCase()}`;
+  return `${origin}/t/${tenantSlug}/loft/join/${row.invite_code.toLowerCase()}?guest=new`;
 };
 
 const AdminPersonalTables: React.FC = () => {

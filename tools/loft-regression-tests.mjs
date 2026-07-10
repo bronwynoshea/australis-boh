@@ -31,7 +31,10 @@ const joinToken = read('supabase/functions/loft-join-token/index.ts');
 check('BOH join token resolves actual host details', joinToken.includes('resolveHostDetails') && joinToken.includes('isHost: isOwner'));
 
 const guestGate = read('imports/upstream-apps/loft-app/src/components/Loft/PersonalRoomPage/components/PersonalRoomGuestGate.tsx');
+const publicGuestPage = read('src/apps/loft/pages/PersonalRoomPublicJoinPage.tsx');
+const loftDashboard = read('src/apps/loft/pages/LoftDashboardPage.tsx');
 check('guest link UI hides raw edge function errors', guestGate.includes('friendlyGuestLinkError') && !guestGate.includes("const errorMsg = err?.error || err?.message"));
+check('new guest links clear stale browser identity before check-in', publicGuestPage.includes("get('guest') === 'new'") && publicGuestPage.includes('clearPersonalGuestAccessState') && loftDashboard.includes('?guest=new'));
 check('guest approval polling does not wait for stale room-open state', !guestGate.includes("if (!isHostRoomOpen) return;") && guestGate.includes('const WAITING_FAST_POLL_MS = 3000'));
 
 const requestAccess = read('supabase/functions/loft-request-personal-room-access/index.ts');

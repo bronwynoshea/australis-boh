@@ -100,6 +100,24 @@ serve(async (req: Request) => {
       if (isOwnPersonalRoom) role = 'host';
     }
 
+    if (role === 'host') {
+      const openedAt = new Date().toISOString();
+      const { error: openRoomError } = await supabaseAdmin
+        .from('loft_room')
+        .update({
+          is_open: true,
+          opened_at: room.opened_at || openedAt,
+          started_at: room.started_at || openedAt,
+          status: 'live',
+        })
+        .eq('id', room.id);
+      if (openRoomError) throw new Error(`room_open_failed: ${openRoomError.message}`);
+      room.is_open = true;
+      room.opened_at = room.opened_at || openedAt;
+      room.started_at = room.started_at || openedAt;
+      room.status = 'live';
+    }
+
     await ensureDailyRoom(dailyApiKey, room.daily_room_name);
 
     if (role !== 'host') {

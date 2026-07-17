@@ -128,14 +128,14 @@ export async function listVaultSync(tenantId: string) {
 
 export async function createVaultItem(tenantId: string, input: {
   displayName: string; kind: VaultItemKind; websiteUrl: string; username: string;
-  providerKey: string; referenceName: string; protectedValue: string;
+  providerKey: string; description: string; referenceName: string; protectedValue: string;
 }): Promise<string> {
   const itemId = crypto.randomUUID();
   const slug = input.displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100) || 'vault-item';
   await invoke('boh-vault-manage', {
     ...common(tenantId, 'upsert_item'), itemId, itemKey: `${slug}-${itemId.slice(0, 8)}`,
     displayName: input.displayName, itemType: input.kind === 'password' ? 'login' : 'credential',
-    providerKey: input.providerKey || null, purpose: null, description: null, notes: null,
+    providerKey: input.providerKey || null, purpose: null, description: input.description.trim() || null, notes: null,
   });
 
   let protectedFieldId = '';
@@ -164,6 +164,7 @@ export async function updateVaultItemDetails(tenantId: string, input: {
   itemId: string;
   displayName: string;
   providerKey: string;
+  description: string;
   protectedFieldId: string | null;
   referenceName: string | null;
 }): Promise<void> {

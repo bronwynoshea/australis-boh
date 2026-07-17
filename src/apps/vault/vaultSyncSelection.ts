@@ -6,8 +6,16 @@ export type VaultBindingForSelection = {
   state: string;
 };
 
-export function filterActiveVaultBindings<T extends VaultBindingForSelection>(bindings: T[]): T[] {
+export function filterActiveVaultBindings<T extends VaultBindingForSelection>(bindings: readonly T[]): T[] {
   return bindings.filter((binding) => binding.state !== 'disabled');
+}
+
+export function getVaultConnectionDisplay(itemName: string, targetName: string, destinationKey: string) {
+  return {
+    title: itemName || 'Vault item',
+    destination: targetName || 'Destination',
+    secretName: destinationKey,
+  };
 }
 
 export function filterVaultRunsByBinding<T extends VaultRunForSelection>(runs: T[], bindingId: string | null): T[] {

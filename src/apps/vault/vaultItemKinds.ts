@@ -10,6 +10,7 @@ export function createVaultItemFormDefaults() {
     websiteUrl: '',
     username: '',
     providerKey: '',
+    description: '',
     referenceName: '',
     protectedValue: '',
   };

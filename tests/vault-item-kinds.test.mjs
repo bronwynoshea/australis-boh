@@ -11,6 +11,7 @@ test('new Vault items start in Development with a blank reference', () => {
   const form = createVaultItemFormDefaults();
   assert.equal(form.environment, 'development');
   assert.equal(form.referenceName, '');
+  assert.equal(form.description, '');
 });
 
 test('password items keep website and username plaintext but protect the password', () => {

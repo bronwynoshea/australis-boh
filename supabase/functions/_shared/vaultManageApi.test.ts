@@ -84,12 +84,14 @@ test('item details edit sends metadata and a protected-field reference without a
     itemId: ids.item,
     displayName: 'Cloudflare management token',
     providerKey: 'Cloudflare',
+    description: 'Allows Vault to synchronize protected values to approved Workers.',
     protectedFieldId: ids.field,
     referenceName: 'BOH_VAULT_CLOUDFLARE_API_TOKEN',
   }));
   assert.equal(response.status, 200);
   assert.equal(calls[0].method, 'updateItemDetails');
   assert.equal(calls[0].referenceName, 'BOH_VAULT_CLOUDFLARE_API_TOKEN');
+  assert.equal(calls[0].description, 'Allows Vault to synchronize protected values to approved Workers.');
   assert.equal('protectedValue' in calls[0], false);
 });
 

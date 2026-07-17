@@ -121,6 +121,7 @@ export function createVaultManageHandler(dependencies: VaultManageDependencies) 
           itemId: uuid(body.itemId),
           displayName: text(body.displayName, 240),
           providerKey: optionalText(body.providerKey, 120),
+          description: optionalText(body.description, 10_000),
           protectedFieldId: body.protectedFieldId ? uuid(body.protectedFieldId) : null,
           referenceName: body.protectedFieldId ? text(body.referenceName, 160) : null,
         });

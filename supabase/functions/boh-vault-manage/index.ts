@@ -73,12 +73,13 @@ const dependencies: VaultManageDependencies = {
     requested_service_identity: serviceIdentity,
   }),
 
-  updateItemDetails: (input) => rpcId('boh_vault_update_item_details', {
+  updateItemDetails: (input) => rpcId('boh_vault_update_item_details_v2', {
     requested_item_id: input.itemId,
     requested_tenant_id: input.tenantId,
     requested_environment: input.environment,
     requested_display_name: input.displayName,
     requested_provider_key: input.providerKey,
+    requested_description: input.description,
     requested_protected_field_id: input.protectedFieldId,
     requested_reference_name: input.referenceName,
     requested_actor_boh_user_id: input.actorId,

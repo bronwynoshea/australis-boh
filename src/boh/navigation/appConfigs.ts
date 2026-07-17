@@ -274,6 +274,21 @@ export const loftNavConfig: AppNavConfig = {
   ],
 };
 
+// Vault App Navigation Config
+export const vaultNavConfig: AppNavConfig = {
+  appId: 'vault',
+  appLabel: 'Vault',
+  appIcon: DefaultIcons.Vault,
+  baseRoute: '/vault',
+  defaultRoute: '/vault',
+  sidebarItems: [
+    { key: 'items', label: 'Items', to: '/vault' },
+    { key: 'sync', label: 'Synchronization', to: '/vault/sync' },
+    { key: 'access', label: 'Access', to: '/vault/access' },
+    { key: 'activity', label: 'Activity', to: '/vault/activity' },
+  ],
+};
+
 // Website App Navigation Config
 export const websiteNavConfig: AppNavConfig = {
   appId: 'website',
@@ -427,6 +442,15 @@ export const bohApps: BohAppDefinition[] = [
     route: '/tablez',
     icon: DefaultIcons.Tablez,
     navConfig: tablezNavConfig,
+    category: 'internal',
+  },
+  {
+    id: 'vault',
+    slug: 'vault',
+    name: 'Vault',
+    route: '/vault',
+    icon: DefaultIcons.Vault,
+    navConfig: vaultNavConfig,
     category: 'internal',
   },
   {

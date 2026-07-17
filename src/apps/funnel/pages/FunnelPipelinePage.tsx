@@ -12,14 +12,12 @@ import {
 import { calculatePipelineMetrics, effectiveProbability, groupOpportunitiesByStage, validateStageMove } from '../model/funnelPipeline';
 import type { Funnel, FunnelOpportunity, FunnelOpportunityInput, FunnelOpportunityStage, PatronOrganisationSummary } from '../types';
 
-const currency = new Intl.NumberFormat('en-AU', {
-  style: 'currency',
-  currency: 'AUD',
-  maximumFractionDigits: 0,
-});
-
-function formatMoney(value: number) {
-  return currency.format(Number.isFinite(value) ? value : 0);
+function formatMoney(value: number, currencyCode: string) {
+  return new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency: currencyCode,
+    maximumFractionDigits: 0,
+  }).format(Number.isFinite(value) ? value : 0);
 }
 
 interface OpportunityFormState {
@@ -80,15 +78,20 @@ const FunnelPipelinePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCurrency, setSelectedCurrency] = useState('AUD');
 
   const loadPipeline = async (funnelId: string, preserveSelection = true) => {
     if (!funnelId) return;
+    setError(null);
     const [loadedStages, loadedOpportunities] = await Promise.all([
       fetchOpportunityStages(funnelId),
       fetchOpportunities(funnelId),
     ]);
     setStages(loadedStages);
     setOpportunities(loadedOpportunities);
+    setSelectedCurrency((current) => loadedOpportunities.some((opportunity) => opportunity.currency === current)
+      ? current
+      : loadedOpportunities[0]?.currency ?? 'AUD');
     setSelectedStageId((current) => preserveSelection && loadedStages.some((stage) => stage.id === current)
       ? current
       : loadedStages[0]?.id ?? '');
@@ -97,26 +100,40 @@ const FunnelPipelinePage: React.FC = () => {
       : '');
   };
 
+  const loadFunnelContext = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [loadedFunnels, loadedOrganisations] = await Promise.all([
+        fetchFunnels(),
+        fetchFunnelOrganisations(),
+      ]);
+      setFunnels(loadedFunnels);
+      setOrganisations(loadedOrganisations);
+      setSelectedFunnelId(loadedFunnels[0]?.id ?? '');
+    } catch (loadError) {
+      console.error('[Funnel] Unable to load Pipeline', loadError);
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load the Pipeline.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshPipeline = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await loadPipeline(selectedFunnelId);
+    } catch (loadError) {
+      console.error('[Funnel] Unable to refresh Opportunities', loadError);
+      setError(loadError instanceof Error ? loadError.message : 'Unable to refresh Opportunities.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const [loadedFunnels, loadedOrganisations] = await Promise.all([
-          fetchFunnels(),
-          fetchFunnelOrganisations(),
-        ]);
-        setFunnels(loadedFunnels);
-        setOrganisations(loadedOrganisations);
-        setSelectedFunnelId(loadedFunnels[0]?.id ?? '');
-      } catch (loadError) {
-        console.error('[Funnel] Unable to load Pipeline', loadError);
-        setError(loadError instanceof Error ? loadError.message : 'Unable to load the Pipeline.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    void load();
+    void loadFunnelContext();
   }, []);
 
   useEffect(() => {
@@ -130,13 +147,21 @@ const FunnelPipelinePage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [selectedFunnelId]);
 
+  const currencies = useMemo(
+    () => [...new Set(opportunities.map((opportunity) => opportunity.currency))].sort(),
+    [opportunities],
+  );
+  const currencyOpportunities = useMemo(
+    () => opportunities.filter((opportunity) => opportunity.currency === selectedCurrency),
+    [opportunities, selectedCurrency],
+  );
   const stageGroups = useMemo(
-    () => groupOpportunitiesByStage(stages, opportunities),
-    [stages, opportunities],
+    () => groupOpportunitiesByStage(stages, currencyOpportunities),
+    [stages, currencyOpportunities],
   );
   const metrics = useMemo(
-    () => calculatePipelineMetrics(stages, opportunities),
-    [stages, opportunities],
+    () => calculatePipelineMetrics(stages, currencyOpportunities),
+    [stages, currencyOpportunities],
   );
   const selectedStage = stages.find((stage) => stage.id === selectedStageId) ?? null;
   const selectedGroup = stageGroups.find((group) => group.stage.id === selectedStageId) ?? null;
@@ -147,7 +172,7 @@ const FunnelPipelinePage: React.FC = () => {
       setForm(formFromOpportunity(selectedOpportunity));
       setIsCreating(false);
     }
-  }, [selectedOpportunityId]);
+  }, [selectedOpportunity]);
 
   const selectStage = (stage: FunnelOpportunityStage) => {
     setSelectedStageId(stage.id);
@@ -159,7 +184,7 @@ const FunnelPipelinePage: React.FC = () => {
     const initialStage = selectedStage?.stage_type === 'open'
       ? selectedStage.id
       : stages.find((stage) => stage.stage_type === 'open')?.id ?? selectedStageId;
-    setForm(emptyOpportunity(initialStage));
+    setForm({ ...emptyOpportunity(initialStage), currency: selectedCurrency });
     setSelectedOpportunityId('');
     setIsCreating(true);
   };
@@ -189,7 +214,7 @@ const FunnelPipelinePage: React.FC = () => {
         expected_close_date: form.expectedCloseDate || null,
         next_action: form.nextAction.trim() || null,
         next_action_due_at: form.nextActionDueAt ? new Date(form.nextActionDueAt).toISOString() : null,
-        outcome_reason: form.outcomeReason.trim() || null,
+        outcome_reason: targetStage.stage_type === 'lost' ? form.outcomeReason.trim() || null : null,
       };
 
       if (isCreating) {
@@ -221,6 +246,7 @@ const FunnelPipelinePage: React.FC = () => {
       <div className="rounded-xl border border-red-200 bg-red-50 p-6 dark:border-red-900/60 dark:bg-red-950/30">
         <h2 className="font-semibold text-red-900 dark:text-red-100">Funnel could not load</h2>
         <p className="mt-2 text-sm text-red-700 dark:text-red-300">{error}</p>
+        <button type="button" onClick={() => void (funnels.length ? refreshPipeline() : loadFunnelContext())} className="mt-4 rounded-lg bg-red-900 px-4 py-2 text-sm font-semibold text-white dark:bg-red-100 dark:text-red-950">Try again</button>
       </div>
     );
   }
@@ -252,9 +278,16 @@ const FunnelPipelinePage: React.FC = () => {
               ))}
             </div>
           )}
+          {currencies.length > 1 && (
+            <div className="flex gap-1" role="tablist" aria-label="Pipeline currency">
+              {currencies.map((currencyCode) => (
+                <button key={currencyCode} type="button" role="tab" aria-selected={selectedCurrency === currencyCode} onClick={() => setSelectedCurrency(currencyCode)} className={`rounded-lg border px-3 py-2 text-sm font-semibold ${selectedCurrency === currencyCode ? 'border-boh-primary bg-boh-primary/10 text-boh-primary' : 'border-boh-border-light dark:border-boh-border'}`}>{currencyCode}</button>
+              ))}
+            </div>
+          )}
           <button
             type="button"
-            onClick={() => void loadPipeline(selectedFunnelId)}
+            onClick={() => void refreshPipeline()}
             className="rounded-lg border border-boh-border-light bg-white p-2.5 text-boh-text-sub-light hover:text-boh-text-light dark:border-boh-border dark:bg-boh-surface dark:text-boh-text-sub dark:hover:text-boh-text"
             aria-label="Refresh Pipeline"
           >
@@ -273,10 +306,10 @@ const FunnelPipelinePage: React.FC = () => {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: 'Open pipeline', value: formatMoney(metrics.openValue), detail: `${metrics.openCount} open`, icon: CircleDollarSign },
-          { label: 'Weighted forecast', value: formatMoney(metrics.weightedValue), detail: 'Stage probability', icon: Target },
-          { label: 'Closed Won', value: formatMoney(metrics.wonValue), detail: 'Binding outcomes', icon: ChevronRight },
-          { label: 'Closed Lost', value: formatMoney(metrics.lostValue), detail: 'Recorded losses', icon: ChevronRight },
+          { label: 'Open pipeline', value: formatMoney(metrics.openValue, selectedCurrency), detail: `${metrics.openCount} open`, icon: CircleDollarSign },
+          { label: 'Weighted forecast', value: formatMoney(metrics.weightedValue, selectedCurrency), detail: 'Stage probability', icon: Target },
+          { label: 'Closed Won', value: formatMoney(metrics.wonValue, selectedCurrency), detail: 'Binding outcomes', icon: ChevronRight },
+          { label: 'Closed Lost', value: formatMoney(metrics.lostValue, selectedCurrency), detail: 'Recorded losses', icon: ChevronRight },
         ].map((metric) => (
           <div key={metric.label} className="rounded-xl border border-boh-border-light bg-boh-surface-light p-4 dark:border-boh-border dark:bg-boh-surface">
             <div className="flex items-center justify-between">
@@ -315,7 +348,7 @@ const FunnelPipelinePage: React.FC = () => {
                   </div>
                   <div className="mt-3 flex items-center justify-between text-xs">
                     <span className="text-boh-text-sub-light dark:text-boh-text-sub">Value</span>
-                    <span className="font-semibold text-boh-text-light dark:text-boh-text">{formatMoney(group.totalValue)}</span>
+                    <span className="font-semibold text-boh-text-light dark:text-boh-text">{formatMoney(group.totalValue, selectedCurrency)}</span>
                   </div>
                 </button>
               );
@@ -366,7 +399,7 @@ const FunnelPipelinePage: React.FC = () => {
                         <ChevronRight className="h-4 w-4 shrink-0 text-boh-text-sub-light dark:text-boh-text-sub" />
                       </div>
                       <div className="mt-3 flex items-center justify-between text-xs">
-                        <span className="font-semibold text-boh-text-light dark:text-boh-text">{formatMoney(opportunity.value_amount)}</span>
+                        <span className="font-semibold text-boh-text-light dark:text-boh-text">{formatMoney(opportunity.value_amount, opportunity.currency)}</span>
                         <span className="text-boh-text-sub-light dark:text-boh-text-sub">{probability}%</span>
                       </div>
                     </button>
@@ -410,6 +443,10 @@ const FunnelPipelinePage: React.FC = () => {
                       <input className={fieldClass} type="number" min="0" value={form.value} onChange={(event) => setForm((current) => ({ ...current, value: event.target.value }))} />
                     </label>
                     <label>
+                      <span className="mb-1.5 block text-xs font-semibold text-boh-text-sub-light dark:text-boh-text-sub">Currency</span>
+                      <input className={fieldClass} maxLength={3} value={form.currency} onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))} />
+                    </label>
+                    <label>
                       <span className="mb-1.5 block text-xs font-semibold text-boh-text-sub-light dark:text-boh-text-sub">Probability override</span>
                       <input className={fieldClass} type="number" min="0" max="100" placeholder="Use stage default" value={form.probability} onChange={(event) => setForm((current) => ({ ...current, probability: event.target.value }))} />
                     </label>
@@ -431,7 +468,7 @@ const FunnelPipelinePage: React.FC = () => {
                     <p className="mb-2 text-xs font-semibold text-boh-text-sub-light dark:text-boh-text-sub">Sales milestone</p>
                     <div className="grid max-h-56 gap-2 overflow-y-auto sm:grid-cols-2">
                       {stages.map((stage) => (
-                        <button key={stage.id} type="button" onClick={() => setForm((current) => ({ ...current, stageId: stage.id }))} className={`rounded-lg border p-3 text-left ${form.stageId === stage.id ? 'border-boh-primary bg-boh-primary/10' : 'border-boh-border-light dark:border-boh-border'}`}>
+                        <button key={stage.id} type="button" onClick={() => setForm((current) => ({ ...current, stageId: stage.id, outcomeReason: stage.stage_type === 'lost' ? current.outcomeReason : '' }))} className={`rounded-lg border p-3 text-left ${form.stageId === stage.id ? 'border-boh-primary bg-boh-primary/10' : 'border-boh-border-light dark:border-boh-border'}`}>
                           <span className="block text-sm font-semibold text-boh-text-light dark:text-boh-text">{stage.label}</span>
                           <span className="mt-1 block text-xs text-boh-text-sub-light dark:text-boh-text-sub">{stage.default_probability}% default</span>
                         </button>

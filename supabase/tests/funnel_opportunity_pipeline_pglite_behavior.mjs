@@ -14,6 +14,9 @@ const ids = {
   userOne: '30000000-0000-0000-0000-000000000001',
   userTwo: '30000000-0000-0000-0000-000000000002',
   orgOne: '40000000-0000-0000-0000-000000000001',
+  orgTwo: '40000000-0000-0000-0000-000000000002',
+  personOne: '50000000-0000-0000-0000-000000000001',
+  personTwo: '50000000-0000-0000-0000-000000000002',
 };
 
 await exec(`
@@ -110,7 +113,11 @@ await exec(`
     ('${ids.tenantOne}', '${ids.userOne}', 'active', true),
     ('${ids.tenantTwo}', '${ids.userTwo}', 'active', true);
   insert into public.patron_organisation(id, tenant_id, name) values
-    ('${ids.orgOne}', '${ids.tenantOne}', 'Example Organisation');
+    ('${ids.orgOne}', '${ids.tenantOne}', 'Example Organisation'),
+    ('${ids.orgTwo}', '${ids.tenantTwo}', 'Other Organisation');
+  insert into public.patron_person(id, tenant_id, first_name, last_name) values
+    ('${ids.personOne}', '${ids.tenantOne}', 'Tenant', 'One'),
+    ('${ids.personTwo}', '${ids.tenantTwo}', 'Tenant', 'Two');
 `);
 
 const migration = await readFile(
@@ -136,6 +143,12 @@ const tablePrivilegeHardening = await readFile(
   'utf8',
 );
 await exec(tablePrivilegeHardening);
+
+const tenantReferenceHardening = await readFile(
+  new URL('../migrations/20260717141500_enforce_funnel_tenant_references.sql', import.meta.url),
+  'utf8',
+);
+await exec(tenantReferenceHardening);
 
 await exec(`
   insert into public.boh_tenant_app(tenant_id, app_id, status, app_kind)
@@ -171,6 +184,9 @@ const funnel = await query(`select id from public.funnel where tenant_id = '${id
 const funnelId = funnel.rows[0].id;
 const leadStage = await query(`select id from public.funnel_opportunity_stage where funnel_id = '${funnelId}' and stage_key = 'lead_identified'`);
 const qualifiedStage = await query(`select id from public.funnel_opportunity_stage where funnel_id = '${funnelId}' and stage_key = 'qualified_lead'`);
+const otherFunnel = await query(`select id from public.funnel where tenant_id = '${ids.tenantTwo}' limit 1`);
+const otherFunnelId = otherFunnel.rows[0].id;
+const otherLeadStage = await query(`select id from public.funnel_opportunity_stage where funnel_id = '${otherFunnelId}' and stage_key = 'lead_identified'`);
 
 await exec(`
   insert into public.funnel_opportunity(
@@ -198,6 +214,22 @@ result = await query(`
 assert.equal(result.rows.length, 2, 'initial placement and movement are both reportable');
 assert.equal(result.rows[1].previous_stage_id, leadStage.rows[0].id);
 assert.equal(result.rows[1].next_stage_id, qualifiedStage.rows[0].id);
+
+await assert.rejects(
+  exec(`update public.funnel_opportunity set owner_id = '${ids.userTwo}' where id = '${firstOpportunity.rows[0].id}'`),
+  /owner_id must reference an active member of the same tenant/,
+  'actor references cannot cross tenant boundaries',
+);
+await assert.rejects(
+  exec(`insert into public.funnel_opportunity_person(tenant_id, opportunity_id, person_id) values ('${ids.tenantOne}', '${firstOpportunity.rows[0].id}', '${ids.personTwo}')`),
+  /Patron person must belong to the same tenant/,
+  'Patron person links cannot cross tenant boundaries',
+);
+await assert.rejects(
+  exec(`insert into public.funnel_opportunity_stage_history(tenant_id, opportunity_id, next_stage_id, probability_after) values ('${ids.tenantOne}', '${firstOpportunity.rows[0].id}', '${otherLeadStage.rows[0].id}', 2)`),
+  /History stages must belong to the same tenant and Funnel/,
+  'trigger-owned history still validates stage tenant consistency',
+);
 
 await exec(`
   set role authenticated;
@@ -234,6 +266,30 @@ assert.deepEqual(
   ],
   'mutable Funnel tables expose DML only',
 );
+await assert.rejects(
+  exec(`insert into public.funnel(tenant_id, funnel_key, name) values ('${ids.tenantTwo}', 'cross_tenant_write', 'Cross-tenant write')`),
+  /row-level security policy/,
+  'authenticated users cannot insert Funnels for another tenant',
+);
+await exec('reset role');
+
+await exec(`set role anon; select set_config('request.jwt.claim.sub', '', false);`);
+await assert.rejects(
+  query('select * from public.funnel'),
+  /permission denied/,
+  'anonymous users cannot read Funnel data',
+);
+await exec('reset role');
+
+await exec(`
+  delete from public.boh_tenant_app
+  where tenant_id = '${ids.tenantOne}'
+    and app_id = (select id from public.boh_app where slug = 'funnel');
+  set role authenticated;
+  select set_config('request.jwt.claim.sub', '${ids.authOne}', false);
+`);
+result = await query('select * from public.funnel');
+assert.equal(result.rows.length, 0, 'missing Funnel entitlement hides tenant data');
 await exec('reset role');
 
 console.log('Funnel opportunity pipeline PGlite behavioral checks passed');

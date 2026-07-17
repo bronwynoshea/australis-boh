@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { BOHShell, bohApps } from "../../boh/navigation";
 import PantryPage from "./pantry/PantryPage";
 import SoundbyteManagerPage from "./pantry/pages/SoundbyteManagerPage";
@@ -8,6 +8,7 @@ import ReservationsPage from "./reservations/ReservationsPage";
 import RecipesPage from "./recipes/RecipesPage";
 import SlowCookPage from "./slowcook/SlowCookPage";
 import CookbookHomePage from "./CookbookHomePage";
+import AssetStudioPage from "./studio/AssetStudioPage";
 
 interface CookbookAppProps {
   isAdmin?: boolean;
@@ -36,9 +37,11 @@ const CookbookPageHeader: React.FC = () => (
 );
 
 const CookbookApp: React.FC<CookbookAppProps> = ({ isAdmin = false }) => {
+  const location = useLocation();
+  const isStudio = location.pathname.startsWith("/cookbook/studio");
   return (
     <BOHShell apps={bohApps} isAdmin={isAdmin} mobileHeader={<CookbookMobileHeader />}>
-      <CookbookPageHeader />
+      {!isStudio && <CookbookPageHeader />}
       <Routes>
         <Route index element={<Navigate to="/cookbook/dashboard" replace />} />
         <Route path="dashboard" element={<CookbookHomePage />} />
@@ -50,6 +53,7 @@ const CookbookApp: React.FC<CookbookAppProps> = ({ isAdmin = false }) => {
         <Route path="slow-cook" element={<SlowCookPage />} />
         <Route path="reservations" element={<ReservationsPage />} />
         <Route path="recipes" element={<RecipesPage />} />
+        <Route path="studio" element={<AssetStudioPage />} />
         <Route path="*" element={<Navigate to="/cookbook/dashboard" replace />} />
       </Routes>
     </BOHShell>

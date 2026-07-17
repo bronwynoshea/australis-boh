@@ -16,6 +16,7 @@ import CounterApp from './apps/delivery/counter/CounterApp';
 import TablezApp from './apps/tablez/TablezApp';
 import PatronApp from './apps/patron/PatronApp';
 import CookbookApp from './apps/cookbook/CookbookApp';
+import FunnelApp from './apps/funnel/FunnelApp';
 import ForgeApp from './apps/delivery/forge/ForgeApp';
 import LedgerApp from './apps/ledger/LedgerApp';
 import CrewApp from './apps/crew/CrewApp';
@@ -391,6 +392,7 @@ function App() {
       <Route path="/apps/slotz/*" element={renderProtectedRoute(<SlotzApp isAdmin={isSuperAdmin} />)} />
       <Route path="/website/*" element={renderProtectedRoute(<WebsiteApp isAdmin={isSuperAdmin} />)} />
       <Route path="/assembly/*" element={renderProtectedRoute(<AssemblyApp isAdmin={isSuperAdmin} />)} />
+      <Route path="/funnel/*" element={renderProtectedRoute(<FunnelApp isAdmin={isSuperAdmin} />)} />
       <Route path="/forge/*" element={renderProtectedRoute(<ForgeApp isAdmin={isSuperAdmin} />)} />
       <Route path="/counter/*" element={renderProtectedRoute(<CounterApp />)} />
       <Route path="/cookbook/*" element={renderProtectedRoute(<CookbookApp />)} />

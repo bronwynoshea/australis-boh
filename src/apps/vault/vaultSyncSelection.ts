@@ -18,6 +18,13 @@ export function getVaultConnectionDisplay(itemName: string, targetName: string, 
   };
 }
 
+export function filterVaultRecordsByEnvironment<T extends { environment: string }>(
+  records: readonly T[],
+  environment: 'development' | 'production',
+): T[] {
+  return records.filter((record) => record.environment === environment);
+}
+
 export function filterVaultRunsByBinding<T extends VaultRunForSelection>(runs: T[], bindingId: string | null): T[] {
   if (!bindingId) return [];
   return runs.filter((run) => run.binding_id === bindingId);

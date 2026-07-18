@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filterActiveVaultBindings, filterVaultRunsByBinding, getVaultConnectionDisplay } from '../src/apps/vault/vaultSyncSelection.ts';
+import { filterActiveVaultBindings, filterVaultRecordsByEnvironment, filterVaultRunsByBinding, getVaultConnectionDisplay } from '../src/apps/vault/vaultSyncSelection.ts';
+
+test('synchronization records are isolated by environment', () => {
+  const records = [
+    { id: 'dev', environment: 'development' },
+    { id: 'prod', environment: 'production' },
+  ];
+  assert.deepEqual(filterVaultRecordsByEnvironment(records, 'development').map((record) => record.id), ['dev']);
+  assert.deepEqual(filterVaultRecordsByEnvironment(records, 'production').map((record) => record.id), ['prod']);
+});
 
 test('connection display distinguishes the same Vault item by destination', () => {
   const supabase = getVaultConnectionDisplay('JOBZCAFE AI Gateway Token', 'JOBZCAFE development Supabase', 'JOBZCAFE_AI_GATEWAY_TOKEN');

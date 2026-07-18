@@ -70,22 +70,38 @@ export const cookbookNavConfig: AppNavConfig = {
   appLabel: 'Cookbook',
   appIcon: DefaultIcons.Cookbook,
   baseRoute: '/cookbook',
-  defaultRoute: '/cookbook',
+  defaultRoute: '/cookbook/dashboard',
   sidebarItems: [
+    { key: 'dashboard', label: 'Dashboard', to: '/cookbook/dashboard' },
     {
-      label: 'Library',
+      label: 'Create',
       items: [
-        { key: 'playbooks', label: 'Playbooks', to: '/cookbook' },
-        { key: 'templates', label: 'Templates', to: '/cookbook/templates' },
+        { key: 'studio', label: 'Asset Studio', to: '/cookbook/studio' },
+        { key: 'recipes', label: 'Recipes', to: '/cookbook/recipes' },
       ],
     },
     {
-      label: 'Projects',
+      label: 'Content',
       items: [
-        { key: 'storyboard', label: 'Storyboard', to: '/cookbook/storyboard' },
-        { key: 'assets', label: 'Assets', to: '/cookbook/assets' },
+        { key: 'pantry', label: 'Pantry', to: '/cookbook/pantry' },
+        { key: 'quickserve', label: 'QuickServe', to: '/cookbook/quickserve' },
+        { key: 'slowcook', label: 'Slow Cook', to: '/cookbook/slowcook' },
       ],
     },
+    { key: 'reservations', label: 'Reservations', to: '/cookbook/reservations' },
+  ],
+};
+
+// Funnel App Navigation Config
+export const funnelNavConfig: AppNavConfig = {
+  appId: 'funnel',
+  appLabel: 'Funnel',
+  appIcon: DefaultIcons.Generic,
+  baseRoute: '/funnel',
+  defaultRoute: '/funnel/pipeline',
+  sidebarItems: [
+    { key: 'pipeline', label: 'Pipeline', to: '/funnel/pipeline' },
+    { key: 'stages', label: 'Stages', to: '/funnel/stages' },
   ],
 };
 
@@ -100,7 +116,6 @@ export const patronNavConfig: AppNavConfig = {
     { key: 'dashboard', label: 'Dashboard', to: '/patron/dashboard' },
     { key: 'people', label: 'People', to: '/patron/people' },
     { key: 'organisations', label: 'Organisations', to: '/patron/organisations' },
-    { key: 'pipeline', label: 'Pipeline', to: '/patron/pipeline' },
   ],
 };
 
@@ -274,6 +289,21 @@ export const loftNavConfig: AppNavConfig = {
   ],
 };
 
+// Vault App Navigation Config
+export const vaultNavConfig: AppNavConfig = {
+  appId: 'vault',
+  appLabel: 'Vault',
+  appIcon: DefaultIcons.Vault,
+  baseRoute: '/vault',
+  defaultRoute: '/vault',
+  sidebarItems: [
+    { key: 'items', label: 'Items', to: '/vault', icon: DefaultIcons.Vault },
+    { key: 'sync', label: 'Synchronization', to: '/vault/sync', icon: DefaultIcons.Forge },
+    { key: 'access', label: 'Access', to: '/vault/access', icon: DefaultIcons.Crew },
+    { key: 'activity', label: 'Activity', to: '/vault/activity', icon: DefaultIcons.Ledger },
+  ],
+};
+
 // Website App Navigation Config
 export const websiteNavConfig: AppNavConfig = {
   appId: 'website',
@@ -337,6 +367,15 @@ export const bohApps: BohAppDefinition[] = [
     route: '/cookbook',
     icon: DefaultIcons.Cookbook,
     navConfig: cookbookNavConfig,
+    category: 'internal',
+  },
+  {
+    id: 'funnel',
+    slug: 'funnel',
+    name: 'Funnel',
+    route: '/funnel',
+    icon: DefaultIcons.Generic,
+    navConfig: funnelNavConfig,
     category: 'internal',
   },
   {
@@ -427,6 +466,15 @@ export const bohApps: BohAppDefinition[] = [
     route: '/tablez',
     icon: DefaultIcons.Tablez,
     navConfig: tablezNavConfig,
+    category: 'internal',
+  },
+  {
+    id: 'vault',
+    slug: 'vault',
+    name: 'Vault',
+    route: '/vault',
+    icon: DefaultIcons.Vault,
+    navConfig: vaultNavConfig,
     category: 'internal',
   },
   {

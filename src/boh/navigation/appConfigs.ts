@@ -297,10 +297,10 @@ export const vaultNavConfig: AppNavConfig = {
   baseRoute: '/vault',
   defaultRoute: '/vault',
   sidebarItems: [
-    { key: 'items', label: 'Items', to: '/vault' },
-    { key: 'sync', label: 'Synchronization', to: '/vault/sync' },
-    { key: 'access', label: 'Access', to: '/vault/access' },
-    { key: 'activity', label: 'Activity', to: '/vault/activity' },
+    { key: 'items', label: 'Items', to: '/vault', icon: DefaultIcons.Vault },
+    { key: 'sync', label: 'Synchronization', to: '/vault/sync', icon: DefaultIcons.Forge },
+    { key: 'access', label: 'Access', to: '/vault/access', icon: DefaultIcons.Crew },
+    { key: 'activity', label: 'Activity', to: '/vault/activity', icon: DefaultIcons.Ledger },
   ],
 };
 

@@ -1,7 +1,7 @@
 import { supabase } from '../../../lib/supabase';
-import { buildVaultCreateFields, type VaultItemKind } from '../vaultItemKinds';
+import { buildVaultCreateFields, type VaultEnvironment, type VaultItemKind } from '../vaultItemKinds';
 
-export type VaultEnvironment = 'development' | 'production';
+export type { VaultEnvironment } from '../vaultItemKinds';
 
 export type VaultItem = {
   id: string;
@@ -76,8 +76,8 @@ function requestId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
-function common(tenantId: string, action: string) {
-  return { tenantId, action, environment: 'development', requestId: requestId(action) };
+function common(tenantId: string, action: string, environment: VaultEnvironment = 'development') {
+  return { tenantId, action, environment, requestId: requestId(action) };
 }
 
 export async function listVaultItems(tenantId: string): Promise<VaultItem[]> {
@@ -127,13 +127,13 @@ export async function listVaultSync(tenantId: string) {
 }
 
 export async function createVaultItem(tenantId: string, input: {
-  displayName: string; kind: VaultItemKind; websiteUrl: string; username: string;
+  displayName: string; kind: VaultItemKind; environment: VaultEnvironment; websiteUrl: string; username: string;
   providerKey: string; description: string; referenceName: string; protectedValue: string;
 }): Promise<string> {
   const itemId = crypto.randomUUID();
   const slug = input.displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100) || 'vault-item';
   await invoke('boh-vault-manage', {
-    ...common(tenantId, 'upsert_item'), itemId, itemKey: `${slug}-${itemId.slice(0, 8)}`,
+    ...common(tenantId, 'upsert_item', input.environment), itemId, itemKey: `${slug}-${itemId.slice(0, 8)}`,
     displayName: input.displayName, itemType: input.kind === 'password' ? 'login' : 'credential',
     providerKey: input.providerKey || null, purpose: null, description: input.description.trim() || null, notes: null,
   });
@@ -143,7 +143,7 @@ export async function createVaultItem(tenantId: string, input: {
   for (const field of fields) {
     const fieldId = crypto.randomUUID();
     await invoke('boh-vault-manage', {
-      ...common(tenantId, 'upsert_field'), fieldId, itemId,
+      ...common(tenantId, 'upsert_field', input.environment), fieldId, itemId,
       fieldKey: field.fieldKey, label: field.label, fieldKind: field.fieldKind,
       plaintextValue: field.plaintextValue, isRequired: field.isRequired,
       sortOrder: field.sortOrder, metadata: {},
@@ -151,13 +151,13 @@ export async function createVaultItem(tenantId: string, input: {
     if (field.fieldKind === 'protected') protectedFieldId = fieldId;
   }
   if (input.protectedValue) {
-    await setVaultValue(tenantId, itemId, protectedFieldId, input.protectedValue);
+    await setVaultValue(tenantId, itemId, protectedFieldId, input.protectedValue, input.environment);
   }
   return itemId;
 }
 
-export async function deleteVaultItem(tenantId: string, itemId: string): Promise<void> {
-  await invoke('boh-vault-manage', { ...common(tenantId, 'delete_item'), itemId });
+export async function deleteVaultItem(tenantId: string, itemId: string, environment: VaultEnvironment): Promise<void> {
+  await invoke('boh-vault-manage', { ...common(tenantId, 'delete_item', environment), itemId });
 }
 
 export async function updateVaultItemDetails(tenantId: string, input: {
@@ -167,37 +167,38 @@ export async function updateVaultItemDetails(tenantId: string, input: {
   description: string;
   protectedFieldId: string | null;
   referenceName: string | null;
+  environment: VaultEnvironment;
 }): Promise<void> {
-  await invoke('boh-vault-manage', { ...common(tenantId, 'update_item_details'), ...input });
+  await invoke('boh-vault-manage', { ...common(tenantId, 'update_item_details', input.environment), ...input });
 }
 
-export async function setVaultValue(tenantId: string, itemId: string, fieldId: string, value: string): Promise<void> {
-  await invoke('boh-vault-secret', { ...common(tenantId, 'set'), itemId, fieldId, value });
+export async function setVaultValue(tenantId: string, itemId: string, fieldId: string, value: string, environment: VaultEnvironment): Promise<void> {
+  await invoke('boh-vault-secret', { ...common(tenantId, 'set', environment), itemId, fieldId, value });
 }
 
-export async function readVaultValue(tenantId: string, itemId: string, fieldId: string, action: 'reveal' | 'copy'): Promise<string> {
-  const result = await invoke<{ ok: true; value: string }>('boh-vault-secret', { ...common(tenantId, action), itemId, fieldId });
+export async function readVaultValue(tenantId: string, itemId: string, fieldId: string, action: 'reveal' | 'copy', environment: VaultEnvironment): Promise<string> {
+  const result = await invoke<{ ok: true; value: string }>('boh-vault-secret', { ...common(tenantId, action, environment), itemId, fieldId });
   return result.value;
 }
 
-export async function saveVaultGrant(tenantId: string, input: { grantId?: string; bohUserId: string; role: string; status: string }): Promise<void> {
-  await invoke('boh-vault-manage', { ...common(tenantId, 'mutate_grant'), grantId: input.grantId || crypto.randomUUID(), bohUserId: input.bohUserId, role: input.role, status: input.status });
+export async function saveVaultGrant(tenantId: string, input: { grantId?: string; bohUserId: string; role: string; status: string; environment: VaultEnvironment }): Promise<void> {
+  await invoke('boh-vault-manage', { ...common(tenantId, 'mutate_grant', input.environment), grantId: input.grantId || crypto.randomUUID(), bohUserId: input.bohUserId, role: input.role, status: input.status });
 }
 
-export async function createVaultTarget(tenantId: string, input: { adapterId: string; displayName: string; targetKey: string; targetUrl: string }): Promise<void> {
-  await invoke('boh-vault-manage', { ...common(tenantId, 'create_target'), adapterId: input.adapterId, displayName: input.displayName, targetKey: input.targetKey, externalTargetRef: input.targetUrl, metadata: {} });
+export async function createVaultTarget(tenantId: string, input: { adapterId: string; displayName: string; targetKey: string; targetUrl: string; environment: VaultEnvironment }): Promise<void> {
+  await invoke('boh-vault-manage', { ...common(tenantId, 'create_target', input.environment), adapterId: input.adapterId, displayName: input.displayName, targetKey: input.targetKey, externalTargetRef: input.targetUrl, metadata: {} });
 }
 
-export async function createVaultBinding(tenantId: string, input: { itemId: string; fieldId: string; targetId: string; destinationKey: string }): Promise<void> {
-  const result = await invoke<{ ok: true; id: string }>('boh-vault-manage', { ...common(tenantId, 'create_binding'), ...input, syncMode: 'runtime_secret_sync' });
-  await invoke('boh-vault-manage', { ...common(tenantId, 'update_binding'), bindingId: result.id, state: 'ready' });
+export async function createVaultBinding(tenantId: string, input: { itemId: string; fieldId: string; targetId: string; destinationKey: string; environment: VaultEnvironment }): Promise<void> {
+  const result = await invoke<{ ok: true; id: string }>('boh-vault-manage', { ...common(tenantId, 'create_binding', input.environment), ...input, syncMode: 'runtime_secret_sync' });
+  await invoke('boh-vault-manage', { ...common(tenantId, 'update_binding', input.environment), bindingId: result.id, state: 'ready' });
 }
 
-export async function removeVaultBinding(tenantId: string, bindingId: string): Promise<void> {
-  await invoke('boh-vault-manage', { ...common(tenantId, 'update_binding'), bindingId, state: 'disabled' });
+export async function removeVaultBinding(tenantId: string, bindingId: string, environment: VaultEnvironment): Promise<void> {
+  await invoke('boh-vault-manage', { ...common(tenantId, 'update_binding', environment), bindingId, state: 'disabled' });
 }
 
-export async function runVaultSync(tenantId: string, bindingId: string): Promise<void> {
-  const queued = await invoke<{ ok: true; id: string }>('boh-vault-manage', { ...common(tenantId, 'request_sync'), bindingId, runRequestId: requestId('vault-sync-run') });
-  await invoke('boh-vault-sync', { tenantId, runId: queued.id, environment: 'development', requestId: requestId('vault-sync-dispatch') });
+export async function runVaultSync(tenantId: string, bindingId: string, environment: VaultEnvironment): Promise<void> {
+  const queued = await invoke<{ ok: true; id: string }>('boh-vault-manage', { ...common(tenantId, 'request_sync', environment), bindingId, runRequestId: requestId('vault-sync-run') });
+  await invoke('boh-vault-sync', { tenantId, runId: queued.id, environment, requestId: requestId('vault-sync-dispatch') });
 }

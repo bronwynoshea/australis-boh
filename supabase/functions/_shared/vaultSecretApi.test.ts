@@ -135,11 +135,12 @@ test('copy uses a distinct audit event', async () => {
   assert.equal(read?.auditEvent, 'copied');
 });
 
-test('production requests are rejected before authentication or persistence', async () => {
+test('production requests preserve their environment through protected-value persistence', async () => {
   const { handler, calls } = await fixture();
   const response = await handler(request('set', { value: 'secret', environment: 'production' }));
-  assert.equal(response.status, 400);
-  assert.equal(calls.length, 0);
+  assert.equal(response.status, 200);
+  const commit = calls.find((call) => call.method === 'commitSecretVersion');
+  assert.equal(commit?.environment, 'production');
 });
 
 test('null JSON is rejected as an invalid request', async () => {

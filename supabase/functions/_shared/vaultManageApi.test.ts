@@ -125,9 +125,18 @@ test('grant and synchronization actions preserve exact identifiers', async () =>
   assert.equal('secretVersionId' in calls[1], false);
 });
 
-test('production and null JSON are rejected before authentication', async () => {
+test('production requests preserve their environment and null JSON is rejected', async () => {
   const { handler, calls } = fixture();
-  const production = request('upsert_item', { itemId: ids.item });
+  const production = request('upsert_item', {
+    itemId: ids.item,
+    itemKey: 'openai-platform',
+    displayName: 'OpenAI platform',
+    itemType: 'service_api_key',
+    providerKey: 'openai',
+    purpose: 'Product AI access',
+    description: 'Production access',
+    notes: 'Rotate quarterly',
+  });
   const body = await production.json();
   const productionResponse = await handler(new Request(production.url, {
     method: 'POST', headers: production.headers, body: JSON.stringify({ ...body, environment: 'production' }),
@@ -135,7 +144,19 @@ test('production and null JSON are rejected before authentication', async () => 
   const nullResponse = await handler(new Request(production.url, {
     method: 'POST', headers: production.headers, body: 'null',
   }));
-  assert.equal(productionResponse.status, 400);
+  assert.equal(productionResponse.status, 200);
+  assert.equal(calls[0].environment, 'production');
   assert.equal(nullResponse.status, 400);
+  assert.equal(calls.length, 1);
+});
+
+test('unknown environments are rejected before authentication', async () => {
+  const { handler, calls } = fixture();
+  const invalid = request('upsert_item', { itemId: ids.item });
+  const body = await invalid.json();
+  const response = await handler(new Request(invalid.url, {
+    method: 'POST', headers: invalid.headers, body: JSON.stringify({ ...body, environment: 'staging' }),
+  }));
+  assert.equal(response.status, 400);
   assert.equal(calls.length, 0);
 });

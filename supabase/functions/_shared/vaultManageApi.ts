@@ -3,7 +3,7 @@ import { VaultApiError } from './vaultSecretApi.ts';
 type CommonInput = {
   tenantId: string;
   actorId: string;
-  environment: 'development';
+  environment: 'development' | 'production';
   requestId: string;
 };
 
@@ -92,7 +92,7 @@ export function createVaultManageHandler(dependencies: VaultManageDependencies) 
       } catch {
         throw new VaultApiError(400, 'invalid_request');
       }
-      if (body.environment !== 'development') throw new VaultApiError(400, 'development_only');
+      const environment = oneOf(body.environment, ['development', 'production']) as CommonInput['environment'];
       const action = text(body.action, 40);
       if (!ACTIONS.has(action)) throw new VaultApiError(400, 'invalid_request');
       const tenantId = uuid(body.tenantId);
@@ -100,7 +100,7 @@ export function createVaultManageHandler(dependencies: VaultManageDependencies) 
       const authorization = request.headers.get('authorization');
       if (!authorization?.startsWith('Bearer ')) throw new VaultApiError(401, 'unauthorized');
       const actor = await dependencies.resolveActor(authorization, tenantId);
-      const common: CommonInput = { tenantId, actorId: actor.id, environment: 'development', requestId };
+      const common: CommonInput = { tenantId, actorId: actor.id, environment, requestId };
       let id: string | undefined;
 
       if (action === 'upsert_item') {

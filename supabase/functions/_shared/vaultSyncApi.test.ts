@@ -256,7 +256,7 @@ test('sync rejects null JSON as an invalid request', async () => {
   assert.equal(calls.length, 0);
 });
 
-test('sync rejects production before claiming a run', async () => {
+test('sync preserves production through claim and delivery', async () => {
   const { handler, calls } = await fixture([200]);
   const request = syncRequest();
   const body = await request.json();
@@ -265,6 +265,7 @@ test('sync rejects production before claiming a run', async () => {
     headers: request.headers,
     body: JSON.stringify({ ...body, environment: 'production' }),
   }));
-  assert.equal(response.status, 400);
-  assert.equal(calls.length, 0);
+  assert.equal(response.status, 200);
+  const claim = calls.find((call) => call.method === 'claimSyncRun');
+  assert.equal(claim?.environment, 'production');
 });

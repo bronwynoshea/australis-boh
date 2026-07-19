@@ -27,7 +27,7 @@ type CommonInput = {
   runId: string;
   actorId: string;
   requestId: string;
-  environment: 'development';
+  environment: 'development' | 'production';
 };
 
 export type VaultSyncDependencies = {
@@ -144,7 +144,10 @@ export function createVaultSyncHandler(dependencies: VaultSyncDependencies) {
       } catch {
         throw new VaultApiError(400, 'invalid_request');
       }
-      if (body.environment !== 'development') throw new VaultApiError(400, 'development_only');
+      if (body.environment !== 'development' && body.environment !== 'production') {
+        throw new VaultApiError(400, 'invalid_environment');
+      }
+      const environment = body.environment;
       const tenantId = uuid(body.tenantId);
       const runId = uuid(body.runId);
       const syncRequestId = requestId(body.requestId);
@@ -156,7 +159,7 @@ export function createVaultSyncHandler(dependencies: VaultSyncDependencies) {
         runId,
         actorId: actor.id,
         requestId: syncRequestId,
-        environment: 'development',
+        environment,
       };
       const claimed = await dependencies.claimSyncRun(common);
       claimedInput = common;

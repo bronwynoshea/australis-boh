@@ -24,7 +24,7 @@ export type VaultStoredSecretEnvelope = ProtectedValueEnvelope & {
 };
 
 type Actor = { id: string };
-type ActorInput = { tenantId: string; actorId: string; environment: 'development'; requestId: string };
+type ActorInput = { tenantId: string; actorId: string; environment: 'development' | 'production'; requestId: string };
 
 export type VaultSecretDependencies = {
   masterKeyBase64: string;
@@ -127,9 +127,10 @@ export function createVaultSecretHandler(dependencies: VaultSecretDependencies) 
       if (action !== 'set' && action !== 'reveal' && action !== 'copy') {
         throw new VaultApiError(400, 'invalid_request');
       }
-      if (body.environment !== 'development') {
-        throw new VaultApiError(400, 'development_only');
+      if (body.environment !== 'development' && body.environment !== 'production') {
+        throw new VaultApiError(400, 'invalid_environment');
       }
+      const environment = body.environment;
 
       const tenantId = requiredUuid(body.tenantId, 'tenantId');
       const itemId = requiredUuid(body.itemId, 'itemId');
@@ -142,7 +143,7 @@ export function createVaultSecretHandler(dependencies: VaultSecretDependencies) 
       const common: ActorInput = {
         tenantId,
         actorId: actor.id,
-        environment: 'development',
+        environment,
         requestId,
       };
       const masterKey = decodeMasterKey(dependencies.masterKeyBase64);

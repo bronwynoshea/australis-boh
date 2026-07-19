@@ -49,6 +49,9 @@ const recordingFunction = read('supabase/functions/loft-toggle-recording/index.t
 check('recording start retries while Daily media finishes connecting', recordingFunction.includes('shouldRetryRecordingStart') && recordingFunction.includes('await wait(1500)'));
 check('recording falls back to the active Daily call before reporting unavailable', personalRoomPage.includes('callObj.startRecording') && personalRoomPage.includes('skipDaily: true') && recordingFunction.includes('isRecording && !skipDaily'));
 
+const appHtml = read('index.html');
+check('LOFT guest links receive LOFT browser metadata instead of SLOTZ metadata', appHtml.includes("pathname.includes('/loft/')") && appHtml.includes("title: 'LOFT | Australis Back of House'") && !appHtml.includes('<title>SLOTZ Calendar</title>'));
+
 const failed = checks.filter((item) => !item.condition);
 if (failed.length) {
   console.error('Loft regression checks failed:');

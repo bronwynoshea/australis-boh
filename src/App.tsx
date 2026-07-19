@@ -16,11 +16,13 @@ import CounterApp from './apps/delivery/counter/CounterApp';
 import TablezApp from './apps/tablez/TablezApp';
 import PatronApp from './apps/patron/PatronApp';
 import CookbookApp from './apps/cookbook/CookbookApp';
+import FunnelApp from './apps/funnel/FunnelApp';
 import ForgeApp from './apps/delivery/forge/ForgeApp';
 import LedgerApp from './apps/ledger/LedgerApp';
 import CrewApp from './apps/crew/CrewApp';
 import CentralApp from './apps/central/CentralApp';
 import KeepApp from './apps/keep/KeepApp';
+import VaultApp from './apps/vault/VaultApp';
 import LoftApp from './apps/loft/LoftApp';
 import DailyRedirectPage from './apps/loft/pages/DailyRedirectPage';
 import ExternalInterviewRoomPage from './apps/loft/pages/ExternalInterviewRoomPage';
@@ -377,6 +379,7 @@ function App() {
       <Route path="/crew/*" element={renderProtectedRoute(<CrewApp isAdmin={isSuperAdmin} />)} />
       <Route path="/central/*" element={renderProtectedRoute(<CentralApp isAdmin={isSuperAdmin} />)} />
       <Route path="/keep/*" element={renderProtectedRoute(<KeepApp isAdmin={isSuperAdmin} />)} />
+      <Route path="/vault/*" element={renderProtectedRoute(<VaultApp isAdmin={isSuperAdmin} />)} />
       <Route path="/daily-redirect" element={<DailyRedirectPage />} />
       <Route path="/apps/loft/interview-room/:roomId" element={<ExternalInterviewRoomPage />} />
       <Route path="/loft/interview-room/:roomId" element={<ExternalInterviewRoomPage />} />
@@ -389,6 +392,7 @@ function App() {
       <Route path="/apps/slotz/*" element={renderProtectedRoute(<SlotzApp isAdmin={isSuperAdmin} />)} />
       <Route path="/website/*" element={renderProtectedRoute(<WebsiteApp isAdmin={isSuperAdmin} />)} />
       <Route path="/assembly/*" element={renderProtectedRoute(<AssemblyApp isAdmin={isSuperAdmin} />)} />
+      <Route path="/funnel/*" element={renderProtectedRoute(<FunnelApp isAdmin={isSuperAdmin} />)} />
       <Route path="/forge/*" element={renderProtectedRoute(<ForgeApp isAdmin={isSuperAdmin} />)} />
       <Route path="/counter/*" element={renderProtectedRoute(<CounterApp />)} />
       <Route path="/cookbook/*" element={renderProtectedRoute(<CookbookApp />)} />

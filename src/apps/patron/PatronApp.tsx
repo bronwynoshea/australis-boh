@@ -4,7 +4,7 @@ import { BOHShell, bohApps } from '../../boh/navigation';
 import PatronDashboardPage from './pages/PatronDashboardPage';
 import PatronPeoplePage from './pages/PatronPeoplePage';
 import PatronOrganisationsPage from './pages/PatronOrganisationsPage';
-import PatronPipelinePage from './pages/PatronPipelinePage';
+import PatronPipelineHandoffPage from './pages/PatronPipelineHandoffPage';
 import PatronPersonDetailPage from './pages/PatronPersonDetailPage';
 import PatronOrganisationDetailPage from './pages/PatronOrganisationDetailPage';
 import { supabase } from '../../lib/supabase';
@@ -112,7 +112,7 @@ const PatronApp: React.FC<PatronAppProps> = () => {
         <Route path="people/:personId" element={<PatronPersonDetailPage />} />
         <Route path="organisations" element={<PatronOrganisationsPage />} />
         <Route path="organisations/:organisationId" element={<PatronOrganisationDetailPage />} />
-        <Route path="pipeline" element={<PatronPipelinePage />} />
+        <Route path="pipeline" element={<PatronPipelineHandoffPage />} />
         <Route path="*" element={<Navigate to="/patron/dashboard" replace />} />
       </Routes>
     </BOHShell>

@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 
 const sections = [
+  { id: "studio", label: "Asset Studio", description: "Create, preview, edit, and version static web assets." },
   { id: "pantry", label: "Pantry", description: "Soundbytes, AI personas, and knowledge packs." },
   { id: "quickserve", label: "QuickServe", description: "Short-form content: posts, hooks, and scripts." },
   { id: "slowcook", label: "Slow Cook", description: "Long-form stories, interviews, and chapters." },
@@ -14,6 +15,9 @@ const CookbookHomePage: React.FC = () => {
 
   const handleClick = (id: (typeof sections)[number]["id"]) => {
     switch (id) {
+      case "studio":
+        navigate("/cookbook/studio");
+        break;
       case "pantry":
         navigate("/cookbook/pantry");
         break;

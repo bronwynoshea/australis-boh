@@ -7,6 +7,7 @@ This repository is the new Australis-owned BOH codebase, migrated from `bronwyno
 ## Current deployment model
 
 - Canonical future BOH domain: `https://boh.australis.cloud`
+- Current BOH Development domain: `https://dev-boh.australis.cloud`
 - Current JOBZCAFE® production BOH remains separate: `https://boh.jobzcafe.com`
 - Dev/staging work for this repo targets BOH-DEV Supabase unless explicitly approved otherwise.
 - Do not point this repo at BOH production or change the existing `jobzcafe-boh` deployment during migration work.

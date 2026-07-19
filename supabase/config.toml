@@ -19,6 +19,15 @@ verify_jwt = false
 [functions.boh-save-access]
 verify_jwt = false
 
+[functions.boh-vault-secret]
+verify_jwt = false
+
+[functions.boh-vault-manage]
+verify_jwt = false
+
+[functions.boh-vault-sync]
+verify_jwt = false
+
 [functions.cellar_create_boh_embed_handoff]
 verify_jwt = false
 

@@ -11,6 +11,7 @@ export {
   menuNavConfig,
   tablezNavConfig,
   cookbookNavConfig,
+  funnelNavConfig,
   patronNavConfig,
   counterNavConfig,
   forgeNavConfig,

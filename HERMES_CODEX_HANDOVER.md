@@ -18,7 +18,7 @@ Purpose: recreate useful context for Australis BOH work without copying secrets.
 - Source local reference: `/home/jobzcafe/jobzcafe-boh`
 - Existing JOBZCAFE® BOH production branch/domain must remain untouched unless explicitly requested.
 - Current JOBZCAFE® BOH production domain: `boh.jobzcafe.com`
-- Current BOH dev domain: `dev-boh.jobzcafe.com`
+- Current BOH dev domain: `dev-boh.australis.cloud`
 - Future Australis BOH canonical domain: `boh.australis.cloud`
 
 ## Setup On Hermes Laptop

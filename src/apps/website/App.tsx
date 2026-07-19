@@ -14,7 +14,7 @@ const getDefaultWebsiteUrl = () => {
   const isDevBoh =
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
-    hostname === 'dev-boh.jobzcafe.com';
+    hostname === 'dev-boh.australis.cloud';
 
   return isDevBoh ? DEV_WEBSITE_URL : PROD_WEBSITE_URL;
 };

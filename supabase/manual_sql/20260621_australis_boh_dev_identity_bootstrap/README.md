@@ -20,8 +20,8 @@ The bootstrap SQL intentionally does not create fake `auth.users` ids. Before ru
 3. Use BOH-DEV redirect URLs already documented for this repo:
    - `http://localhost:5173`
    - `http://localhost:5173/**`
-   - `https://dev-boh.jobzcafe.com`
-   - `https://dev-boh.jobzcafe.com/**`
+   - `https://dev-boh.australis.cloud`
+   - `https://dev-boh.australis.cloud/**`
    - `https://boh.australis.cloud`
    - `https://boh.australis.cloud/**`
 4. Confirm each user has an `auth.users.id` in BOH-DEV before running the bootstrap.

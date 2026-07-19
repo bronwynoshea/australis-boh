@@ -45,14 +45,14 @@ Use staging as the reviewed project source of truth.
 
 ## Dev Supabase Auth URLs
 
-BOH dev auth is configured around the Vite dev port, the current BOH dev domain, and the future Australis BOH domain.
+BOH dev auth is configured around the Vite dev port and the Australis Development domain.
 
 - Current JOBZCAFE® production domain: `https://boh.jobzcafe.com`
-- Current BOH dev domain: `https://dev-boh.jobzcafe.com`
+- Current BOH dev domain: `https://dev-boh.australis.cloud`
 - Future Australis BOH domain: `https://boh.australis.cloud`
 - Site URL for local dev: `http://localhost:5173`
-- Redirect URL: `https://dev-boh.jobzcafe.com`
-- Redirect URL: `https://dev-boh.jobzcafe.com/**`
+- Redirect URL: `https://dev-boh.australis.cloud`
+- Redirect URL: `https://dev-boh.australis.cloud/**`
 - Redirect URL: `https://boh.australis.cloud`
 - Redirect URL: `https://boh.australis.cloud/**`
 - Redirect URL: `http://localhost:5173`

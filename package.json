@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test:vault": "node --test supabase/functions/_shared/cors.test.ts supabase/functions/_shared/vaultCrypto.test.ts supabase/functions/_shared/vaultSecretApi.test.ts supabase/functions/_shared/vaultManageApi.test.ts supabase/functions/_shared/vaultSignedWebhook.test.ts supabase/functions/_shared/vaultSyncApi.test.ts && node supabase/tests/boh_vault_pglite_behavior.mjs",
+    "test:vault": "node --test tests/vault-*.test.mjs supabase/functions/_shared/cors.test.ts supabase/functions/_shared/vaultCrypto.test.ts supabase/functions/_shared/vaultSecretApi.test.ts supabase/functions/_shared/vaultManageApi.test.ts supabase/functions/_shared/vaultSignedWebhook.test.ts supabase/functions/_shared/vaultSyncApi.test.ts && node supabase/tests/boh_vault_pglite_behavior.mjs",
     "walkthrough:worker": "node tools/walkthrough-recorder/run.mjs --once",
     "walkthrough:capture-scenes": "node tools/walkthrough-recorder/capture-scenes.mjs",
     "walkthrough:render-remotion": "node tools/walkthrough-recorder/render-scenes-remotion.mjs"

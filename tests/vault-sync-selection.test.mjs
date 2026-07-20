@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { filterActiveVaultBindings, filterVaultRecordsByEnvironment, filterVaultRunsByBinding, getVaultConnectionDisplay } from '../src/apps/vault/vaultSyncSelection.ts';
+import { filterActiveVaultBindings, filterVaultItemsForSynchronization, filterVaultRecordsByEnvironment, filterVaultRunsByBinding, getVaultConnectionDisplay } from '../src/apps/vault/vaultSyncSelection.ts';
+
+test('personal passwords are never synchronization candidates', () => {
+  const items = [
+    { id: 'password', item_type: 'login' },
+    { id: 'api-key', item_type: 'api_key' },
+  ];
+  assert.deepEqual(filterVaultItemsForSynchronization(items).map((item) => item.id), ['api-key']);
+});
 
 test('synchronization records are isolated by environment', () => {
   const records = [

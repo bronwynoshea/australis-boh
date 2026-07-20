@@ -92,8 +92,8 @@ export async function listVaultFields(tenantId: string, itemId: string): Promise
   return (data ?? []) as VaultField[];
 }
 
-export async function listVaultActivity(tenantId: string): Promise<VaultAuditEvent[]> {
-  const { data, error } = await supabase.from('boh_vault_audit_events_safe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(100);
+export async function listVaultActivity(tenantId: string, itemId: string): Promise<VaultAuditEvent[]> {
+  const { data, error } = await supabase.from('boh_vault_audit_events_safe').select('*').eq('tenant_id', tenantId).eq('vault_item_id', itemId).order('created_at', { ascending: false }).limit(10);
   if (error) fail(error, 'Unable to load Vault activity.');
   return (data ?? []) as VaultAuditEvent[];
 }

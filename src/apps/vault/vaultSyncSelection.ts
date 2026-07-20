@@ -6,6 +6,14 @@ export type VaultBindingForSelection = {
   state: string;
 };
 
+export type VaultItemForSynchronization = {
+  item_type: string;
+};
+
+export function filterVaultItemsForSynchronization<T extends VaultItemForSynchronization>(items: readonly T[]): T[] {
+  return items.filter((item) => item.item_type !== 'login');
+}
+
 export function filterActiveVaultBindings<T extends VaultBindingForSelection>(bindings: readonly T[]): T[] {
   return bindings.filter((binding) => binding.state !== 'disabled');
 }

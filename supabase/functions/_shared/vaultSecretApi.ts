@@ -25,13 +25,14 @@ export type VaultStoredSecretEnvelope = ProtectedValueEnvelope & {
 
 type Actor = { id: string };
 type ActorInput = { tenantId: string; actorId: string; environment: 'development' | 'production'; requestId: string };
+type ItemActorInput = ActorInput & { itemId: string };
 
 export type VaultSecretDependencies = {
   masterKeyBase64: string;
   serviceIdentity: string;
   resolveActor(authorization: string, tenantId: string): Promise<Actor>;
-  getActiveTenantKey(input: ActorInput): Promise<VaultTenantKeyEnvelope | null>;
-  initializeTenantKey(input: ActorInput & { wrappedKey: string; wrappingKeyRef: string }): Promise<VaultTenantKeyEnvelope>;
+  getActiveTenantKey(input: ItemActorInput): Promise<VaultTenantKeyEnvelope | null>;
+  initializeTenantKey(input: ItemActorInput & { wrappedKey: string; wrappingKeyRef: string }): Promise<VaultTenantKeyEnvelope>;
   commitSecretVersion(input: ActorInput & {
     itemId: string;
     fieldId: string;
@@ -151,11 +152,12 @@ export function createVaultSecretHandler(dependencies: VaultSecretDependencies) 
 
       if (action === 'set') {
         const value = requiredText(body.value, 'value', 131_072);
-        let tenantKeyEnvelope = await dependencies.getActiveTenantKey(common);
+        const itemCommon = { ...common, itemId };
+        let tenantKeyEnvelope = await dependencies.getActiveTenantKey(itemCommon);
         if (!tenantKeyEnvelope) {
           const wrappedKey = await generateWrappedTenantKey(masterKey);
           tenantKeyEnvelope = await dependencies.initializeTenantKey({
-            ...common,
+            ...itemCommon,
             wrappedKey,
             wrappingKeyRef: WRAPPING_KEY_REFERENCE,
           });

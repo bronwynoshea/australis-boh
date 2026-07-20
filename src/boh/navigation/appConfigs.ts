@@ -300,7 +300,6 @@ export const vaultNavConfig: AppNavConfig = {
     { key: 'items', label: 'Items', to: '/vault', icon: DefaultIcons.Vault },
     { key: 'sync', label: 'Synchronization', to: '/vault/sync', icon: DefaultIcons.Forge },
     { key: 'access', label: 'Access', to: '/vault/access', icon: DefaultIcons.Crew },
-    { key: 'activity', label: 'Activity', to: '/vault/activity', icon: DefaultIcons.Ledger },
   ],
 };
 

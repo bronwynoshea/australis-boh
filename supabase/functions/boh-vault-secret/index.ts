@@ -74,8 +74,9 @@ const dependencies: VaultSecretDependencies = {
   },
 
   async getActiveTenantKey(input) {
-    const { data, error } = await serviceClient.rpc('boh_vault_get_active_tenant_key', {
+    const { data, error } = await serviceClient.rpc('boh_vault_get_active_tenant_key_for_item', {
       requested_tenant_id: input.tenantId,
+      requested_item_id: input.itemId,
       requested_actor_boh_user_id: input.actorId,
       requested_environment: input.environment,
       requested_service_identity: serviceIdentity,
@@ -88,8 +89,9 @@ const dependencies: VaultSecretDependencies = {
   },
 
   async initializeTenantKey(input) {
-    const { data, error } = await serviceClient.rpc('boh_vault_initialize_tenant_key', {
+    const { data, error } = await serviceClient.rpc('boh_vault_initialize_tenant_key_for_item', {
       requested_tenant_id: input.tenantId,
+      requested_item_id: input.itemId,
       requested_actor_boh_user_id: input.actorId,
       requested_environment: input.environment,
       requested_wrapping_key_ref: input.wrappingKeyRef,

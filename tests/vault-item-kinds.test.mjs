@@ -5,13 +5,16 @@ import {
   createVaultItemFormDefaults,
   filterVaultItemsByCategory,
   filterVaultItemsByEnvironment,
+  VAULT_PROVIDER_PLACEHOLDER,
 } from '../src/apps/vault/vaultItemKinds.ts';
 
-test('new Vault items start in Development with a blank reference', () => {
+test('new Vault items start in Development with blank reference and provider values', () => {
   const form = createVaultItemFormDefaults();
   assert.equal(form.environment, 'development');
   assert.equal(form.referenceName, '');
+  assert.equal(form.providerKey, '');
   assert.equal(form.description, '');
+  assert.equal(VAULT_PROVIDER_PLACEHOLDER, 'Enter provider name');
 });
 
 test('password items keep website and username plaintext but protect the password', () => {

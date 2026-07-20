@@ -30,6 +30,7 @@ await exec(`
  create table public.boh_tenant_member(id uuid default gen_random_uuid(),tenant_id uuid references public.boh_tenant(id),user_id uuid references public.boh_user(id),membership_status text,is_default boolean default false,created_at timestamptz default now(),updated_at timestamptz default now(),unique(tenant_id,user_id));
  create table public.boh_app(id uuid primary key,name text,slug text unique,description text,route text,external_url text,primary_color text,type text,is_active boolean,app_context text,created_at timestamptz);
  create table public.boh_tenant_app(id uuid default gen_random_uuid(),tenant_id uuid references public.boh_tenant(id),app_id uuid references public.boh_app(id),status text,app_kind text,display_name text,launch_route text,external_url text,metadata jsonb default '{}',created_at timestamptz default now(),updated_at timestamptz default now(),unique(tenant_id,app_id));
+ alter default privileges in schema public grant all on tables to anon, authenticated;
 `);
 for (const name of ['20260715090000_create_boh_vault_core.sql','20260715091000_create_boh_vault_sync_targets.sql','20260715092000_register_boh_vault_app.sql','20260715093000_prepare_boh_vault_legacy_bridge.sql','20260715094000_create_boh_vault_secret_api.sql','20260715095000_create_boh_vault_sync_api.sql','20260715096000_create_boh_vault_ui_safe_views.sql','20260715097000_create_boh_vault_active_sync_request.sql','20260715103000_archive_boh_vault_items.sql','20260715105000_separate_vault_sync_request_and_dispatch_identity.sql','20260717113000_add_vault_item_details_edit.sql','20260717120000_harden_vault_safe_views.sql','20260717122000_add_vault_item_description.sql','20260719220000_enable_central_vault_environments.sql'])
   await exec(await readFile(new URL(`../migrations/${name}`, import.meta.url),'utf8'));
@@ -50,6 +51,7 @@ await exec(`
  insert into boh_vault_collection_items(id,tenant_id,environment,collection_id,vault_item_id,added_by) values('${ids.m1}','${ids.t1}','development','${ids.c1}','${ids.i3}','${ids.u1}');
 `);
 await exec(await readFile(new URL('../migrations/20260719223000_enforce_vault_item_access_by_kind.sql', import.meta.url),'utf8'));
+await exec(await readFile(new URL('../migrations/20260720120000_make_vault_safe_views_read_only.sql', import.meta.url),'utf8'));
 let r;
 r=await q(`select owner_boh_user_id from boh_vault_items where id='${ids.i3}'`); assert.equal(r.rows[0].owner_boh_user_id,ids.u3);
 r=await q(`select count(*)::int n from boh_vault_collection_items where id='${ids.m1}'`); assert.equal(r.rows[0].n,0);
@@ -265,6 +267,8 @@ assert.deepEqual(r.rows[0],{item_read:false,audit_write:false},'service operatio
 // UI reads access and adapter metadata only through explicit safe views.
 r=await q(`select has_table_privilege('authenticated','boh_vault_access_grants_safe','select') grants_safe,has_table_privilege('authenticated','boh_vault_deployment_adapters_safe','select') adapters_safe`);
 assert.deepEqual(r.rows[0],{grants_safe:true,adapters_safe:true});
+r=await q(`select count(*)::int n from information_schema.views v where v.table_schema='public' and v.table_name like 'boh_vault_%_safe' and (has_table_privilege('authenticated',format('%I.%I',v.table_schema,v.table_name),'insert') or has_table_privilege('authenticated',format('%I.%I',v.table_schema,v.table_name),'update') or has_table_privilege('authenticated',format('%I.%I',v.table_schema,v.table_name),'delete'))`);
+assert.equal(r.rows[0].n,0,'Vault safe views must be authenticated SELECT-only');
 await exec(`set role authenticated;select set_config('request.jwt.claim.role','authenticated',false);select set_config('request.jwt.claim.sub','${ids.a1}',false)`);
 r=await q(`select role,status from boh_vault_access_grants_safe where tenant_id='${ids.t1}' and boh_user_id='${ids.u1}'`);
 assert.equal(r.rows.some((row)=>row.role==='vault_admin'&&row.status==='active'),true);

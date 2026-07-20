@@ -1,6 +1,7 @@
 export type VaultItemKind = 'password' | 'api_secret';
 export type VaultCategory = 'all' | 'passwords' | 'api_secrets';
 export type VaultEnvironment = 'development' | 'production';
+export const VAULT_PROVIDER_PLACEHOLDER = 'Enter provider name';
 
 export function createVaultItemFormDefaults() {
   return {

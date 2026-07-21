@@ -53,6 +53,7 @@ await exec(`
 await exec(await readFile(new URL('../migrations/20260719223000_enforce_vault_item_access_by_kind.sql', import.meta.url),'utf8'));
 await exec(await readFile(new URL('../migrations/20260720120000_make_vault_safe_views_read_only.sql', import.meta.url),'utf8'));
 await exec(await readFile(new URL('../migrations/20260720123000_enable_canonical_supabase_vault_targets.sql', import.meta.url),'utf8'));
+await exec(await readFile(new URL('../migrations/20260721120000_add_vault_item_business_context.sql', import.meta.url),'utf8'));
 let r;
 r=await q(`select owner_boh_user_id from boh_vault_items where id='${ids.i3}'`); assert.equal(r.rows[0].owner_boh_user_id,ids.u3);
 r=await q(`select count(*)::int n from boh_vault_collection_items where id='${ids.m1}'`); assert.equal(r.rows[0].n,0);
@@ -101,22 +102,27 @@ await exec(`reset role`);
 
 // A Vault viewer can manage only a password they create; shared credentials remain admin-only.
 await exec(`set role service_role;select set_config('request.jwt.claim.role','service_role',false)`);
-r=await q(`select boh_vault_upsert_item('${ids.i4}','${ids.t1}','viewer-login','Viewer login','login',null,null,'development',null,null,'${ids.u3}','viewer-login-created','test-service') id`);
+await rejects(`select boh_vault_upsert_item_v2('${ids.i5}','${ids.t1}','viewer-invalid-url','Viewer invalid URL','login',null,'Personal workspace','personal-login','http://accounts.example.test',null,'development',null,null,'${ids.u3}','viewer-invalid-url','test-service')`,/Service URL must use HTTPS/i);
+r=await q(`select boh_vault_upsert_item_v2('${ids.i4}','${ids.t1}','viewer-login','Viewer login','login',null,'Personal workspace','personal-login','https://accounts.example.test',null,'development',null,null,'${ids.u3}','viewer-login-created','test-service') id`);
 assert.equal(r.rows[0].id,ids.i4);
 r=await q(`select boh_vault_upsert_item_field('${ids.f4}','${ids.t1}','${ids.i4}','development','PASSWORD','Password','protected',null,true,0,'{}'::jsonb,'${ids.u3}','viewer-login-field','test-service') id`);
 assert.equal(r.rows[0].id,ids.f4);
-r=await q(`select boh_vault_update_item_details_v2('${ids.i4}','${ids.t1}','development','Viewer login updated',null,null,null,null,'${ids.u3}','viewer-login-edited','test-service') id`);
+r=await q(`select boh_vault_update_item_details_v3('${ids.i4}','${ids.t1}','development','Viewer login updated',null,'Personal workspace','personal-login','https://accounts.example.test','Account access',null,null,null,'${ids.u3}','viewer-login-edited','test-service') id`);
 assert.equal(r.rows[0].id,ids.i4);
-await rejects(`select boh_vault_upsert_item('${ids.i5}','${ids.t1}','viewer-api','Viewer API','credential',null,null,'development',null,null,'${ids.u3}','viewer-api-rejected','test-service')`,/cannot create|not authorized/i);
+await rejects(`select boh_vault_upsert_item_v2('${ids.i5}','${ids.t1}','viewer-api','Viewer API','credential',null,null,null,null,null,'development',null,null,'${ids.u3}','viewer-api-rejected','test-service')`,/cannot create|not authorized/i);
 r=await q(`select * from boh_vault_get_active_tenant_key_for_item('${ids.t1}','${ids.i4}','${ids.u3}','development','test-service','viewer-key-read')`);
 assert.equal(r.rows[0].tenant_key_id,ids.k1);
 r=await q(`select boh_vault_commit_secret_version('${ids.t1}','${ids.i4}','${ids.f4}','${ids.k1}','${ids.u3}','viewer-cipher','viewer-nonce','viewer-data-key','viewer-password-set','test-service') id`);
 const viewerSecret=r.rows[0].id;
 await rejects(`select * from boh_vault_get_active_tenant_key_for_item('${ids.t1}','${ids.i1}','${ids.u3}','development','test-service','viewer-shared-key-read')`,/cannot access this Vault item/i);
-await rejects(`select boh_vault_update_item_details_v2('${ids.i3}','${ids.t1}','development','Admin changed private login',null,null,null,null,'${ids.u1}','admin-password-edit','test-service')`,/cannot modify this Vault item/i);
+await rejects(`select boh_vault_update_item_details_v3('${ids.i3}','${ids.t1}','development','Admin changed private login',null,null,null,null,null,null,null,null,'${ids.u1}','admin-password-edit','test-service')`,/cannot modify this Vault item/i);
 await exec(`reset role`);
-r=await q(`select created_by,owner_boh_user_id,display_name from boh_vault_items where id='${ids.i4}'`);
-assert.deepEqual(r.rows[0],{created_by:ids.u3,owner_boh_user_id:ids.u3,display_name:'Viewer login updated'});
+r=await q(`select created_by,owner_boh_user_id,display_name,project_workspace,project_id,service_url,purpose from boh_vault_items where id='${ids.i4}'`);
+assert.deepEqual(r.rows[0],{created_by:ids.u3,owner_boh_user_id:ids.u3,display_name:'Viewer login updated',project_workspace:'Personal workspace',project_id:'personal-login',service_url:'https://accounts.example.test',purpose:'Account access'});
+await exec(`set role authenticated; select set_config('request.jwt.claim.role','authenticated',false); select set_config('request.jwt.claim.sub','${ids.a3}',false)`);
+r=await q(`select project_workspace,project_id,service_url,purpose from boh_vault_items_safe where id='${ids.i4}'`);
+assert.deepEqual(r.rows[0],{project_workspace:'Personal workspace',project_id:'personal-login',service_url:'https://accounts.example.test',purpose:'Account access'});
+await exec(`reset role`);
 r=await q(`select count(*)::int n from boh_vault_items where id='${ids.i5}'`); assert.equal(r.rows[0].n,0);
 r=await q(`select count(*)::int n from boh_vault_audit_events where request_id='viewer-api-rejected'`); assert.equal(r.rows[0].n,0);
 for (const mutation of [
@@ -292,7 +298,7 @@ r=await q(`select has_function_privilege('service_role','boh_vault_request_sync_
 assert.deepEqual(r.rows[0],{direct_request:false,direct_start:false,direct_cancel:false});
 r=await q(`select proname,count(*)::int overloads from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'boh_vault_%' and has_function_privilege('service_role',p.oid,'execute') group by proname order by proname`);
 assert.deepEqual(r.rows,[
-  ['boh_vault_archive_item','boh_vault_claim_sync_run','boh_vault_commit_secret_version','boh_vault_complete_sync_run','boh_vault_create_deployment_target','boh_vault_create_sync_binding','boh_vault_fail_sync_run','boh_vault_get_active_tenant_key_for_item','boh_vault_initialize_tenant_key_for_item','boh_vault_mutate_access_grant','boh_vault_read_secret_envelope','boh_vault_request_active_sync_run','boh_vault_update_item_details_v2','boh_vault_update_sync_binding','boh_vault_upsert_item','boh_vault_upsert_item_field'].map((proname)=>({proname,overloads:1})),
+  ['boh_vault_archive_item','boh_vault_claim_sync_run','boh_vault_commit_secret_version','boh_vault_complete_sync_run','boh_vault_create_deployment_target','boh_vault_create_sync_binding','boh_vault_fail_sync_run','boh_vault_get_active_tenant_key_for_item','boh_vault_initialize_tenant_key_for_item','boh_vault_mutate_access_grant','boh_vault_read_secret_envelope','boh_vault_request_active_sync_run','boh_vault_update_item_details_v2','boh_vault_update_item_details_v3','boh_vault_update_sync_binding','boh_vault_upsert_item','boh_vault_upsert_item_field','boh_vault_upsert_item_v2'].map((proname)=>({proname,overloads:1})),
 ].flat(),'service_role may execute only the reviewed Edge Function RPC allowlist');
 
 // A password creator can archive their item; another administrator cannot see its audit trail.

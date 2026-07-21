@@ -13,6 +13,7 @@ export function createVaultItemFormDefaults() {
     providerKey: '',
     projectWorkspace: '',
     projectId: '',
+    switchboardProjectId: '',
     serviceUrl: '',
     purpose: '',
     description: '',

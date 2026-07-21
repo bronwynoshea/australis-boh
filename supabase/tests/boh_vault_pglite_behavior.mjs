@@ -17,7 +17,8 @@ const ids = {
  i1:'40000000-0000-0000-0000-000000000001', i2:'40000000-0000-0000-0000-000000000002', i3:'40000000-0000-0000-0000-000000000003', i4:'40000000-0000-0000-0000-000000000004', i5:'40000000-0000-0000-0000-000000000005',
  fp:'50000000-0000-0000-0000-000000000001', fs:'50000000-0000-0000-0000-000000000002', f2:'50000000-0000-0000-0000-000000000003', fr:'50000000-0000-0000-0000-000000000004', f3:'50000000-0000-0000-0000-000000000005', f4:'50000000-0000-0000-0000-000000000006',
  k1:'60000000-0000-0000-0000-000000000001', sl:'61000000-0000-0000-0000-000000000001', s4:'61000000-0000-0000-0000-000000000002',
- c1:'62000000-0000-0000-0000-000000000000', m1:'62000000-0000-0000-0000-000000000001', bl:'63000000-0000-0000-0000-000000000001', rl:'64000000-0000-0000-0000-000000000001'
+ c1:'62000000-0000-0000-0000-000000000000', m1:'62000000-0000-0000-0000-000000000001', bl:'63000000-0000-0000-0000-000000000001', rl:'64000000-0000-0000-0000-000000000001',
+ p1:'65000000-0000-0000-0000-000000000001', p2:'65000000-0000-0000-0000-000000000002', pe1:'66000000-0000-0000-0000-000000000001', pe2:'66000000-0000-0000-0000-000000000002'
 };
 await exec(`
  create role anon; create role authenticated; create role service_role;
@@ -30,6 +31,9 @@ await exec(`
  create table public.boh_tenant_member(id uuid default gen_random_uuid(),tenant_id uuid references public.boh_tenant(id),user_id uuid references public.boh_user(id),membership_status text,is_default boolean default false,created_at timestamptz default now(),updated_at timestamptz default now(),unique(tenant_id,user_id));
  create table public.boh_app(id uuid primary key,name text,slug text unique,description text,route text,external_url text,primary_color text,type text,is_active boolean,app_context text,created_at timestamptz);
  create table public.boh_tenant_app(id uuid default gen_random_uuid(),tenant_id uuid references public.boh_tenant(id),app_id uuid references public.boh_app(id),status text,app_kind text,display_name text,launch_route text,external_url text,metadata jsonb default '{}',created_at timestamptz default now(),updated_at timestamptz default now(),unique(tenant_id,app_id));
+ create table public.boh_role(id uuid primary key,code text unique not null);
+ create table public.boh_user_role(user_id uuid references public.boh_user(id),tenant_id uuid references public.boh_tenant(id),role_id uuid references public.boh_role(id),app_context text,primary key(user_id,tenant_id,role_id));
+ create table public.boh_user_app(id uuid default gen_random_uuid() primary key,user_id uuid references public.boh_user(id),tenant_id uuid references public.boh_tenant(id),app_id uuid references public.boh_app(id),app_context text,permission_level text,unique(user_id,tenant_id,app_id));
  alter default privileges in schema public grant all on tables to anon, authenticated;
 `);
 for (const name of ['20260715090000_create_boh_vault_core.sql','20260715091000_create_boh_vault_sync_targets.sql','20260715092000_register_boh_vault_app.sql','20260715093000_prepare_boh_vault_legacy_bridge.sql','20260715094000_create_boh_vault_secret_api.sql','20260715095000_create_boh_vault_sync_api.sql','20260715096000_create_boh_vault_ui_safe_views.sql','20260715097000_create_boh_vault_active_sync_request.sql','20260715103000_archive_boh_vault_items.sql','20260715104000_register_supabase_edge_secrets_adapter.sql','20260715105000_separate_vault_sync_request_and_dispatch_identity.sql','20260717113000_add_vault_item_details_edit.sql','20260717120000_harden_vault_safe_views.sql','20260717122000_add_vault_item_description.sql','20260719220000_enable_central_vault_environments.sql'])
@@ -54,7 +58,45 @@ await exec(await readFile(new URL('../migrations/20260719223000_enforce_vault_it
 await exec(await readFile(new URL('../migrations/20260720120000_make_vault_safe_views_read_only.sql', import.meta.url),'utf8'));
 await exec(await readFile(new URL('../migrations/20260720123000_enable_canonical_supabase_vault_targets.sql', import.meta.url),'utf8'));
 await exec(await readFile(new URL('../migrations/20260721120000_add_vault_item_business_context.sql', import.meta.url),'utf8'));
+await exec(await readFile(new URL('../migrations/20260721130000_create_boh_switchboard_foundation.sql', import.meta.url),'utf8'));
+await exec(await readFile(new URL('../migrations/20260721131000_link_vault_items_to_switchboard.sql', import.meta.url),'utf8'));
+await exec(await readFile(new URL('../migrations/20260721132000_enable_switchboard_for_vault_tenants.sql', import.meta.url),'utf8'));
+await exec(await readFile(new URL('../migrations/20260721134000_enforce_switchboard_provider_resource_kinds.sql', import.meta.url),'utf8'));
 let r;
+
+// Vault users can see only canonical project options for their exact environment,
+// and guarded item mutations enforce the same tenant and environment relationship.
+await exec(`
+ insert into boh_switchboard_projects(id,tenant_id,project_key,name,created_by,updated_by) values
+ ('${ids.p1}','${ids.t1}','jobzcafe','JOBZCAFE','${ids.u1}','${ids.u1}'),
+ ('${ids.p2}','${ids.t2}','other','Other','${ids.u2}','${ids.u2}');
+ insert into boh_switchboard_project_environments(id,tenant_id,project_id,environment,created_by,updated_by) values
+ ('${ids.pe1}','${ids.t1}','${ids.p1}','development','${ids.u1}','${ids.u1}'),
+ ('${ids.pe2}','${ids.t2}','${ids.p2}','development','${ids.u2}','${ids.u2}');
+ set role authenticated;
+ select set_config('request.jwt.claim.role','authenticated',false);
+ select set_config('request.jwt.claim.sub','${ids.a1}',false);
+`);
+r=await q(`select id,name,environment from boh_vault_list_switchboard_project_options('${ids.t1}','development')`);
+assert.deepEqual(r.rows,[{id:ids.p1,name:'JOBZCAFE',environment:'development'}]);
+await rejects(`select * from boh_vault_list_switchboard_project_options('${ids.t1}','production')`,/Exact-environment Vault access is required/i);
+await exec(`reset role;set role service_role;select set_config('request.jwt.claim.role','service_role',false)`);
+await q(`select boh_vault_upsert_item_v3(
+ '${ids.i1}','${ids.t1}','one','One','credential',null,null,null,'${ids.p1}',
+ 'https://safe.test','Project-scoped credential','development',null,null,
+ '${ids.u1}','switchboard-vault-link','test-service'
+)`);
+await exec(`reset role`);
+r=await q(`select switchboard_project_id from boh_vault_items where id='${ids.i1}'`);
+assert.equal(r.rows[0].switchboard_project_id,ids.p1);
+await exec(`set role service_role;select set_config('request.jwt.claim.role','service_role',false)`);
+await rejects(`select boh_vault_upsert_item_v3(
+ '${ids.i1}','${ids.t1}','one','One','credential',null,null,null,'${ids.p2}',
+ 'https://safe.test','Project-scoped credential','development',null,null,
+ '${ids.u1}','switchboard-vault-cross-tenant','test-service'
+)`,/Active Switchboard project environment not found/i);
+await exec(`reset role`);
+
 r=await q(`select owner_boh_user_id from boh_vault_items where id='${ids.i3}'`); assert.equal(r.rows[0].owner_boh_user_id,ids.u3);
 r=await q(`select count(*)::int n from boh_vault_collection_items where id='${ids.m1}'`); assert.equal(r.rows[0].n,0);
 r=await q(`select count(*)::int n from boh_vault_audit_events where request_id='migration:password-collection:${ids.m1}' and event_type='collection_membership_removed'`); assert.equal(r.rows[0].n,1);
@@ -298,7 +340,7 @@ r=await q(`select has_function_privilege('service_role','boh_vault_request_sync_
 assert.deepEqual(r.rows[0],{direct_request:false,direct_start:false,direct_cancel:false});
 r=await q(`select proname,count(*)::int overloads from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'boh_vault_%' and has_function_privilege('service_role',p.oid,'execute') group by proname order by proname`);
 assert.deepEqual(r.rows,[
-  ['boh_vault_archive_item','boh_vault_claim_sync_run','boh_vault_commit_secret_version','boh_vault_complete_sync_run','boh_vault_create_deployment_target','boh_vault_create_sync_binding','boh_vault_fail_sync_run','boh_vault_get_active_tenant_key_for_item','boh_vault_initialize_tenant_key_for_item','boh_vault_mutate_access_grant','boh_vault_read_secret_envelope','boh_vault_request_active_sync_run','boh_vault_update_item_details_v2','boh_vault_update_item_details_v3','boh_vault_update_sync_binding','boh_vault_upsert_item','boh_vault_upsert_item_field','boh_vault_upsert_item_v2'].map((proname)=>({proname,overloads:1})),
+  ['boh_vault_archive_item','boh_vault_claim_sync_run','boh_vault_commit_secret_version','boh_vault_complete_sync_run','boh_vault_create_deployment_target','boh_vault_create_sync_binding','boh_vault_fail_sync_run','boh_vault_get_active_tenant_key_for_item','boh_vault_initialize_tenant_key_for_item','boh_vault_mutate_access_grant','boh_vault_read_secret_envelope','boh_vault_request_active_sync_run','boh_vault_update_item_details_v2','boh_vault_update_item_details_v3','boh_vault_update_item_details_v4','boh_vault_update_sync_binding','boh_vault_upsert_item','boh_vault_upsert_item_field','boh_vault_upsert_item_v2','boh_vault_upsert_item_v3'].map((proname)=>({proname,overloads:1})),
 ].flat(),'service_role may execute only the reviewed Edge Function RPC allowlist');
 
 // A password creator can archive their item; another administrator cannot see its audit trail.

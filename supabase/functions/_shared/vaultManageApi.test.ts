@@ -6,6 +6,7 @@ const ids = {
   tenant: '10000000-0000-4000-8000-000000000001',
   actor: '30000000-0000-4000-8000-000000000001',
   item: '40000000-0000-4000-8000-000000000001',
+  project: '41000000-0000-4000-8000-000000000001',
   field: '50000000-0000-4000-8000-000000000001',
   user: '31000000-0000-4000-8000-000000000001',
   grant: '32000000-0000-4000-8000-000000000001',
@@ -54,6 +55,7 @@ test('item metadata is tenant-scoped and returns only its ID', async () => {
     providerKey: 'openai',
     projectWorkspace: 'JOBZCAFE Development',
     projectId: 'jmjrgthqnrebzflythvj',
+    switchboardProjectId: ids.project,
     serviceUrl: 'https://jmjrgthqnrebzflythvj.supabase.co',
     purpose: 'Product AI access',
     description: 'Shared development access',
@@ -65,6 +67,7 @@ test('item metadata is tenant-scoped and returns only its ID', async () => {
   assert.equal(calls[0].actorId, ids.actor);
   assert.equal(calls[0].projectWorkspace, 'JOBZCAFE Development');
   assert.equal(calls[0].projectId, 'jmjrgthqnrebzflythvj');
+  assert.equal(calls[0].switchboardProjectId, ids.project);
   assert.equal(calls[0].serviceUrl, 'https://jmjrgthqnrebzflythvj.supabase.co');
 });
 
@@ -92,6 +95,7 @@ test('item details edit sends metadata and a protected-field reference without a
     providerKey: 'Cloudflare',
     projectWorkspace: 'Australis Gateway',
     projectId: 'gateway-worker',
+    switchboardProjectId: ids.project,
     serviceUrl: 'https://gateway.australis.cloud',
     purpose: 'Gateway provider delivery',
     description: 'Allows Vault to synchronize protected values to approved Workers.',
@@ -103,6 +107,7 @@ test('item details edit sends metadata and a protected-field reference without a
   assert.equal(calls[0].referenceName, 'BOH_VAULT_CLOUDFLARE_API_TOKEN');
   assert.equal(calls[0].projectWorkspace, 'Australis Gateway');
   assert.equal(calls[0].projectId, 'gateway-worker');
+  assert.equal(calls[0].switchboardProjectId, ids.project);
   assert.equal(calls[0].serviceUrl, 'https://gateway.australis.cloud');
   assert.equal(calls[0].purpose, 'Gateway provider delivery');
   assert.equal(calls[0].description, 'Allows Vault to synchronize protected values to approved Workers.');

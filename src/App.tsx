@@ -23,6 +23,7 @@ import CrewApp from './apps/crew/CrewApp';
 import CentralApp from './apps/central/CentralApp';
 import KeepApp from './apps/keep/KeepApp';
 import VaultApp from './apps/vault/VaultApp';
+import SwitchboardApp from './apps/switchboard/SwitchboardApp';
 import LoftApp from './apps/loft/LoftApp';
 import DailyRedirectPage from './apps/loft/pages/DailyRedirectPage';
 import ExternalInterviewRoomPage from './apps/loft/pages/ExternalInterviewRoomPage';
@@ -380,6 +381,7 @@ function App() {
       <Route path="/central/*" element={renderProtectedRoute(<CentralApp isAdmin={isSuperAdmin} />)} />
       <Route path="/keep/*" element={renderProtectedRoute(<KeepApp isAdmin={isSuperAdmin} />)} />
       <Route path="/vault/*" element={renderProtectedRoute(<VaultApp isAdmin={isSuperAdmin} />)} />
+      <Route path="/switchboard/*" element={renderProtectedRoute(<SwitchboardApp isAdmin={isSuperAdmin} />)} />
       <Route path="/daily-redirect" element={<DailyRedirectPage />} />
       <Route path="/apps/loft/interview-room/:roomId" element={<ExternalInterviewRoomPage />} />
       <Route path="/loft/interview-room/:roomId" element={<ExternalInterviewRoomPage />} />

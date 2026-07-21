@@ -57,13 +57,16 @@ const dependencies: VaultManageDependencies = {
     return { id: String(data.id) };
   },
 
-  upsertItem: (input) => rpcId('boh_vault_upsert_item', {
+  upsertItem: (input) => rpcId('boh_vault_upsert_item_v2', {
     requested_item_id: input.itemId,
     requested_tenant_id: input.tenantId,
     requested_item_key: input.itemKey,
     requested_display_name: input.displayName,
     requested_item_type: input.itemType,
     requested_provider_key: input.providerKey,
+    requested_project_workspace: input.projectWorkspace,
+    requested_project_id: input.projectId,
+    requested_service_url: input.serviceUrl,
     requested_purpose: input.purpose,
     requested_environment: input.environment,
     requested_description: input.description,
@@ -73,12 +76,16 @@ const dependencies: VaultManageDependencies = {
     requested_service_identity: serviceIdentity,
   }),
 
-  updateItemDetails: (input) => rpcId('boh_vault_update_item_details_v2', {
+  updateItemDetails: (input) => rpcId('boh_vault_update_item_details_v3', {
     requested_item_id: input.itemId,
     requested_tenant_id: input.tenantId,
     requested_environment: input.environment,
     requested_display_name: input.displayName,
     requested_provider_key: input.providerKey,
+    requested_project_workspace: input.projectWorkspace,
+    requested_project_id: input.projectId,
+    requested_service_url: input.serviceUrl,
+    requested_purpose: input.purpose,
     requested_description: input.description,
     requested_protected_field_id: input.protectedFieldId,
     requested_reference_name: input.referenceName,

@@ -10,6 +10,9 @@ export type VaultItem = {
   display_name: string;
   item_type: string;
   provider_key: string | null;
+  project_workspace: string | null;
+  project_id: string | null;
+  service_url: string | null;
   purpose: string | null;
   environment: VaultEnvironment;
   description: string | null;
@@ -128,14 +131,17 @@ export async function listVaultSync(tenantId: string) {
 
 export async function createVaultItem(tenantId: string, input: {
   displayName: string; kind: VaultItemKind; environment: VaultEnvironment; websiteUrl: string; username: string;
-  providerKey: string; description: string; referenceName: string; protectedValue: string;
+  providerKey: string; projectWorkspace: string; projectId: string; serviceUrl: string; purpose: string;
+  description: string; referenceName: string; protectedValue: string;
 }): Promise<string> {
   const itemId = crypto.randomUUID();
   const slug = input.displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100) || 'vault-item';
   await invoke('boh-vault-manage', {
     ...common(tenantId, 'upsert_item', input.environment), itemId, itemKey: `${slug}-${itemId.slice(0, 8)}`,
     displayName: input.displayName, itemType: input.kind === 'password' ? 'login' : 'credential',
-    providerKey: input.providerKey || null, purpose: null, description: input.description.trim() || null, notes: null,
+    providerKey: input.providerKey || null, projectWorkspace: input.projectWorkspace.trim() || null,
+    projectId: input.projectId.trim() || null, serviceUrl: input.serviceUrl.trim() || null,
+    purpose: input.purpose.trim() || null, description: input.description.trim() || null, notes: null,
   });
 
   let protectedFieldId = '';
@@ -164,6 +170,10 @@ export async function updateVaultItemDetails(tenantId: string, input: {
   itemId: string;
   displayName: string;
   providerKey: string;
+  projectWorkspace: string;
+  projectId: string;
+  serviceUrl: string;
+  purpose: string;
   description: string;
   protectedFieldId: string | null;
   referenceName: string | null;

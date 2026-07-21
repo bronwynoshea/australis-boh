@@ -13,6 +13,10 @@ test('new Vault items start in Development with blank reference and provider val
   assert.equal(form.environment, 'development');
   assert.equal(form.referenceName, '');
   assert.equal(form.providerKey, '');
+  assert.equal(form.projectWorkspace, '');
+  assert.equal(form.projectId, '');
+  assert.equal(form.serviceUrl, '');
+  assert.equal(form.purpose, '');
   assert.equal(form.description, '');
   assert.equal(VAULT_PROVIDER_PLACEHOLDER, 'Enter provider name');
 });

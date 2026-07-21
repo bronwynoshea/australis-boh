@@ -52,6 +52,9 @@ test('item metadata is tenant-scoped and returns only its ID', async () => {
     displayName: 'OpenAI platform',
     itemType: 'service_api_key',
     providerKey: 'openai',
+    projectWorkspace: 'JOBZCAFE Development',
+    projectId: 'jmjrgthqnrebzflythvj',
+    serviceUrl: 'https://jmjrgthqnrebzflythvj.supabase.co',
     purpose: 'Product AI access',
     description: 'Shared development access',
     notes: 'Rotate quarterly',
@@ -60,6 +63,9 @@ test('item metadata is tenant-scoped and returns only its ID', async () => {
   assert.deepEqual(await response.json(), { ok: true, id: ids.item });
   assert.equal(calls[0].tenantId, ids.tenant);
   assert.equal(calls[0].actorId, ids.actor);
+  assert.equal(calls[0].projectWorkspace, 'JOBZCAFE Development');
+  assert.equal(calls[0].projectId, 'jmjrgthqnrebzflythvj');
+  assert.equal(calls[0].serviceUrl, 'https://jmjrgthqnrebzflythvj.supabase.co');
 });
 
 test('protected field values are forbidden from the metadata endpoint', async () => {
@@ -84,6 +90,10 @@ test('item details edit sends metadata and a protected-field reference without a
     itemId: ids.item,
     displayName: 'Cloudflare management token',
     providerKey: 'Cloudflare',
+    projectWorkspace: 'Australis Gateway',
+    projectId: 'gateway-worker',
+    serviceUrl: 'https://gateway.australis.cloud',
+    purpose: 'Gateway provider delivery',
     description: 'Allows Vault to synchronize protected values to approved Workers.',
     protectedFieldId: ids.field,
     referenceName: 'BOH_VAULT_CLOUDFLARE_API_TOKEN',
@@ -91,6 +101,10 @@ test('item details edit sends metadata and a protected-field reference without a
   assert.equal(response.status, 200);
   assert.equal(calls[0].method, 'updateItemDetails');
   assert.equal(calls[0].referenceName, 'BOH_VAULT_CLOUDFLARE_API_TOKEN');
+  assert.equal(calls[0].projectWorkspace, 'Australis Gateway');
+  assert.equal(calls[0].projectId, 'gateway-worker');
+  assert.equal(calls[0].serviceUrl, 'https://gateway.australis.cloud');
+  assert.equal(calls[0].purpose, 'Gateway provider delivery');
   assert.equal(calls[0].description, 'Allows Vault to synchronize protected values to approved Workers.');
   assert.equal('protectedValue' in calls[0], false);
 });

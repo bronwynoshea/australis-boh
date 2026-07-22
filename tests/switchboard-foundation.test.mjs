@@ -89,6 +89,13 @@ test('project detail uses tabs for services and Vault links', () => {
   assert.match(api, /switchboard_project_id/);
 });
 
+test('project visible metadata uses the BOH UI font, not monospace data styling', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /font-mono text-xs text-boh-text-sub-light dark:text-boh-text-sub">\{project\.project_key\}/);
+  assert.doesNotMatch(source, /break-all font-mono text-xs text-boh-text-sub-light dark:text-boh-text-sub">\{resource\.external_resource_id\}/);
+  assert.doesNotMatch(source, /break-all px-4 py-2 font-mono text-xs/);
+});
+
 test('services page explains provider credential status without implying linked services are broken', () => {
   const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
   assert.match(source, /Provider credential not linked/);

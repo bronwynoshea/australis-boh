@@ -66,7 +66,8 @@ test('project resources can be edited without opening provider consoles', () => 
   assert.match(api, /boh_switchboard_update_resource/);
 });
 
-test('project environment cards fall back to linked service URLs', () => {
+test('project screen focuses on linked resources instead of environment summary URLs', () => {
   const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
-  assert.match(source, /environment\.primary_url\?\?primaryResource\?\.service_url/);
+  assert.doesNotMatch(source, /No primary URL recorded/);
+  assert.doesNotMatch(source, /environment\.primary_url/);
 });

@@ -53,3 +53,14 @@ test('new project form stays user-facing and does not expose the internal projec
   assert.match(source, /link each Development and Production service using its own project ID/);
   assert.match(source, /const \[name, setName\] = useState\(''\)/);
 });
+
+test('project resources can be edited without opening provider consoles', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  const api = readFileSync(new URL('../src/apps/switchboard/switchboardApi.ts', import.meta.url), 'utf8');
+  assert.match(source, /Edit service resource/);
+  assert.match(source, /App or service URL/);
+  assert.match(source, /Save changes/);
+  assert.doesNotMatch(source, /ExternalLink/);
+  assert.doesNotMatch(source, />Open</);
+  assert.match(api, /boh_switchboard_update_resource/);
+});

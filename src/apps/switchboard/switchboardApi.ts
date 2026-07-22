@@ -107,6 +107,26 @@ export async function linkSwitchboardResource(input: {
   return String(data);
 }
 
+export async function updateSwitchboardResource(input: {
+  resourceId: string;
+  displayName: string;
+  externalResourceId: string;
+  serviceUrl: string;
+}): Promise<string> {
+  const context = await requireContext();
+  const { data, error } = await supabase.rpc('boh_switchboard_update_resource', {
+    requested_tenant_id: context.tenant_id,
+    requested_resource_id: input.resourceId,
+    requested_display_name: input.displayName,
+    requested_external_resource_name: null,
+    requested_external_resource_id: input.externalResourceId,
+    requested_service_url: input.serviceUrl.trim() || null,
+    requested_request_id: crypto.randomUUID(),
+  });
+  if (error) throw error;
+  return String(data);
+}
+
 export async function listSwitchboardVaultItems(): Promise<Array<{ id: string; display_name: string; environment: string; item_type: string }>> {
   const context = await requireContext();
   const { data, error } = await supabase

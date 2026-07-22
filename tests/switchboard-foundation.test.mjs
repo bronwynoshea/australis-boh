@@ -66,6 +66,14 @@ test('project services can be edited without opening provider consoles', () => {
   assert.match(api, /boh_switchboard_update_resource/);
 });
 
+test('link and edit service actions use BOH drawer and custom dropdowns', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  assert.match(source, /BohSlideOver/);
+  assert.match(source, /BohSelect/);
+  assert.doesNotMatch(source, /<select/);
+  assert.doesNotMatch(source, /JOBZCAFE/);
+});
+
 test('project screen focuses on linked resources instead of environment summary URLs', () => {
   const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /No primary URL recorded/);

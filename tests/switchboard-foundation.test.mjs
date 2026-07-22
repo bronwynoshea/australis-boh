@@ -80,3 +80,10 @@ test('project detail uses tabs for services and Vault links', () => {
   assert.match(source, /Vault items/);
   assert.match(api, /switchboard_project_id/);
 });
+
+test('services page explains provider credential status without implying linked services are broken', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  assert.match(source, /Provider credential not linked/);
+  assert.match(source, /does not mean every linked project service is broken/);
+  assert.doesNotMatch(source, /formatSwitchboardStatus\(connection\.status\)/);
+});

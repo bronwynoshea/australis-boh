@@ -3,7 +3,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.0";
 import { corsHeaders } from "../_shared/cors.ts";
-import { resolveBohLoftIdentity } from "../_shared/loftIdentity.ts";
+import { resolveBohLoftIdentity, resolveLoftSupabaseServerKeys } from "../_shared/loftIdentity.ts";
 
 function json(req: Request, data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -18,13 +18,13 @@ serve(async (req: Request) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceRoleKey = Deno.env.get("SB_SECRET_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    if (!supabaseUrl || !serviceRoleKey || !anonKey) return json(req, { error: "server_not_configured" }, 500);
+    const serverKeys = resolveLoftSupabaseServerKeys((name) => Deno.env.get(name));
+    if (!supabaseUrl || !serverKeys) return json(req, { error: "server_not_configured" }, 500);
+    const { serviceRoleKey, publishableKey } = serverKeys;
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
-    const supabaseAuthed = createClient(supabaseUrl, anonKey, {
+    const supabaseAuthed = createClient(supabaseUrl, publishableKey, {
       global: { headers: { Authorization: authHeader } },
       auth: { autoRefreshToken: false, persistSession: false },
     });

@@ -373,11 +373,8 @@ const EDGE_FN_MAP: Record<string, string> = {
 
 const getCurrentAccessToken = async (): Promise<string | undefined> => {
   try {
-    const sessionResult = await Promise.race([
-      supabase.auth.getSession(),
-      new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 1500)),
-    ]);
-    return sessionResult?.data?.session?.access_token || undefined;
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.access_token || undefined;
   } catch {
     return undefined;
   }

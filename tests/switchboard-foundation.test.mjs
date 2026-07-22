@@ -59,6 +59,7 @@ test('project resources can be edited without opening provider consoles', () => 
   const api = readFileSync(new URL('../src/apps/switchboard/switchboardApi.ts', import.meta.url), 'utf8');
   assert.match(source, /Edit service resource/);
   assert.match(source, /App or service URL/);
+  assert.match(source, /Provider resource name/);
   assert.match(source, /Save changes/);
   assert.doesNotMatch(source, /ExternalLink/);
   assert.doesNotMatch(source, />Open</);

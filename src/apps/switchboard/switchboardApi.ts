@@ -110,6 +110,7 @@ export async function linkSwitchboardResource(input: {
 export async function updateSwitchboardResource(input: {
   resourceId: string;
   displayName: string;
+  externalResourceName: string;
   externalResourceId: string;
   serviceUrl: string;
 }): Promise<string> {
@@ -118,7 +119,7 @@ export async function updateSwitchboardResource(input: {
     requested_tenant_id: context.tenant_id,
     requested_resource_id: input.resourceId,
     requested_display_name: input.displayName,
-    requested_external_resource_name: null,
+    requested_external_resource_name: input.externalResourceName,
     requested_external_resource_id: input.externalResourceId,
     requested_service_url: input.serviceUrl.trim() || null,
     requested_request_id: crypto.randomUUID(),

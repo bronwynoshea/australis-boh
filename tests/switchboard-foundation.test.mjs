@@ -54,12 +54,12 @@ test('new project form stays user-facing and does not expose the internal projec
   assert.match(source, /const \[name, setName\] = useState\(''\)/);
 });
 
-test('project resources can be edited without opening provider consoles', () => {
+test('project services can be edited without opening provider consoles', () => {
   const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
   const api = readFileSync(new URL('../src/apps/switchboard/switchboardApi.ts', import.meta.url), 'utf8');
-  assert.match(source, /Edit service resource/);
+  assert.match(source, /Edit service/);
   assert.match(source, /App or service URL/);
-  assert.match(source, /Provider resource name/);
+  assert.match(source, /Provider service name/);
   assert.match(source, /Save changes/);
   assert.doesNotMatch(source, /ExternalLink/);
   assert.doesNotMatch(source, />Open</);
@@ -72,10 +72,10 @@ test('project screen focuses on linked resources instead of environment summary 
   assert.doesNotMatch(source, /environment\.primary_url/);
 });
 
-test('project detail uses tabs for resources and Vault links', () => {
+test('project detail uses tabs for services and Vault links', () => {
   const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
   const api = readFileSync(new URL('../src/apps/switchboard/switchboardApi.ts', import.meta.url), 'utf8');
-  assert.match(source, /label: 'Resources'/);
+  assert.match(source, /label: 'Services'/);
   assert.match(source, /label: 'Vault'/);
   assert.match(source, /Vault items/);
   assert.match(api, /switchboard_project_id/);

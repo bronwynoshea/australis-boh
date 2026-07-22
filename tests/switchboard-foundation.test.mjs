@@ -71,3 +71,12 @@ test('project screen focuses on linked resources instead of environment summary 
   assert.doesNotMatch(source, /No primary URL recorded/);
   assert.doesNotMatch(source, /environment\.primary_url/);
 });
+
+test('project detail uses tabs for resources and Vault links', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  const api = readFileSync(new URL('../src/apps/switchboard/switchboardApi.ts', import.meta.url), 'utf8');
+  assert.match(source, /label: 'Resources'/);
+  assert.match(source, /label: 'Vault'/);
+  assert.match(source, /Vault items/);
+  assert.match(api, /switchboard_project_id/);
+});

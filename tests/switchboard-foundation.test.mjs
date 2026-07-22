@@ -99,10 +99,19 @@ test('services page explains provider credential status without implying linked 
 test('services page is a compact provider inventory, not project-detail cards', () => {
   const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
   assert.match(source, /Provider inventory/);
-  assert.match(source, /Scan services by provider/);
+  assert.match(source, /Scan and manage services by provider/);
   assert.match(source, /role="tablist" aria-label="Service providers"/);
   assert.match(source, /setActiveProvider\(provider\)/);
   assert.match(source, /<table className=/);
   assert.match(source, /Project<\/th>/);
   assert.match(source, /connections/);
+});
+
+test('services page exposes edit and link actions without leaving provider inventory', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  assert.match(source, /<Plus size=\{16\}\/>Link service/);
+  assert.match(source, /ChooseProjectForServiceDialog/);
+  assert.match(source, /setEditingResource\(resource\)/);
+  assert.match(source, /<EditResourceDialog resource=\{editingResource\}/);
+  assert.match(source, /<LinkResourceDialog project=\{linkProject\}/);
 });

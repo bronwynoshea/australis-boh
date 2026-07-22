@@ -143,6 +143,15 @@ export const DefaultIcons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v18m3-11.25a2.25 2.25 0 110 4.5 2.25 2.25 0 010-4.5zm0 0V7.5m0 6.75v2.25" />
     </svg>
   ),
+  Switchboard: ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 6.75h9m-9 10.5h9M6 12h12M8.25 4.5v4.5m7.5-4.5v4.5m-6 6v4.5m4.5-4.5v4.5" />
+      <circle cx="8.25" cy="6.75" r="1.5" />
+      <circle cx="15.75" cy="6.75" r="1.5" />
+      <circle cx="9.75" cy="17.25" r="1.5" />
+      <circle cx="14.25" cy="17.25" r="1.5" />
+    </svg>
+  ),
   GoldVault: ({ className }: { className?: string }) => (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />

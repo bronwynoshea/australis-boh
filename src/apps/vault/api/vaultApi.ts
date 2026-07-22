@@ -10,6 +10,10 @@ export type VaultItem = {
   display_name: string;
   item_type: string;
   provider_key: string | null;
+  project_workspace: string | null;
+  project_id: string | null;
+  switchboard_project_id: string | null;
+  service_url: string | null;
   purpose: string | null;
   environment: VaultEnvironment;
   description: string | null;
@@ -60,6 +64,7 @@ export type VaultTarget = { id: string; adapter_key: string; adapter_name: strin
 export type VaultBinding = { id: string; vault_item_id: string; item_field_id: string; deployment_target_id: string; environment: VaultEnvironment; destination_key: string; sync_mode: string; state: string; last_synced_at: string | null };
 export type VaultRun = { id: string; binding_id: string; vault_item_id: string; status: string; attempt: number; result_code: string | null; created_at: string; completed_at: string | null };
 export type BohUserOption = { id: string; full_name: string | null; email: string | null };
+export type VaultProjectOption = { id: string; project_key: string; name: string; environment: VaultEnvironment };
 
 function fail(error: { message?: string } | null, fallback: string): never {
   throw new Error(error?.message || fallback);
@@ -84,6 +89,15 @@ export async function listVaultItems(tenantId: string): Promise<VaultItem[]> {
   const { data, error } = await supabase.from('boh_vault_items_safe').select('*').eq('tenant_id', tenantId).order('updated_at', { ascending: false });
   if (error) fail(error, 'Unable to load Vault items.');
   return (data ?? []) as VaultItem[];
+}
+
+export async function listVaultProjectOptions(tenantId: string, environment: VaultEnvironment): Promise<VaultProjectOption[]> {
+  const { data, error } = await supabase.rpc('boh_vault_list_switchboard_project_options', {
+    requested_tenant_id: tenantId,
+    requested_environment: environment,
+  });
+  if (error) fail(error, 'Unable to load Vault projects.');
+  return (data ?? []) as VaultProjectOption[];
 }
 
 export async function listVaultFields(tenantId: string, itemId: string): Promise<VaultField[]> {
@@ -128,14 +142,18 @@ export async function listVaultSync(tenantId: string) {
 
 export async function createVaultItem(tenantId: string, input: {
   displayName: string; kind: VaultItemKind; environment: VaultEnvironment; websiteUrl: string; username: string;
-  providerKey: string; description: string; referenceName: string; protectedValue: string;
+  providerKey: string; projectWorkspace: string; projectId: string; switchboardProjectId: string; serviceUrl: string; purpose: string;
+  description: string; referenceName: string; protectedValue: string;
 }): Promise<string> {
   const itemId = crypto.randomUUID();
   const slug = input.displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100) || 'vault-item';
   await invoke('boh-vault-manage', {
     ...common(tenantId, 'upsert_item', input.environment), itemId, itemKey: `${slug}-${itemId.slice(0, 8)}`,
     displayName: input.displayName, itemType: input.kind === 'password' ? 'login' : 'credential',
-    providerKey: input.providerKey || null, purpose: null, description: input.description.trim() || null, notes: null,
+    providerKey: input.providerKey || null, projectWorkspace: input.projectWorkspace.trim() || null,
+    projectId: input.projectId.trim() || null, serviceUrl: input.serviceUrl.trim() || null,
+    switchboardProjectId: input.switchboardProjectId || null,
+    purpose: input.purpose.trim() || null, description: input.description.trim() || null, notes: null,
   });
 
   let protectedFieldId = '';
@@ -164,6 +182,11 @@ export async function updateVaultItemDetails(tenantId: string, input: {
   itemId: string;
   displayName: string;
   providerKey: string;
+  projectWorkspace: string;
+  projectId: string;
+  switchboardProjectId: string;
+  serviceUrl: string;
+  purpose: string;
   description: string;
   protectedFieldId: string | null;
   referenceName: string | null;

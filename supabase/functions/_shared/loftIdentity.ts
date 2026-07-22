@@ -1,3 +1,17 @@
+export type LoftSupabaseServerKeys = {
+  serviceRoleKey: string;
+  publishableKey: string;
+};
+
+const isHeaderSafeKey = (value: string | undefined | null): value is string =>
+  !!value && /^[\x21-\x7E]+$/.test(value);
+
+export function resolveLoftSupabaseServerKeys(getEnv: (name: string) => string | undefined): LoftSupabaseServerKeys | null {
+  const serviceRoleKey = getEnv("SB_SECRET_KEY");
+  const publishableKey = getEnv("SB_PUBLISHABLE_KEY");
+  return isHeaderSafeKey(serviceRoleKey) && isHeaderSafeKey(publishableKey) ? { serviceRoleKey, publishableKey } : null;
+}
+
 export type LoftBohIdentity = {
   bohUserId: string;
   tenantId: string;

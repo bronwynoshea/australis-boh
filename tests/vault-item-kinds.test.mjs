@@ -5,13 +5,23 @@ import {
   createVaultItemFormDefaults,
   filterVaultItemsByCategory,
   filterVaultItemsByEnvironment,
+  VAULT_PROVIDER_PLACEHOLDER,
 } from '../src/apps/vault/vaultItemKinds.ts';
 
-test('new Vault items start in Development with a blank reference', () => {
+test('new Vault items keep blank reference and provider values without branded defaults', () => {
   const form = createVaultItemFormDefaults();
+  const productionForm = createVaultItemFormDefaults('production');
   assert.equal(form.environment, 'development');
+  assert.equal(productionForm.environment, 'production');
   assert.equal(form.referenceName, '');
+  assert.equal(form.providerKey, '');
+  assert.equal(form.projectWorkspace, '');
+  assert.equal(form.projectId, '');
+  assert.equal(form.switchboardProjectId, '');
+  assert.equal(form.serviceUrl, '');
+  assert.equal(form.purpose, '');
   assert.equal(form.description, '');
+  assert.equal(VAULT_PROVIDER_PLACEHOLDER, 'Provider name');
 });
 
 test('password items keep website and username plaintext but protect the password', () => {

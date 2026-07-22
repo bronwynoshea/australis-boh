@@ -303,6 +303,22 @@ export const vaultNavConfig: AppNavConfig = {
   ],
 };
 
+// Switchboard App Navigation Config
+export const switchboardNavConfig: AppNavConfig = {
+  appId: 'switchboard',
+  appLabel: 'Switchboard',
+  appIcon: DefaultIcons.Switchboard,
+  baseRoute: '/switchboard',
+  defaultRoute: '/switchboard',
+  sidebarItems: [
+    { key: 'overview', label: 'Overview', to: '/switchboard' },
+    { key: 'projects', label: 'Projects', to: '/switchboard/projects' },
+    { key: 'services', label: 'Services', to: '/switchboard/services' },
+    { key: 'builds', label: 'Builds & Deployments', to: '/switchboard/builds' },
+    { key: 'activity', label: 'Activity', to: '/switchboard/activity' },
+  ],
+};
+
 // Website App Navigation Config
 export const websiteNavConfig: AppNavConfig = {
   appId: 'website',
@@ -456,6 +472,15 @@ export const bohApps: BohAppDefinition[] = [
     route: '/apps/slotz',
     icon: DefaultIcons.Slotz,
     navConfig: slotzNavConfig,
+    category: 'internal',
+  },
+  {
+    id: 'switchboard',
+    slug: 'switchboard',
+    name: 'Switchboard',
+    route: '/switchboard',
+    icon: DefaultIcons.Switchboard,
+    navConfig: switchboardNavConfig,
     category: 'internal',
   },
   {

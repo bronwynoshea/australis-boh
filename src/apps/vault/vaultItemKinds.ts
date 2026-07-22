@@ -1,15 +1,21 @@
 export type VaultItemKind = 'password' | 'api_secret';
 export type VaultCategory = 'all' | 'passwords' | 'api_secrets';
 export type VaultEnvironment = 'development' | 'production';
+export const VAULT_PROVIDER_PLACEHOLDER = 'Provider name';
 
-export function createVaultItemFormDefaults() {
+export function createVaultItemFormDefaults(environment: VaultEnvironment = 'development') {
   return {
     displayName: '',
     kind: 'api_secret' as VaultItemKind,
-    environment: 'development' as VaultEnvironment,
+    environment,
     websiteUrl: '',
     username: '',
     providerKey: '',
+    projectWorkspace: '',
+    projectId: '',
+    switchboardProjectId: '',
+    serviceUrl: '',
+    purpose: '',
     description: '',
     referenceName: '',
     protectedValue: '',

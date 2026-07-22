@@ -44,7 +44,7 @@ Existing BOH Loft functions require these variable names in BOH-DEV Supabase Edg
 
 - `SUPABASE_URL`
 - `SB_SECRET_KEY`
-- `SUPABASE_ANON_KEY`
+- `SB_PUBLISHABLE_KEY`
 - `DAILY_API_KEY`
 
 Frontend/local Vite still requires:
@@ -68,8 +68,8 @@ cd /home/jobzcafe/jobzcafe-boh
 supabase link --project-ref <BOH_DEV_PROJECT_REF>
 supabase db push --project-ref <BOH_DEV_PROJECT_REF>
 supabase secrets set \
-  SB_SECRET_KEY=<boh-dev-service-role-or-secret-key> \
-  SUPABASE_ANON_KEY=<boh-dev-anon-or-publishable-key> \
+  SB_SECRET_KEY=<boh-dev-secret-key> \
+  SB_PUBLISHABLE_KEY=<boh-dev-publishable-key> \
   DAILY_API_KEY=<daily-api-key>
 supabase functions deploy loft-get-or-create-personal-room --project-ref <BOH_DEV_PROJECT_REF>
 supabase functions deploy loft-join-token --project-ref <BOH_DEV_PROJECT_REF>

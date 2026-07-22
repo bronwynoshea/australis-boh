@@ -29,6 +29,28 @@ check('guest leave cleanup requires auth or leave token', leaveStatus.includes('
 
 const joinToken = read('supabase/functions/loft-join-token/index.ts');
 check('BOH join token resolves actual host details', joinToken.includes('resolveHostDetails') && joinToken.includes('isHost: isOwner'));
+check('BOH join token rejects malformed Supabase server keys', joinToken.includes('resolveLoftSupabaseServerKeys'));
+
+const getOrCreatePersonalRoom = read('supabase/functions/loft-get-or-create-personal-room/index.ts');
+check('Personal Table lookup rejects malformed Supabase server keys', getOrCreatePersonalRoom.includes('resolveLoftSupabaseServerKeys'));
+
+const loftSupabaseApi = read('imports/upstream-apps/loft-app/src/services/supabaseApi.ts');
+check(
+  'authenticated Loft table requests wait for the BOH session token',
+  !loftSupabaseApi.includes('Promise.race([') &&
+    loftSupabaseApi.includes('await supabase.auth.getSession()'),
+);
+
+const loftIdentity = read('supabase/functions/_shared/loftIdentity.ts');
+check(
+  'Loft functions use only modern Supabase secret and publishable keys',
+  loftIdentity.includes('resolveLoftSupabaseServerKeys') &&
+    loftIdentity.includes('/^[\\x21-\\x7E]+$/') &&
+    loftIdentity.includes('SB_SECRET_KEY') &&
+    loftIdentity.includes('SB_PUBLISHABLE_KEY') &&
+    !loftIdentity.includes('SUPABASE_SERVICE_ROLE_KEY') &&
+    !loftIdentity.includes('SUPABASE_ANON_KEY'),
+);
 
 const guestGate = read('imports/upstream-apps/loft-app/src/components/Loft/PersonalRoomPage/components/PersonalRoomGuestGate.tsx');
 const publicGuestPage = read('src/apps/loft/pages/PersonalRoomPublicJoinPage.tsx');

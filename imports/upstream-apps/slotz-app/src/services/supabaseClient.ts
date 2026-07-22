@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { supabase as bohSupabase } from '../../../../../src/lib/supabase';
 import { authCookieStorage } from './authCookieStorage';
 
 const SUPABASE_URL = import.meta.env.VITE_SLOTZ_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
@@ -23,21 +24,17 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   throw new Error('Missing SLOTZ/BOH Supabase environment variables. Please check VITE_SLOTZ_SUPABASE_* or VITE_SUPABASE_* configuration.');
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: USE_BOH_AUTH_STORAGE
-    ? {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      }
-    : {
+export const supabase = USE_BOH_AUTH_STORAGE
+  ? bohSupabase
+  : createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
         storage: authCookieStorage,
         storageKey: AUTH_STORAGE_KEY,
       },
-});
+    });
 
 // Debug helper (development only)
 if (typeof window !== 'undefined' && import.meta.env.DEV) {

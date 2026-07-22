@@ -96,10 +96,10 @@ test('project visible metadata uses the BOH UI font, not monospace data styling'
   assert.doesNotMatch(source, /break-all px-4 py-2 font-mono text-xs/);
 });
 
-test('services page explains provider credential status without implying linked services are broken', () => {
+test('services page explains provider management credentials without implying app secrets are missing', () => {
   const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
-  assert.match(source, /Provider credential not linked/);
-  assert.match(source, /does not mean every linked project service is broken/);
+  assert.match(source, /No provider management credential/);
+  assert.match(source, /App and service secrets are tracked in Vault/);
   assert.doesNotMatch(source, /formatSwitchboardStatus\(connection\.status\)/);
 });
 

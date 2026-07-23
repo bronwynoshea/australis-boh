@@ -93,10 +93,13 @@ serve(async (req) => {
       .select('id, status')
       .eq('loft_room_id', room.id)
       .eq('guest_name', normalizedName)
+      .order('requested_at', { ascending: false })
+      .limit(1)
 
-    let { data: existing } = normalizedEmail
-      ? await existingQuery.eq('guest_email', normalizedEmail).maybeSingle()
-      : await existingQuery.maybeSingle()
+    const existingResult = normalizedEmail
+      ? await existingQuery.eq('guest_email', normalizedEmail)
+      : await existingQuery
+    let existing = Array.isArray(existingResult.data) ? existingResult.data[0] : null
 
     if (!existing && normalizedEmail) {
       const nameOnlyLookup = await supabase
@@ -104,11 +107,38 @@ serve(async (req) => {
         .select('id, status')
         .eq('loft_room_id', room.id)
         .eq('guest_name', normalizedName)
-        .maybeSingle()
-      existing = nameOnlyLookup.data
+        .order('requested_at', { ascending: false })
+        .limit(1)
+      existing = Array.isArray(nameOnlyLookup.data) ? nameOnlyLookup.data[0] : null
     }
 
     if (existing?.id) {
+      if (existing.status !== 'approved') {
+        const { data: refreshed, error: refreshError } = await supabase
+          .from('loft_room_waitlist')
+          .update({
+            guest_email: normalizedEmail || null,
+            status: 'pending',
+            requested_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id)
+          .select('id, status')
+          .single()
+
+        if (refreshError) {
+          console.error('Database error:', refreshError)
+          return new Response(
+            JSON.stringify({ error: 'access_request_failed', message: 'We could not send your request. Please try again.' }),
+            { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          )
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, waitlistEntryId: refreshed.id, status: refreshed.status }),
+          { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        )
+      }
+
       return new Response(
         JSON.stringify({ success: true, waitlistEntryId: existing.id, status: existing.status }),
         { headers: { ...requestCorsHeaders, 'Content-Type': 'application/json' }, status: 200 }

@@ -267,6 +267,19 @@ serve(async (req: Request) => {
       guestName,
     });
 
+    try {
+      const { error: waitlistDeleteError } = await supabaseAdmin
+        .from("loft_room_waitlist")
+        .delete()
+        .eq("loft_room_id", room.id)
+        .eq("guest_name", guestName);
+      if (waitlistDeleteError) {
+        console.error('[loft-public-join-token] Could not clear welcomed guest request:', waitlistDeleteError);
+      }
+    } catch (waitlistError) {
+      console.error('[loft-public-join-token] Unexpected waitlist cleanup error:', waitlistError);
+    }
+
     return json(req, {
       dailyRoomName: room.daily_room_name,
       token: tokenResp.token,

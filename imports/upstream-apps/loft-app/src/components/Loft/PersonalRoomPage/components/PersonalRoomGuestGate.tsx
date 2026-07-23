@@ -51,6 +51,29 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
   const [isCheckingApproval, setIsCheckingApproval] = useState(false);
   const [isApproved, setIsApproved] = useState(false);
 
+  const openApprovedGuestSession = async (approvedRoomId: string, approvedGuestName: string) => {
+    const tokenResponse = await callEdgeFunction('loft-public-join-token', {
+      loftRoomId: approvedRoomId,
+      guestName: approvedGuestName
+    });
+
+    try {
+      localStorage.setItem('personalRoomToken', JSON.stringify(tokenResponse));
+      localStorage.setItem('personalRoomLeaveToken', String((tokenResponse as any)?.leaveToken || ''));
+      localStorage.setItem('guestName', approvedGuestName);
+      localStorage.setItem('personalRoomSlug', slug);
+      localStorage.setItem('isPersonalRoomGuest', 'true');
+      localStorage.setItem('loft_approval_status', 'approved');
+      sessionStorage.removeItem('personalRoomIsHost');
+    } catch (error) {
+      console.error('[GuestGate] Failed to store token:', error);
+    }
+
+    setIsApproved(true);
+    setIsWaitingForHost(false);
+    setIsLoading(false);
+  };
+
   useEffect(() => {
     const fetchPersonalRoom = async () => {
       try {
@@ -87,28 +110,7 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
             
             if (approvalResponse?.userApprovalStatus === 'approved') {
               console.log('[GuestGate] User already approved, getting token and joining...');
-              
-              // Get token and join automatically
-              const tokenResponse = await callEdgeFunction('loft-public-join-token', {
-                loftRoomId: response.roomId,
-                guestName: savedGuestName
-              });
-              
-              // Store token data
-              try {
-                localStorage.setItem('personalRoomToken', JSON.stringify(tokenResponse));
-                localStorage.setItem('personalRoomLeaveToken', String((tokenResponse as any)?.leaveToken || ''));
-                localStorage.setItem('guestName', savedGuestName);
-                localStorage.setItem('isPersonalRoomGuest', 'true');
-                localStorage.setItem('loft_approval_status', 'approved');
-                sessionStorage.removeItem('personalRoomIsHost');
-              } catch (error) {
-                console.error('[GuestGate] Failed to store token:', error);
-              }
-              
-              // Stay on /personal/{slug} - render PersonalRoomPage
-              setIsApproved(true);
-              setIsLoading(false);
+              await openApprovedGuestSession(response.roomId, savedGuestName);
               return;
             }
           } catch (error) {
@@ -159,30 +161,11 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
         // If user is approved, automatically get token and join the room
         if (response?.userApprovalStatus === 'approved') {
           console.log('[GuestGate] Guest approved, getting token and joining session...');
-          
-          // Get token for approved guest
-          const tokenResponse = await callEdgeFunction('loft-public-join-token', {
-            loftRoomId: roomId,
-            guestName: guestName
-          });
-          
-          // Store token data for PersonalRoomPage
-          try {
-            localStorage.setItem('personalRoomToken', JSON.stringify(tokenResponse));
-            localStorage.setItem('personalRoomLeaveToken', String((tokenResponse as any)?.leaveToken || ''));
-            localStorage.setItem('guestName', guestName);
-            localStorage.setItem('isPersonalRoomGuest', 'true');
-            localStorage.setItem('loft_approval_status', 'approved');
-            sessionStorage.removeItem('personalRoomIsHost');
-          } catch (error) {
-            console.error('[GuestGate] Failed to store token:', error);
+          if (!roomId) {
+            scheduleNextCheck();
+            return;
           }
-          
-          // Trigger re-render by updating state - guest stays on /personal/{slug}
-          console.log('[GuestGate] Guest approved, triggering re-render');
-          setIsApproved(true);
-          setIsWaitingForHost(false);
-          setIsLoading(false);
+          await openApprovedGuestSession(roomId, guestName);
           isStopped = true;
           if (timerId) window.clearTimeout(timerId);
           return;
@@ -278,7 +261,12 @@ const PersonalRoomGuestGate: React.FC<PersonalRoomGuestGateProps> = ({ slug, ten
           tenantSlug,
           guestName: nextName,
           guestEmail: nextEmail
-        });
+        }) as any;
+
+        if (waitlistResponse?.status === 'approved') {
+          await openApprovedGuestSession(roomId, nextName);
+          return;
+        }
         
         
         // Set waiting state and show waitlist UI

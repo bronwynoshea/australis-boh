@@ -61,7 +61,7 @@ serve(async (req: Request) => {
     // Get room details including recording status and daily room name
     const { data: room, error: roomError } = await supabaseAdmin
       .from("loft_room")
-      .select("id, host_boh_user_id, status, tags, daily_room_name, is_recorded")
+      .select("id, host_boh_user_id, status, tags, daily_room_name, is_recorded, room_origin")
       .eq("id", loftRoomId)
       .single();
 
@@ -76,7 +76,21 @@ serve(async (req: Request) => {
     // Personal Rooms should close but not end (they're reusable). Some older personal
     // rooms may not have the tag; canonical host checks above protect ownership.
     const hasPersonalRoomTag = Array.isArray(room.tags) && room.tags.includes('personal-room');
-    const isPersonalRoom = hasPersonalRoomTag;
+    const isPersonalRoom = hasPersonalRoomTag || room.room_origin === 'personal';
+
+    const clearWaitlist = async () => {
+      const { error: waitlistError } = await supabaseAdmin
+        .from("loft_room_waitlist")
+        .delete()
+        .eq("loft_room_id", loftRoomId);
+
+      if (waitlistError) {
+        console.error('[loft-end-room] Failed to clear guest requests:', waitlistError);
+        return waitlistError;
+      }
+
+      return null;
+    };
     
     if (isPersonalRoom) {
       // Personal rooms just close (reusable)
@@ -91,10 +105,7 @@ serve(async (req: Request) => {
         return json(req, { error: "room_end_failed", details: updateError }, 500);
       }
 
-      const { error: waitlistError } = await supabaseAdmin
-        .from("loft_room_waitlist")
-        .delete()
-        .eq("loft_room_id", loftRoomId);
+      const waitlistError = await clearWaitlist();
 
       if (waitlistError) {
         return json(req, { error: "waitlist_clear_failed", details: waitlistError }, 500);
@@ -122,6 +133,11 @@ serve(async (req: Request) => {
 
     if (updateError) {
       return json(req, { error: "room_end_failed", details: updateError }, 500);
+    }
+
+    const waitlistError = await clearWaitlist();
+    if (waitlistError) {
+      return json(req, { error: "waitlist_clear_failed", details: waitlistError }, 500);
     }
 
     // Optional: Delete Daily.co room immediately (recordings are preserved)

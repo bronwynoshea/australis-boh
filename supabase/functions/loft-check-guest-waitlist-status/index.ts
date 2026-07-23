@@ -91,10 +91,14 @@ serve(async (req) => {
       .select('status')
       .eq('loft_room_id', room.id)
       .eq('guest_name', normalizedName)
+      .order('requested_at', { ascending: false })
+      .limit(1)
 
-    let { data: waitlistEntry, error } = normalizedEmail
-      ? await statusQuery.eq('guest_email', normalizedEmail).maybeSingle()
-      : await statusQuery.maybeSingle()
+    const statusResult = normalizedEmail
+      ? await statusQuery.eq('guest_email', normalizedEmail)
+      : await statusQuery
+    let waitlistEntry = Array.isArray(statusResult.data) ? statusResult.data[0] : null
+    let error = statusResult.error
 
     if (!waitlistEntry && normalizedEmail) {
       const nameOnlyLookup = await supabase
@@ -102,8 +106,9 @@ serve(async (req) => {
         .select('status')
         .eq('loft_room_id', room.id)
         .eq('guest_name', normalizedName)
-        .maybeSingle()
-      waitlistEntry = nameOnlyLookup.data
+        .order('requested_at', { ascending: false })
+        .limit(1)
+      waitlistEntry = Array.isArray(nameOnlyLookup.data) ? nameOnlyLookup.data[0] : null
       error = nameOnlyLookup.error
     }
 

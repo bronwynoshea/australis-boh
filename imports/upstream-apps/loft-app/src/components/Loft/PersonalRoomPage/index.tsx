@@ -3070,15 +3070,24 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
           <div id="personal-room-blobs" className="fixed inset-0 z-0 pointer-events-none">
             <AnimatedBackgroundBlobs />
           </div>
-          <div id="personal-room-daily-wrap" className="relative z-10 flex flex-col h-full">
+          <div id="personal-room-daily-wrap" className="relative z-10 h-full w-full max-w-full overflow-hidden">
             {hiddenMediaPipeline}
 
-            <div style={{ paddingTop: 'calc(env(safe-area-inset-top) + 88px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)', height: '100dvh', width: '100%', maxWidth: '100%' }} className="personal-room-content-frame h-full">
-              <div className="flex-1 flex overflow-hidden relative h-full">
-                <div className={`personal-room-grid-frame flex-1 p-4 md:p-6 sidebar-force-transparent`} style={{ 
-                  height: '100%', 
-                  overflow: 'hidden'
-                }}>
+            <div
+              className="personal-room-content-frame absolute left-0 right-0 w-full max-w-full overflow-hidden"
+              style={{
+                top: 'calc(env(safe-area-inset-top) + 88px)',
+                bottom: 'calc(env(safe-area-inset-bottom) + 104px)',
+              }}
+            >
+              <div className="relative flex h-full min-h-0 w-full max-w-full overflow-hidden">
+                <div
+                  className="personal-room-grid-frame min-h-0 flex-1 p-3 sidebar-force-transparent"
+                  style={{
+                    height: '100%',
+                    overflow: 'hidden',
+                  }}
+                >
                   <PersonalRoomGrid
                     activeScreenTrack={activeScreenTrack}
                     participants={participants}

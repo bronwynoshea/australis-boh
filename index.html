@@ -2,46 +2,58 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
     <link id="app-favicon" rel="icon" type="image/png" href="/Assets/australis-logo-mark.png" />
     <title>Australis - Back of House</title>
     <meta name="description" content="Australis Back of House business operations." />
     <meta property="og:title" content="Australis - Back of House" />
     <meta property="og:description" content="Australis Back of House business operations." />
+    <meta property="og:image" content="/brand/loft-preview-card.png" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Australis - Back of House" />
     <meta name="twitter:description" content="Australis Back of House business operations." />
+    <meta name="twitter:image" content="/brand/loft-preview-card.png" />
     <script>
         (() => {
             const hostname = window.location.hostname;
             const pathname = window.location.pathname;
+            const pathParts = pathname.split('/').filter(Boolean);
             const isSlotz = hostname === 'slotz.boh.australis.cloud' || pathname.startsWith('/slotz/');
-            const isLoft = hostname === 'loft.boh.australis.cloud' || pathname.includes('/loft/');
+            const isLoft =
+                hostname === 'loft.boh.australis.cloud' ||
+                pathParts[0] === 'loft' ||
+                (pathParts[0] === 'apps' && pathParts[1] === 'loft') ||
+                (pathParts[0] === 't' && pathParts[2] === 'loft');
             const metadata = isLoft
                 ? {
                     title: 'LOFT private table',
                     description: 'Join a private LOFT table.',
                     favicon: '/brand/loft-icon-signal-final-light.svg',
+                    image: '/brand/loft-preview-card.png',
                 }
                 : isSlotz
                     ? {
                         title: 'SLOTZ booking',
                         description: 'Book a SLOTZ calendar session.',
                         favicon: '/Assets/australis-logo-mark.png',
+                        image: '/Assets/australis-logo-mark.png',
                     }
                     : {
                         title: 'Australis - Back of House',
                         description: 'Australis Back of House business operations.',
                         favicon: '/Assets/australis-logo-mark.png',
+                        image: '/Assets/australis-logo-mark.png',
                     };
 
             document.title = metadata.title;
             document.querySelector('meta[name="description"]')?.setAttribute('content', metadata.description);
             document.querySelector('meta[property="og:title"]')?.setAttribute('content', metadata.title);
             document.querySelector('meta[property="og:description"]')?.setAttribute('content', metadata.description);
+            document.querySelector('meta[property="og:image"]')?.setAttribute('content', metadata.image);
             document.querySelector('meta[name="twitter:title"]')?.setAttribute('content', metadata.title);
             document.querySelector('meta[name="twitter:description"]')?.setAttribute('content', metadata.description);
+            document.querySelector('meta[name="twitter:image"]')?.setAttribute('content', metadata.image);
             const favicon = document.querySelector('#app-favicon');
             favicon?.setAttribute('href', metadata.favicon);
             favicon?.setAttribute('type', metadata.favicon.endsWith('.svg') ? 'image/svg+xml' : 'image/png');

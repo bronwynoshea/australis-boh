@@ -34,13 +34,15 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [actionEntryId, setActionEntryId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   // Fetch waitlist
   useEffect(() => {
     if (!isHost || !roomId) return;
     
-    const fetchWaitlist = async () => {
-      setIsLoading(true);
+    const fetchWaitlist = async ({ showLoading = false }: { showLoading?: boolean } = {}) => {
+      if (showLoading) setIsLoading(true);
       try {
         const response = await callEdgeFunction<{ waitlist: WaitlistEntry[] }>(
           'get_personal_room_waitlist',
@@ -48,30 +50,32 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
         );
         const list = response.waitlist || [];
         setWaitlist(list);
+        setFeedback(null);
         
         // 🔥 FIX: Notify parent of pending count for visual indicator
         const pendingCount = list.filter(e => e.status === 'pending').length;
         onPendingCountChange?.(pendingCount);
       } catch (error) {
         console.error('[Sidebar] Failed to fetch guest requests:', error);
-        setWaitlist([]);
-        onPendingCountChange?.(0);
+        setFeedback('Guest requests could not refresh. We will keep trying.');
       } finally {
-        setIsLoading(false);
+        if (showLoading) setIsLoading(false);
       }
     };
 
     // Fetch on open or when sidebar should stay open
     if (isOpen || keepOpen) {
-      fetchWaitlist();
+      fetchWaitlist({ showLoading: waitlist.length === 0 });
       
       // 🔥 FIX: Poll for updates every 5 seconds when sidebar is open or pinned
       const interval = setInterval(fetchWaitlist, 5000);
       return () => clearInterval(interval);
     }
-  }, [isOpen, isHost, roomId, keepOpen, onPendingCountChange]);
+  }, [isOpen, isHost, roomId, keepOpen, onPendingCountChange, waitlist.length]);
 
   const handleApprove = useCallback(async (entryId: string) => {
+    setActionEntryId(entryId);
+    setFeedback(null);
     try {
       await callEdgeFunction('approve_waitlist_entry', {
         waitlistEntryId: entryId,
@@ -84,13 +88,20 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
         )
       );
       onPendingCountChange?.(waitlist.filter(entry => entry.status === 'pending' && entry.id !== entryId).length);
+      setActiveTab('approved');
+      setFeedback('Guest welcomed. Their waiting request will clear when they enter the table.');
       
     } catch (error) {
       console.error('[Sidebar] Failed to welcome guest:', error);
+      setFeedback('Loft could not welcome that guest. Please try again.');
+    } finally {
+      setActionEntryId(null);
     }
   }, [onPendingCountChange, waitlist]);
 
   const handleReject = useCallback(async (entryId: string) => {
+    setActionEntryId(entryId);
+    setFeedback(null);
     try {
       await callEdgeFunction('reject_waitlist_entry', {
         waitlistEntryId: entryId,
@@ -101,13 +112,20 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
         )
       );
       onPendingCountChange?.(waitlist.filter(entry => entry.status === 'pending' && entry.id !== entryId).length);
+      setActiveTab('rejected');
+      setFeedback('Guest declined.');
     } catch (error) {
       console.error('[Sidebar] Failed to decline guest:', error);
+      setFeedback('Loft could not decline that guest. Please try again.');
+    } finally {
+      setActionEntryId(null);
     }
   }, [onPendingCountChange, waitlist]);
 
   // 🔥 FIX: Allow toggling approval/rejection status for already-decided guests
   const handleToggleApproval = useCallback(async (entryId: string, currentStatus: 'approved' | 'rejected') => {
+    setActionEntryId(entryId);
+    setFeedback(null);
     try {
       if (currentStatus === 'approved') {
         // Change from welcomed to declined
@@ -119,6 +137,8 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
             entry.id === entryId ? { ...entry, status: 'rejected' } : entry
           )
         );
+        setActiveTab('rejected');
+        setFeedback('Guest moved to declined.');
       } else {
         // Change from declined to welcomed
         await callEdgeFunction('approve_waitlist_entry', {
@@ -129,9 +149,14 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
             entry.id === entryId ? { ...entry, status: 'approved' } : entry
           )
         );
+        setActiveTab('approved');
+        setFeedback('Guest welcomed. Their waiting request will clear when they enter the table.');
       }
     } catch (error) {
       console.error('[Sidebar] Failed to update guest status:', error);
+      setFeedback('Loft could not update that guest. Please try again.');
+    } finally {
+      setActionEntryId(null);
     }
   }, []);
 
@@ -228,6 +253,12 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
           ))}
         </div>
 
+        {feedback && (
+          <div className="border-b border-loft-border px-4 py-3 text-xs font-semibold leading-5 text-muted">
+            {feedback}
+          </div>
+        )}
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
@@ -263,13 +294,15 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleApprove(entry.id)}
+                        disabled={actionEntryId === entry.id}
                         className="flex-1 py-2 px-3 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg text-xs font-bold uppercase hover:bg-green-500/30 transition-all flex items-center justify-center gap-1"
                       >
-                        <CheckCircle className="w-3 h-3" />
-                        Welcome
+                        {actionEntryId === entry.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                        {actionEntryId === entry.id ? 'Welcoming' : 'Welcome'}
                       </button>
                       <button
                         onClick={() => handleReject(entry.id)}
+                        disabled={actionEntryId === entry.id}
                         className="flex-1 py-2 px-3 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold uppercase hover:bg-red-500/30 transition-all flex items-center justify-center gap-1"
                       >
                         <XCircle className="w-3 h-3" />

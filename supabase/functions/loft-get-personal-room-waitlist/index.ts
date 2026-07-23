@@ -56,7 +56,16 @@ serve(async (req) => {
     }
 
     console.log('[Edge Function] Waitlist data:', waitlist);
-    const formattedWaitlist = waitlist.map(entry => ({
+    const waitlistRows = (waitlist || []) as Array<Record<string, any>>
+    const newestEntryByGuest = new Map<string, Record<string, any>>()
+    for (const entry of waitlistRows) {
+      const guestKey = String(entry.guest_email || entry.guest_name || entry.id).trim().toLowerCase()
+      if (!newestEntryByGuest.has(guestKey)) {
+        newestEntryByGuest.set(guestKey, entry)
+      }
+    }
+
+    const formattedWaitlist = Array.from(newestEntryByGuest.values()).map((entry) => ({
       id: entry.id,
       guestName: entry.guest_name,
       guestEmail: entry.guest_email,
@@ -73,10 +82,10 @@ serve(async (req) => {
       { headers: { ...corsHeaders(req.headers.get('origin')), 'Content-Type': 'application/json' }, status: 200 }
     )
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Edge Function] Function error:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }),
       { headers: { ...corsHeaders(req.headers.get('origin')), 'Content-Type': 'application/json' }, status: 500 }
     )
   }

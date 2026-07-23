@@ -53,3 +53,72 @@ test('new project form stays user-facing and does not expose the internal projec
   assert.match(source, /link each Development and Production service using its own project ID/);
   assert.match(source, /const \[name, setName\] = useState\(''\)/);
 });
+
+test('project services can be edited without opening provider consoles', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  const api = readFileSync(new URL('../src/apps/switchboard/switchboardApi.ts', import.meta.url), 'utf8');
+  assert.match(source, /Edit service/);
+  assert.match(source, /App or service URL/);
+  assert.match(source, /Provider service name/);
+  assert.match(source, /Save changes/);
+  assert.doesNotMatch(source, /ExternalLink/);
+  assert.doesNotMatch(source, />Open</);
+  assert.match(api, /boh_switchboard_update_resource/);
+});
+
+test('link and edit service actions use BOH drawer and custom dropdowns', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  assert.match(source, /BohSlideOver/);
+  assert.match(source, /BohSelect/);
+  assert.doesNotMatch(source, /<select/);
+  assert.doesNotMatch(source, /JOBZCAFE/);
+});
+
+test('project screen focuses on linked resources instead of environment summary URLs', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /No primary URL recorded/);
+  assert.doesNotMatch(source, /environment\.primary_url/);
+});
+
+test('project detail uses tabs for services and Vault links', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  const api = readFileSync(new URL('../src/apps/switchboard/switchboardApi.ts', import.meta.url), 'utf8');
+  assert.match(source, /label: 'Services'/);
+  assert.match(source, /label: 'Vault'/);
+  assert.match(source, /Vault items/);
+  assert.match(api, /switchboard_project_id/);
+});
+
+test('project visible metadata uses the BOH UI font, not monospace data styling', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /font-mono text-xs text-boh-text-sub-light dark:text-boh-text-sub">\{project\.project_key\}/);
+  assert.doesNotMatch(source, /break-all font-mono text-xs text-boh-text-sub-light dark:text-boh-text-sub">\{resource\.external_resource_id\}/);
+  assert.doesNotMatch(source, /break-all px-4 py-2 font-mono text-xs/);
+});
+
+test('services page explains provider management credentials without implying app secrets are missing', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  assert.match(source, /No provider management credential/);
+  assert.match(source, /App and service secrets are tracked in Vault/);
+  assert.doesNotMatch(source, /formatSwitchboardStatus\(connection\.status\)/);
+});
+
+test('services page is a compact provider inventory, not project-detail cards', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  assert.match(source, /Provider inventory/);
+  assert.match(source, /Scan and manage services by provider/);
+  assert.match(source, /role="tablist" aria-label="Service providers"/);
+  assert.match(source, /setActiveProvider\(provider\)/);
+  assert.match(source, /<table className=/);
+  assert.match(source, /Project<\/th>/);
+  assert.match(source, /connections/);
+});
+
+test('services page exposes edit and link actions without leaving provider inventory', () => {
+  const source = readFileSync(new URL('../src/apps/switchboard/SwitchboardApp.tsx', import.meta.url), 'utf8');
+  assert.match(source, /<Plus size=\{16\}\/>Link service/);
+  assert.match(source, /ChooseProjectForServiceDialog/);
+  assert.match(source, /setEditingResource\(resource\)/);
+  assert.match(source, /<EditResourceDialog resource=\{editingResource\}/);
+  assert.match(source, /<LinkResourceDialog project=\{linkProject\}/);
+});

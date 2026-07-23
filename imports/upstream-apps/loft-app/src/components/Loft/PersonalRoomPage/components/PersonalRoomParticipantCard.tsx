@@ -48,6 +48,7 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
 }) => {
   const tileVideoRef = useRef<HTMLVideoElement>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isConfirmingEndSession, setIsConfirmingEndSession] = useState(false);
   const [localSessionAvatarUrl, setLocalSessionAvatarUrl] = useState<string | undefined>(() =>
     participant.isLocal ? readLocalSessionAvatar() : undefined
   );
@@ -133,10 +134,7 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        const confirmed = typeof window === 'undefined'
-          ? true
-          : window.confirm(`End ${participant.name}'s Loft session?`);
-        if (confirmed) onEndSession?.();
+        setIsConfirmingEndSession(true);
       }}
       className={`absolute right-2 top-2 z-40 flex items-center justify-center rounded-lg border border-red-400/35 bg-red-500/85 text-white shadow-xl backdrop-blur-md transition hover:bg-red-500 ${small ? 'h-7 w-7' : 'h-9 w-9'}`}
       aria-label={`End ${participant.name}'s Loft session`}
@@ -145,6 +143,47 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
       <UserX className={small ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
     </button>
   ) : null;
+  const endSessionConfirmation = canEndSession && isConfirmingEndSession ? (
+    <div
+      className="absolute inset-0 z-50 flex items-center justify-center bg-[#10163a]/76 p-3 text-center backdrop-blur-xl"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`End ${participant.name}'s Loft session`}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    >
+      <div className="w-full max-w-[18rem] rounded-3xl border border-white/14 bg-[var(--loft-surface)]/96 p-4 shadow-2xl">
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-red-400/25 bg-red-500/12 text-red-300">
+          <UserX className="h-5 w-5" />
+        </div>
+        <h3 className="mt-3 text-sm font-black uppercase tracking-[0.18em] text-main">End guest session?</h3>
+        <p className="mt-2 text-xs leading-5 text-muted">
+          This will remove {participant.name} from this Loft table. They will need a fresh welcome before joining again.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setIsConfirmingEndSession(false)}
+            className="rounded-2xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-main transition hover:border-cafe/35"
+          >
+            Keep guest
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsConfirmingEndSession(false);
+              onEndSession?.();
+            }}
+            className="rounded-2xl bg-red-500 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-red-500/20 transition hover:bg-red-400"
+          >
+            End session
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   if (featured) {
     return (
@@ -152,6 +191,7 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
         <div className={`personal-room-card relative overflow-hidden group shadow-2xl flex aspect-video h-full max-h-full w-full rounded-2xl border bg-[var(--loft-surface)]/70 transition-[border-color,box-shadow,transform] duration-300 hover:border-cafe/40 ${isSpeaking ? 'border-cafe shadow-cafe/30 ring-2 ring-cafe/70 ring-offset-2 ring-offset-[var(--loft-bg)]' : 'border-[var(--loft-border)]'}`}>
           <div className={`absolute inset-0 transition-all duration-500 ring-inset ring-4 ring-cafe z-10 ${isSpeaking ? 'opacity-100' : 'opacity-0'}`} />
           {endSessionButton(false)}
+          {endSessionConfirmation}
           {isSpeaking && (
             <div className="absolute left-4 top-4 z-30 rounded-full border border-cafe/40 bg-black/45 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-cafe backdrop-blur-md">
               Speaking
@@ -236,6 +276,7 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
         >
           <div className={`absolute inset-0 transition-all duration-500 ring-inset ring-2 ring-cafe z-10 ${isSpeaking ? 'opacity-100' : 'opacity-0'}`} />
           {endSessionButton(true)}
+          {endSessionConfirmation}
           {isSpeaking && (
             <div className="absolute left-2 top-2 z-30 rounded-full border border-cafe/40 bg-black/45 px-2 py-1 text-[8px] font-black uppercase tracking-[0.16em] text-cafe backdrop-blur-md">
               Speaking
@@ -319,6 +360,7 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
         {/* Active speaking indicator */}
         <div className={`absolute inset-0 transition-all duration-500 ring-inset ring-2 md:ring-4 ring-cafe z-10 ${isSpeaking ? 'opacity-100' : 'opacity-0'}`} />
         {endSessionButton(compact)}
+        {endSessionConfirmation}
         {isSpeaking && (
           <div className="absolute left-2 top-2 z-30 rounded-full border border-cafe/40 bg-cafe/20 px-2 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-cafe backdrop-blur-md md:left-3 md:top-3">
             Speaking

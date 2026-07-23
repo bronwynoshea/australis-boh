@@ -461,20 +461,20 @@ const PersonalGuestShell = ({
           </button>
         </header>
 
-        <div className="flex flex-1 items-start py-4 sm:items-center sm:py-6 lg:py-6 xl:py-10">
-          <div className="w-full max-w-2xl space-y-3 sm:space-y-5 2xl:space-y-8">
-            <div className="space-y-2.5 rounded-3xl border border-[var(--loft-border)] bg-white/86 p-3.5 shadow-[0_18px_60px_rgba(30,34,82,0.10)] backdrop-blur-md dark:bg-[#10163a]/68 sm:space-y-4 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-0">
-              <h1 className="max-w-3xl text-[1.35rem] md:text-3xl xl:text-4xl 2xl:text-5xl font-semibold tracking-tight leading-[1.08] text-main sm:text-2xl">
+        <div className="flex flex-1 items-start py-2.5 min-[380px]:py-4 sm:items-center sm:py-6 lg:py-6 xl:py-10">
+          <div className="w-full max-w-2xl space-y-2.5 min-[380px]:space-y-3 sm:space-y-5 2xl:space-y-8">
+            <div className="space-y-2 rounded-3xl border border-[var(--loft-border)] bg-white/86 p-3 shadow-[0_18px_60px_rgba(30,34,82,0.10)] backdrop-blur-md dark:bg-[#10163a]/68 min-[380px]:space-y-2.5 min-[380px]:p-3.5 sm:space-y-4 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-0">
+              <h1 className="max-w-3xl text-[1.22rem] md:text-3xl xl:text-4xl 2xl:text-5xl font-semibold tracking-tight leading-[1.08] text-main min-[380px]:text-[1.35rem] sm:text-2xl">
                 {hostName ? `Join ${hostName}'s table.` : 'Join this private table.'}
               </h1>
-              <p className="max-w-xl text-sm xl:text-base leading-relaxed text-main/85 dark:text-white/82 sm:text-[15px]">
+              <p className="max-w-xl text-[13px] xl:text-base leading-snug text-main/85 dark:text-white/82 min-[380px]:text-sm min-[380px]:leading-relaxed sm:text-[15px]">
                 You are in the right place for this private Loft table. Add your details and the host will welcome you in when the session is ready.
               </p>
             </div>
 
-            <div className="loft-card bg-white/96 p-3.5 md:p-5 dark:bg-[var(--loft-surface)] sm:p-4">
+            <div className="loft-card bg-white/96 p-3 md:p-5 dark:bg-[var(--loft-surface)] min-[380px]:p-3.5 sm:p-4">
               {children}
-              <div className="mt-3 grid grid-cols-1 gap-2 text-left min-[380px]:grid-cols-3 sm:mt-4 sm:gap-3">
+              <div className="mt-2.5 grid grid-cols-3 gap-1.5 text-left min-[380px]:mt-3 min-[380px]:gap-2 sm:mt-4 sm:gap-3">
                 <GuestTrustItem icon={<LockKeyhole className="h-4 w-4" />} label="Private entry" />
                 <GuestTrustItem icon={<Clock className="h-4 w-4" />} label="Quiet waiting" />
                 <GuestTrustItem icon={<Video className="h-4 w-4" />} label="Host welcome" />
@@ -517,9 +517,9 @@ const PersonalGuestShell = ({
 );
 
 const GuestTrustItem = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
-  <div className="flex items-center gap-2 rounded-2xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-3 py-2.5 text-main sm:px-4 sm:py-3">
-    <span className="text-cafe">{icon}</span>
-    <span className="text-[9px] font-semibold uppercase tracking-[0.14em] sm:text-[10px] sm:tracking-[0.18em]">{label}</span>
+  <div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-1.5 py-2 text-center text-main min-[380px]:flex-row min-[380px]:gap-2 min-[380px]:px-3 min-[380px]:py-2.5 min-[380px]:text-left sm:px-4 sm:py-3">
+    <span className="shrink-0 text-cafe [&>svg]:h-3.5 [&>svg]:w-3.5 min-[380px]:[&>svg]:h-4 min-[380px]:[&>svg]:w-4">{icon}</span>
+    <span className="min-w-0 text-[7px] font-semibold uppercase leading-tight tracking-[0.1em] min-[380px]:text-[9px] min-[380px]:tracking-[0.14em] sm:text-[10px] sm:tracking-[0.18em]">{label}</span>
   </div>
 );
 

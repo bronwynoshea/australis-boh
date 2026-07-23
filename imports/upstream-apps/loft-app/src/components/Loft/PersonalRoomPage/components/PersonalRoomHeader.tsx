@@ -293,7 +293,7 @@ const PersonalRoomHeader: React.FC<PersonalRoomHeaderProps> = ({
           <div className="relative">
             <button
               onClick={handleOpenSidebar}
-              className={`relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-all duration-300 ${
+              className={`relative flex h-10 flex-shrink-0 items-center justify-center gap-2 rounded-lg transition-all duration-300 ${pendingRequestCount > 0 ? 'w-auto px-3' : 'w-10'} ${
                 pendingRequestCount > 0
                   ? 'bg-cafe/20 text-cafe border-2 border-cafe/50 hover:bg-cafe/30 shadow-lg shadow-cafe/20'
                   : 'bg-[var(--loft-surface-2)] text-[var(--loft-text)] border border-[var(--loft-border)] hover:bg-[var(--loft-surface-strong)]'
@@ -304,6 +304,11 @@ const PersonalRoomHeader: React.FC<PersonalRoomHeaderProps> = ({
               data-loft-tooltip-placement="bottom"
             >
               <Users className={`w-4 h-4 ${pendingRequestCount > 0 ? 'animate-bounce' : ''}`} />
+              {pendingRequestCount > 0 && (
+                <span className="text-[10px] font-black uppercase tracking-[0.16em]">
+                  Requests
+                </span>
+              )}
             </button>
             {/* 🔥 FIX: Enhanced prominent notification badge with count and pulsing ring */}
             {pendingRequestCount > 0 && (

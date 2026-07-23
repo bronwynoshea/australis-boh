@@ -161,6 +161,17 @@ const PersonalRoomGrid: React.FC<PersonalRoomGridProps> = ({
     const shouldUseComfortGrid = sortedParticipants.length >= 5 && sortedParticipants.length <= 6;
     const shouldUseDenseGrid = sortedParticipants.length >= 7;
 
+    if (sortedParticipants.length === 0) {
+      return (
+        <div className="flex min-h-full w-full items-center justify-center p-4 text-center">
+          <div className="rounded-3xl border border-[var(--loft-border)] bg-[var(--loft-surface)]/86 px-6 py-5 shadow-xl backdrop-blur-xl">
+            <div className="text-sm font-black uppercase tracking-[0.18em] text-main">Opening Loft session</div>
+            <div className="mt-2 text-xs font-semibold text-muted">Your video tile will appear here when the room finishes connecting.</div>
+          </div>
+        </div>
+      );
+    }
+
     if (shouldUseComfortGrid) {
       return (
         <div className="flex min-h-full w-full items-center justify-center p-4 md:p-6">

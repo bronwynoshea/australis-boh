@@ -156,7 +156,7 @@ Best regards`;
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
-      alert('Failed to copy to clipboard. Please copy manually.');
+      setError('Loft could not copy the guest link. Please copy it manually.');
     }
   };
 
@@ -228,7 +228,7 @@ Best regards`;
 
   const handleHostJoin = async () => {
     if (!roomId) {
-      alert('Table ID not found. Please refresh and try again.');
+      setError('This Loft table could not be opened. Please refresh and try again.');
       return;
     }
     

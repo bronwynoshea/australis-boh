@@ -421,6 +421,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
   const [isAdmissionSidebarOpen, setIsAdmissionSidebarOpen] = useState(false);
   const [keepAdmissionSidebarOpen, setKeepAdmissionSidebarOpen] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [isClearGuestRequestsConfirmOpen, setIsClearGuestRequestsConfirmOpen] = useState(false);
   const [localSessionId, setLocalSessionId] = useState<string | null>(null);
 
   const screenShareSupport = useMemo(() => {
@@ -772,22 +773,28 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
           return;
         }
 
-        // 🔥 FIX: Request permissions first to ensure device labels are available
-        // This is critical - without permissions, device labels are empty strings
         let permissionAudioDeviceId = '';
         let permissionVideoDeviceId = '';
-        try {
-          const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          permissionAudioDeviceId = readStreamDeviceId(s, 'audio');
-          permissionVideoDeviceId = readStreamDeviceId(s, 'video');
-          s.getTracks().forEach((t) => t.stop());
-          console.log('[PersonalRoomPage] Device permissions granted');
-        } catch (error) {
-          console.warn('[PersonalRoomPage] Could not get device permissions:', error);
-          // Continue anyway - some devices might still have labels from a previous session
+
+        // Do not ask for camera/mic permission just to build device lists. On iPhone this
+        // caused repeated browser permission prompts before the guest or host deliberately
+        // entered the Loft session. Daily asks for media during the explicit join action;
+        // after that, or when Settings is opened, labels can be refreshed safely.
+        const canRefreshPermissionLabels = dailyJoined || isSetupOpen;
+        if (canRefreshPermissionLabels) {
+          try {
+            const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            permissionAudioDeviceId = readStreamDeviceId(s, 'audio');
+            permissionVideoDeviceId = readStreamDeviceId(s, 'video');
+            s.getTracks().forEach((t) => t.stop());
+            console.log('[PersonalRoomPage] Device permissions granted');
+          } catch (error) {
+            console.warn('[PersonalRoomPage] Could not get device permissions:', error);
+            // Continue anyway - some devices might still have labels from a previous session
+          }
         }
 
-        // Now enumerate devices with labels
+        // Enumerate without forcing a permission prompt when the user has not entered yet.
         const devices = await navigator.mediaDevices.enumerateDevices();
         console.log('[PersonalRoomPage] Enumerated devices:', devices.length, 'total');
         
@@ -2560,12 +2567,13 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
   // 🔥 FIX: Clear all waitlist entries (for cleaning up zombie entries)
   const handleClearAllWaitlist = useCallback(async () => {
     if (!isCurrentUserHost || !roomId) return;
+    setIsClearGuestRequestsConfirmOpen(true);
+  }, [isCurrentUserHost, roomId]);
 
-    const confirmed = window.confirm(
-      'Clear guest requests?\n\nThis will remove waiting and welcomed guests from this table request list. Current participants in the session will not be affected.'
-    );
-    if (!confirmed) return;
+  const performClearAllWaitlist = useCallback(async () => {
+    if (!isCurrentUserHost || !roomId) return;
 
+    setIsClearGuestRequestsConfirmOpen(false);
     try {
       log('clear_waitlist_attempt', { roomId });
       await callEdgeFunction('clear_room_waitlist', {
@@ -2577,10 +2585,12 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
       setPendingRequestCount(0);
       
       // Show success feedback
-      alert('Guest requests cleared.');
+      setScreenShareNotice('Guest requests cleared.');
+      window.setTimeout(() => setScreenShareNotice(null), 2200);
     } catch (error) {
       console.error('[PersonalRoomPage] Failed to clear guest requests:', error);
-      alert('Guest requests could not be cleared. Please try again.');
+      setScreenShareNotice('Guest requests could not be cleared. Try again.');
+      window.setTimeout(() => setScreenShareNotice(null), 2600);
     }
   }, [isCurrentUserHost, roomId]);
 
@@ -3176,6 +3186,33 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
           onPendingCountChange={setPendingRequestCount}
           onClearAll={handleClearAllWaitlist}
         />
+      )}
+      {isClearGuestRequestsConfirmOpen && (
+        <div className="fixed inset-0 z-[2200] flex items-center justify-center bg-[#10163a]/70 p-4 backdrop-blur-xl" role="dialog" aria-modal="true" aria-label="Clear guest requests">
+          <section className="w-full max-w-md rounded-[2rem] border border-[var(--loft-border)] bg-[var(--loft-surface)] p-6 text-center text-main shadow-2xl">
+            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-cafe">Loft host controls</p>
+            <h2 className="mt-3 text-xl font-black tracking-tight">Clear guest requests?</h2>
+            <p className="mt-3 text-sm leading-6 text-muted">
+              This removes waiting and welcomed guests from this Loft request list. People already inside the table will stay connected.
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setIsClearGuestRequestsConfirmOpen(false)}
+                className="rounded-2xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-main transition hover:border-cafe/40"
+              >
+                Keep requests
+              </button>
+              <button
+                type="button"
+                onClick={performClearAllWaitlist}
+                className="rounded-2xl bg-cafe px-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-cafe/20 transition hover:brightness-110"
+              >
+                Clear requests
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </>
   );

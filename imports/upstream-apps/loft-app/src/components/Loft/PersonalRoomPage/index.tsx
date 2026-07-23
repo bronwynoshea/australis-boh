@@ -2882,10 +2882,25 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
   ]);
 
   const hiddenMediaPipeline = joinRequested ? (
-    <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
+    <div
+      aria-hidden="true"
+      style={{
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        width: 1,
+        height: 1,
+        maxWidth: 1,
+        maxHeight: 1,
+        overflow: 'hidden',
+        opacity: 0,
+        pointerEvents: 'none',
+        contain: 'strict',
+      }}
+    >
       {/** 🔥 FIX: Set explicit dimensions on video and canvas to ensure MediaPipe can process them */}
-      <video ref={videoRef} autoPlay playsInline muted width={1280} height={720} style={{ width: '1280px', height: '720px' }} />
-      <canvas ref={canvasRef} width={1280} height={720} style={{ width: '1280px', height: '720px' }} />
+      <video ref={videoRef} autoPlay playsInline muted width={1280} height={720} style={{ display: 'block', width: 1, height: 1, maxWidth: 1, maxHeight: 1 }} />
+      <canvas ref={canvasRef} width={1280} height={720} style={{ display: 'block', width: 1, height: 1, maxWidth: 1, maxHeight: 1 }} />
       <audio ref={remoteAudioRef} autoPlay playsInline />
     </div>
   ) : null;
@@ -3047,14 +3062,18 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
 
       {/* CONTENT AREA - MOBILE/IOS (in portal) */}
       {isIOS && createPortal(
-        <div id="personal-room-joined-root" className="fixed inset-0 bg-transparent fixed-safe-area overflow-visible md:overflow-hidden" style={{ height: '100vh' }}>
+        <div
+          id="personal-room-joined-root"
+          className="fixed inset-0 bg-transparent fixed-safe-area overflow-hidden"
+          style={{ width: '100dvw', maxWidth: '100dvw', height: '100dvh' }}
+        >
           <div id="personal-room-blobs" className="fixed inset-0 z-0 pointer-events-none">
             <AnimatedBackgroundBlobs />
           </div>
           <div id="personal-room-daily-wrap" className="relative z-10 flex flex-col h-full">
             {hiddenMediaPipeline}
 
-            <div style={{ paddingTop: 'calc(env(safe-area-inset-top) + 88px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)', height: 'calc(100vh - 0px)' }} className="personal-room-content-frame h-full">
+            <div style={{ paddingTop: 'calc(env(safe-area-inset-top) + 88px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)', height: '100dvh', width: '100%', maxWidth: '100%' }} className="personal-room-content-frame h-full">
               <div className="flex-1 flex overflow-hidden relative h-full">
                 <div className={`personal-room-grid-frame flex-1 p-4 md:p-6 sidebar-force-transparent`} style={{ 
                   height: '100%', 

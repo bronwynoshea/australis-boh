@@ -32,7 +32,7 @@ const LoftIcon = ({ className = "w-5 h-5" }: { className?: string }) => {
   );
 };
 
-const BOH_LOFT_BASE_PATHS = ['/apps/loft', '/loft'];
+const BOH_LOFT_BASE_PATHS = ['/apps/loft/standalone', '/apps/loft', '/loft'];
 
 const stripBohLoftBasePath = (pathname: string): string => {
   const normalized = pathname || '/';

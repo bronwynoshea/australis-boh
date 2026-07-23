@@ -175,6 +175,7 @@ const PersonalRoomGrid: React.FC<PersonalRoomGridProps> = ({
                     isOnStage: true,
                   }}
                   localBackgroundMode={localBackgroundMode}
+                  onEndSession={isCurrentUserHost && !participant.isLocal && !participant.isHost ? () => onRemoveParticipant?.(participant.id) : undefined}
                 />
               </div>
             ))}
@@ -196,13 +197,14 @@ const PersonalRoomGrid: React.FC<PersonalRoomGridProps> = ({
               isOnStage: true,
             }}
             localBackgroundMode={localBackgroundMode}
+                  onEndSession={isCurrentUserHost && !participant.isLocal && !participant.isHost ? () => onRemoveParticipant?.(participant.id) : undefined}
             dense={shouldUseDenseGrid}
           />
         ))}
         </div>
       </div>
     );
-  }, [sortedParticipants, localBackgroundMode, gridDensityClass]);
+  }, [sortedParticipants, localBackgroundMode, gridDensityClass, isCurrentUserHost, onRemoveParticipant]);
 
   const renderSpotlightLayout = useCallback(() => {
     if (sortedParticipants.length === 0) {
@@ -231,6 +233,7 @@ const PersonalRoomGrid: React.FC<PersonalRoomGridProps> = ({
                 isOnStage: true,
               }}
               localBackgroundMode={localBackgroundMode}
+                  onEndSession={isCurrentUserHost && !spotlightParticipant.isLocal && !spotlightParticipant.isHost ? () => onRemoveParticipant?.(spotlightParticipant.id) : undefined}
               featured={true}
             />
           </div>
@@ -288,6 +291,7 @@ const PersonalRoomGrid: React.FC<PersonalRoomGridProps> = ({
                       isOnStage: true,
                     }}
                     localBackgroundMode={localBackgroundMode}
+                  onEndSession={isCurrentUserHost && !participant.isLocal && !participant.isHost ? () => onRemoveParticipant?.(participant.id) : undefined}
                     dense={true}
                     spotlightMode={true}
                   />
@@ -299,7 +303,7 @@ const PersonalRoomGrid: React.FC<PersonalRoomGridProps> = ({
         )}
       </div>
     );
-  }, [sortedParticipants, localBackgroundMode]);
+  }, [sortedParticipants, localBackgroundMode, isCurrentUserHost, onRemoveParticipant]);
 
   const renderSidebarLayout = useCallback(() => {
     if (sortedParticipants.length === 0) {
@@ -328,6 +332,7 @@ const PersonalRoomGrid: React.FC<PersonalRoomGridProps> = ({
                 isOnStage: true,
               }}
               localBackgroundMode={localBackgroundMode}
+                  onEndSession={isCurrentUserHost && !mainParticipant.isLocal && !mainParticipant.isHost ? () => onRemoveParticipant?.(mainParticipant.id) : undefined}
               sidebarMode={true}
             />
           </div>
@@ -381,6 +386,7 @@ const PersonalRoomGrid: React.FC<PersonalRoomGridProps> = ({
                         isOnStage: true,
                       }}
                       localBackgroundMode={localBackgroundMode}
+                  onEndSession={isCurrentUserHost && !participant.isLocal && !participant.isHost ? () => onRemoveParticipant?.(participant.id) : undefined}
                       compact={true}
                       sidebarMode={true}
                     />
@@ -392,7 +398,7 @@ const PersonalRoomGrid: React.FC<PersonalRoomGridProps> = ({
         )}
       </div>
     );
-  }, [sortedParticipants, localBackgroundMode]);
+  }, [sortedParticipants, localBackgroundMode, isCurrentUserHost, onRemoveParticipant]);
 
   const renderScreenShareLayout = useCallback(() => {
     if (sortedParticipants.length === 0) {
@@ -506,6 +512,7 @@ const PersonalRoomGrid: React.FC<PersonalRoomGridProps> = ({
                     isOnStage: true,
                   }}
                   localBackgroundMode={localBackgroundMode}
+                  onEndSession={isCurrentUserHost && !participant.isLocal && !participant.isHost ? () => onRemoveParticipant?.(participant.id) : undefined}
                   compact={true}
                 />
               </div>
@@ -514,7 +521,7 @@ const PersonalRoomGrid: React.FC<PersonalRoomGridProps> = ({
         </aside>
       </div>
     );
-  }, [activeScreenTrack, sortedParticipants, localBackgroundMode, showScreenShareOverlay, onStopScreenShare, toggleScreenShareFullscreen, isFullscreen]);
+  }, [activeScreenTrack, sortedParticipants, localBackgroundMode, showScreenShareOverlay, onStopScreenShare, toggleScreenShareFullscreen, isFullscreen, isCurrentUserHost, onRemoveParticipant]);
 
   // 🔥 FIX: Memoize the current layout renderer
   const renderCurrentLayout = useCallback(() => {

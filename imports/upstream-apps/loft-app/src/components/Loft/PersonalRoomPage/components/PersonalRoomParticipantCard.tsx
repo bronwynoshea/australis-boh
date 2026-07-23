@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MicOff, VideoOff, Mic, Video as VideoIcon } from 'lucide-react';
-import { getIconButtonClass } from '../utils/buttonStyles';
+import { MicOff, UserX, VideoOff, Mic, Video as VideoIcon } from 'lucide-react';
 
 const readLocalSessionAvatar = () => {
   if (typeof window === 'undefined') return undefined;
@@ -23,6 +22,7 @@ interface PersonalRoomParticipantCardProps {
     isVideoOn: boolean;
     role?: string;
     isOnStage?: boolean;
+    isHost?: boolean;
     backgroundMode?: 'none' | 'blur' | 'image'; 
   };
   localBackgroundMode?: 'none' | 'blur' | 'image';
@@ -32,6 +32,7 @@ interface PersonalRoomParticipantCardProps {
   hideLabels?: boolean;
   sidebarMode?: boolean;
   spotlightMode?: boolean;
+  onEndSession?: () => void;
 }
 
 const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = ({ 
@@ -42,7 +43,8 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
   featured = false,
   hideLabels = false,
   sidebarMode = false,
-  spotlightMode = false
+  spotlightMode = false,
+  onEndSession
 }) => {
   const tileVideoRef = useRef<HTMLVideoElement>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -124,12 +126,32 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
   const avatarRadiusClass = compact ? 'rounded-lg' : 'rounded-[1.1rem] md:rounded-[1.75rem]';
   const transparentSecondaryCard = spotlightMode || sidebarMode;
   const roleLabel = participant.role?.trim() || '\u00A0';
+  const canEndSession = !!onEndSession && !participant.isLocal && !participant.isHost;
+  const endSessionButton = (small = false) => canEndSession ? (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const confirmed = typeof window === 'undefined'
+          ? true
+          : window.confirm(`End ${participant.name}'s Loft session?`);
+        if (confirmed) onEndSession?.();
+      }}
+      className={`absolute right-2 top-2 z-40 flex items-center justify-center rounded-lg border border-red-400/35 bg-red-500/85 text-white shadow-xl backdrop-blur-md transition hover:bg-red-500 ${small ? 'h-7 w-7' : 'h-9 w-9'}`}
+      aria-label={`End ${participant.name}'s Loft session`}
+      data-loft-tooltip="End session"
+    >
+      <UserX className={small ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+    </button>
+  ) : null;
 
   if (featured) {
     return (
       <div className="relative h-full min-h-0 w-full">
         <div className={`personal-room-card relative overflow-hidden group shadow-2xl flex aspect-video h-full max-h-full w-full rounded-2xl border bg-[var(--loft-surface)]/70 transition-[border-color,box-shadow,transform] duration-300 hover:border-cafe/40 ${isSpeaking ? 'border-cafe shadow-cafe/30 ring-2 ring-cafe/70 ring-offset-2 ring-offset-[var(--loft-bg)]' : 'border-[var(--loft-border)]'}`}>
           <div className={`absolute inset-0 transition-all duration-500 ring-inset ring-4 ring-cafe z-10 ${isSpeaking ? 'opacity-100' : 'opacity-0'}`} />
+          {endSessionButton(false)}
           {isSpeaking && (
             <div className="absolute left-4 top-4 z-30 rounded-full border border-cafe/40 bg-black/45 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-cafe backdrop-blur-md">
               Speaking
@@ -213,6 +235,7 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
           } : {}}
         >
           <div className={`absolute inset-0 transition-all duration-500 ring-inset ring-2 ring-cafe z-10 ${isSpeaking ? 'opacity-100' : 'opacity-0'}`} />
+          {endSessionButton(true)}
           {isSpeaking && (
             <div className="absolute left-2 top-2 z-30 rounded-full border border-cafe/40 bg-black/45 px-2 py-1 text-[8px] font-black uppercase tracking-[0.16em] text-cafe backdrop-blur-md">
               Speaking
@@ -295,6 +318,7 @@ const PersonalRoomParticipantCard: React.FC<PersonalRoomParticipantCardProps> = 
         
         {/* Active speaking indicator */}
         <div className={`absolute inset-0 transition-all duration-500 ring-inset ring-2 md:ring-4 ring-cafe z-10 ${isSpeaking ? 'opacity-100' : 'opacity-0'}`} />
+        {endSessionButton(compact)}
         {isSpeaking && (
           <div className="absolute left-2 top-2 z-30 rounded-full border border-cafe/40 bg-cafe/20 px-2 py-1 text-[8px] font-black uppercase tracking-[0.18em] text-cafe backdrop-blur-md md:left-3 md:top-3">
             Speaking

@@ -28,6 +28,17 @@ const statusCopy: Record<string, string> = {
 
 const explainError = (error: string) => statusCopy[error] ?? error;
 
+const getLoftPublicOrigin = () => {
+  const { hostname, origin, protocol } = window.location;
+  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local');
+  if (isLocal) return origin;
+  if (hostname === 'loft.boh.australis.cloud') return origin;
+  if (hostname.includes('australis.cloud') || hostname.includes('australis-boh.pages.dev')) {
+    return `${protocol}//loft.boh.australis.cloud`;
+  }
+  return origin;
+};
+
 const LoftDashboardPage: React.FC = () => {
   const [personalRoom, setPersonalRoom] = useState<PersonalRoom | null>(null);
   const [joinState, setJoinState] = useState<LoftJoinToken | null>(null);
@@ -40,7 +51,7 @@ const LoftDashboardPage: React.FC = () => {
 
   const inviteUrl = useMemo(() => {
     if (!personalRoom?.inviteCode || !personalRoom?.tenantSlug) return '';
-    return `${window.location.origin}/t/${personalRoom.tenantSlug.toLowerCase()}/loft/join/${personalRoom.inviteCode.toLowerCase()}?guest=new`;
+    return `${getLoftPublicOrigin()}/t/${personalRoom.tenantSlug.toLowerCase()}/loft/join/${personalRoom.inviteCode.toLowerCase()}?guest=new`;
   }, [personalRoom]);
 
   const refreshWaitlist = async (roomId: string) => {

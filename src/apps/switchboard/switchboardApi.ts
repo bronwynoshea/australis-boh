@@ -107,14 +107,35 @@ export async function linkSwitchboardResource(input: {
   return String(data);
 }
 
-export async function listSwitchboardVaultItems(): Promise<Array<{ id: string; display_name: string; environment: string; item_type: string }>> {
+export async function updateSwitchboardResource(input: {
+  resourceId: string;
+  displayName: string;
+  externalResourceName: string;
+  externalResourceId: string;
+  serviceUrl: string;
+}): Promise<string> {
+  const context = await requireContext();
+  const { data, error } = await supabase.rpc('boh_switchboard_update_resource', {
+    requested_tenant_id: context.tenant_id,
+    requested_resource_id: input.resourceId,
+    requested_display_name: input.displayName,
+    requested_external_resource_name: input.externalResourceName,
+    requested_external_resource_id: input.externalResourceId,
+    requested_service_url: input.serviceUrl.trim() || null,
+    requested_request_id: crypto.randomUUID(),
+  });
+  if (error) throw error;
+  return String(data);
+}
+
+export async function listSwitchboardVaultItems(): Promise<Array<{ id: string; display_name: string; environment: string; item_type: string; switchboard_project_id: string | null }>> {
   const context = await requireContext();
   const { data, error } = await supabase
     .from('boh_vault_items_safe')
-    .select('id,display_name,environment,item_type')
+    .select('id,display_name,environment,item_type,switchboard_project_id')
     .eq('tenant_id', context.tenant_id)
     .neq('item_type', 'login')
     .order('display_name');
   if (error) return [];
-  return (data ?? []) as Array<{ id: string; display_name: string; environment: string; item_type: string }>;
+  return (data ?? []) as Array<{ id: string; display_name: string; environment: string; item_type: string; switchboard_project_id: string | null }>;
 }

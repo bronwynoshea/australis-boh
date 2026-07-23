@@ -48,6 +48,7 @@ export type SwitchboardResource = {
   environment_scope: SwitchboardEnvironmentScope;
   resource_kind: SwitchboardResourceKind;
   display_name: string;
+  external_resource_name: string | null;
   external_resource_id: string;
   service_url: string | null;
   status: 'active' | 'attention' | 'disabled' | 'archived';

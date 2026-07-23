@@ -24,10 +24,13 @@ const isExternalSlotzRoute =
     (pathParts.length === 4 && pathParts[1] !== 'manage') ||
     (pathParts.length === 3 && pathParts[1] === 'manage')
   ));
-const isExternalLoftRoute = window.location.hostname === 'loft.boh.australis.cloud';
+const isLoftHost = window.location.hostname === 'loft.boh.australis.cloud';
+const isPublicLoftJoinRoute =
+  pathParts[0] === 't' && pathParts[2] === 'loft' && pathParts[3] === 'join';
+const isExternalLoftRoute = isLoftHost && !isPublicLoftJoinRoute;
 
-if (isExternalLoftRoute) {
-  document.title = 'Loft';
+if (isLoftHost || isPublicLoftJoinRoute || pathParts[0] === 'loft') {
+  document.title = 'LOFT private table';
 }
 
 root.render(

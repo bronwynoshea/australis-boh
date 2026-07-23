@@ -21,6 +21,9 @@ type UpsertPayload = {
   external_user_id?: string;
   external_profile_id?: string;
   external_app_context?: string;
+  country_code?: string;
+  company_country_code?: string;
+  create_loft_handoff?: boolean;
 
   metadata?: Record<string, unknown>;
 };
@@ -40,9 +43,12 @@ type NormalizedPayload = {
   externalProfileId: string;
   externalAppContext: string;
   lifecycle: string;
+  countryCode: string;
+  companyCountryCode: string;
   metadata: Record<string, unknown>;
   requiresOrganisation: boolean;
   activityKind: "talent_demo" | "talent_recruiter" | "jobzcafe_job_seeker";
+  createLoftHandoff: boolean;
 };
 
 const ALLOWED_SOURCES = new Set([
@@ -68,6 +74,14 @@ function normalizeText(value: unknown) {
 
 function normalizeEmail(value: unknown) {
   return normalizeText(value).toLowerCase();
+}
+
+function normalizeCountryCode(value: unknown, fieldName: string) {
+  const countryCode = normalizeText(value).toUpperCase();
+  if (countryCode && !/^[A-Z]{2}$/.test(countryCode)) {
+    throw new Error(`${fieldName} must be an ISO 3166-1 alpha-2 country code.`);
+  }
+  return countryCode;
 }
 
 function splitName(fullName: string) {
@@ -151,6 +165,12 @@ function validatePayload(body: UpsertPayload): NormalizedPayload {
   const externalUserId = normalizeText(body.external_user_id);
   const externalProfileId = normalizeText(body.external_profile_id);
   const lifecycle = normalizeText(body.lifecycle);
+  const countryCode = normalizeCountryCode(body.country_code, "country_code");
+  const companyCountryCode = normalizeCountryCode(
+    body.company_country_code,
+    "company_country_code",
+  );
+  const createLoftHandoff = body.create_loft_handoff === true;
 
   if (source === "talent_demo_request") {
     if (!firstName || !lastName) throw new Error("First name and last name are required.");
@@ -173,10 +193,12 @@ function validatePayload(body: UpsertPayload): NormalizedPayload {
       externalUserId,
       externalProfileId,
       externalAppContext: normalizeText(body.external_app_context) || "talent",
-      lifecycle,
+      countryCode,
+      companyCountryCode,
       metadata,
       requiresOrganisation: true,
       activityKind: "talent_demo",
+      createLoftHandoff,
     };
   }
 
@@ -198,10 +220,12 @@ function validatePayload(body: UpsertPayload): NormalizedPayload {
       externalUserId,
       externalProfileId,
       externalAppContext: normalizeText(body.external_app_context) || "talent",
-      lifecycle,
+      countryCode,
+      companyCountryCode,
       metadata,
       requiresOrganisation: Boolean(companyName),
       activityKind: "talent_recruiter",
+      createLoftHandoff,
     };
   }
 
@@ -223,10 +247,12 @@ function validatePayload(body: UpsertPayload): NormalizedPayload {
       externalUserId,
       externalProfileId,
       externalAppContext: normalizeText(body.external_app_context) || "cafe",
-      lifecycle,
+      countryCode,
+      companyCountryCode,
       metadata,
       requiresOrganisation: Boolean(companyName),
       activityKind: "jobzcafe_job_seeker",
+      createLoftHandoff,
     };
   }
 
@@ -279,7 +305,9 @@ async function upsertPerson(supabase: any, tenantId: string, payload: Normalized
     if (!existing.last_name && payload.lastName) updates.last_name = payload.lastName;
     if (!existing.person_type_key) updates.person_type_key = payload.personTypeKey;
     if (!existing.pipeline_stage_id && pipelineStageId) updates.pipeline_stage_id = pipelineStageId;
+    if (payload.externalUserId) updates.external_user_id = payload.externalUserId;
     if (payload.externalAppContext) updates.external_app_context = payload.externalAppContext;
+    if (payload.countryCode) updates.country_code = payload.countryCode;
 
     const { data: updated, error: updateError } = await supabase
       .from("patron_person")
@@ -306,7 +334,9 @@ async function upsertPerson(supabase: any, tenantId: string, payload: Normalized
     pipeline_stage_id: pipelineStageId,
     app_context: "patron",
   };
+  if (payload.externalUserId) insertRow.external_user_id = payload.externalUserId;
   if (payload.externalAppContext) insertRow.external_app_context = payload.externalAppContext;
+  if (payload.countryCode) insertRow.country_code = payload.countryCode;
 
   const { data: created, error: createError } = await supabase
     .from("patron_person")
@@ -321,7 +351,13 @@ async function upsertPerson(supabase: any, tenantId: string, payload: Normalized
   return { person: created, createdOrUpdated: "created" };
 }
 
-async function upsertOrganisation(supabase: any, tenantId: string, companyName: string, personId: string) {
+async function upsertOrganisation(
+  supabase: any,
+  tenantId: string,
+  companyName: string,
+  personId: string,
+  countryCode: string,
+) {
   if (!companyName) return null;
 
   const { data: existingOrg, error: lookupError } = await supabase
@@ -337,6 +373,21 @@ async function upsertOrganisation(supabase: any, tenantId: string, companyName: 
 
   let organisation = existingOrg;
 
+  if (organisation && countryCode && organisation.country_code !== countryCode) {
+    const { data: updatedOrg, error: updateError } = await supabase
+      .from("patron_organisation")
+      .update({ country_code: countryCode })
+      .eq("id", organisation.id)
+      .eq("tenant_id", tenantId)
+      .select("*")
+      .single();
+
+    if (updateError) {
+      throw new Error(`Could not update Patron company country: ${updateError.message}`);
+    }
+    organisation = updatedOrg;
+  }
+
   if (!organisation) {
     const { data: createdOrg, error: createError } = await supabase
       .from("patron_organisation")
@@ -344,6 +395,7 @@ async function upsertOrganisation(supabase: any, tenantId: string, companyName: 
         tenant_id: tenantId,
         name: companyName,
         app_context: "patron",
+        country_code: countryCode || null,
       })
       .select("*")
       .single();
@@ -435,6 +487,91 @@ async function recordActivity(
   }
 }
 
+async function ensureBohUserForLoftHandoff(
+  supabase: any,
+  tenantId: string,
+  payload: NormalizedPayload,
+  person: Record<string, unknown>,
+) {
+  const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+    type: "magiclink",
+    email: payload.email,
+  });
+
+  if (linkError) {
+    throw new Error(`Could not create Loft handoff: ${linkError.message}`);
+  }
+
+  const tokenHash = linkData.properties?.hashed_token;
+  const authUserId = linkData.user?.id;
+
+  if (!tokenHash || !authUserId) {
+    throw new Error("Loft handoff token could not be created.");
+  }
+
+  const firstName = normalizeText(person.first_name) || payload.firstName;
+  const lastName = normalizeText(person.last_name) || payload.lastName;
+  const displayName = compactName(firstName, lastName) || payload.fullName;
+
+  const { data: existingBohUser, error: lookupError } = await supabase
+    .from("boh_user")
+    .select("id, auth_user_id, email")
+    .eq("tenant_id", tenantId)
+    .eq("email", payload.email)
+    .eq("app_context", "boh")
+    .maybeSingle();
+
+  if (lookupError) {
+    throw new Error(`Could not lookup BOH Loft user: ${lookupError.message}`);
+  }
+
+  if (existingBohUser?.id) {
+    const updates: Record<string, unknown> = {
+      auth_user_id: existingBohUser.auth_user_id || authUserId,
+      status: "active",
+    };
+    if (firstName) updates.first_name = firstName;
+    if (lastName) updates.last_name = lastName;
+    if (displayName) {
+      updates.full_name = displayName;
+      updates.display_name = displayName;
+    }
+
+    const { error: updateError } = await supabase
+      .from("boh_user")
+      .update(updates)
+      .eq("id", existingBohUser.id);
+
+    if (updateError) {
+      throw new Error(`Could not update BOH Loft user: ${updateError.message}`);
+    }
+  } else {
+    const { error: insertError } = await supabase
+      .from("boh_user")
+      .insert({
+        tenant_id: tenantId,
+        auth_user_id: authUserId,
+        email: payload.email,
+        first_name: firstName || null,
+        last_name: lastName || null,
+        full_name: displayName || null,
+        display_name: displayName || null,
+        status: "active",
+        app_context: "boh",
+        primary_role_hint: "patron",
+      });
+
+    if (insertError) {
+      throw new Error(`Could not create BOH Loft user: ${insertError.message}`);
+    }
+  }
+
+  return {
+    token_hash: tokenHash,
+    expires_in_seconds: 300,
+  };
+}
+
 serve(async (req: Request) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
@@ -453,9 +590,18 @@ serve(async (req: Request) => {
     const tenantId = await getTargetTenantId(supabase);
     const { person, createdOrUpdated } = await upsertPerson(supabase, tenantId, payload);
     const organisation = payload.requiresOrganisation
-      ? await upsertOrganisation(supabase, tenantId, payload.companyName, person.id)
+      ? await upsertOrganisation(
+        supabase,
+        tenantId,
+        payload.companyName,
+        person.id,
+        payload.companyCountryCode,
+      )
       : null;
     await recordActivity(supabase, tenantId, person.id, organisation?.id ?? null, payload);
+    const loftHandoff = payload.createLoftHandoff
+      ? await ensureBohUserForLoftHandoff(supabase, tenantId, payload, person)
+      : null;
 
     return jsonResponse(req, {
       success: true,
@@ -465,6 +611,9 @@ serve(async (req: Request) => {
       normalized_email: payload.email,
       normalized_company_name: organisation?.name ?? payload.companyName ?? null,
       boh_tenant_id: tenantId,
+      country_code: person.country_code ?? null,
+      company_country_code: organisation?.country_code ?? null,
+      loft_handoff: loftHandoff,
     });
   } catch (error) {
     console.error("[boh-patron-upsert] Error:", error);

@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, Navigate, useLocation } from 'react-router-
 import { Toaster } from 'react-hot-toast';
 import type { Theme, Section } from './types';
 import Login from './components/Login';
+import BohAuthHandoff from './components/BohAuthHandoff';
 import BohSidebar from './components/BohSidebar';
 import ThemeToggle from './components/ThemeToggle';
 import SetupWizardModal from './components/SetupWizardModal';
@@ -20,7 +21,6 @@ import FunnelApp from './apps/funnel/FunnelApp';
 import ForgeApp from './apps/delivery/forge/ForgeApp';
 import LedgerApp from './apps/ledger/LedgerApp';
 import CrewApp from './apps/crew/CrewApp';
-import CentralApp from './apps/central/CentralApp';
 import KeepApp from './apps/keep/KeepApp';
 import VaultApp from './apps/vault/VaultApp';
 import SwitchboardApp from './apps/switchboard/SwitchboardApp';
@@ -373,12 +373,12 @@ function App() {
       <Route path="/boh/cookbook/slow-cook/:projectType" element={renderProtectedRoute(<StoryboardPage mode="edit" />)} />
       <Route path="/boh/cookbook/*" element={renderProtectedRoute(<CookbookApp />)} />
       <Route path="/boh/login" element={<Login onLogin={handleLogin} />} />
+      <Route path="/boh/auth/handoff" element={<BohAuthHandoff />} />
       <Route path="/boh/external/:slug" element={renderProtectedRoute(<ExternalWorkspaceAppPage isAdmin={isSuperAdmin} />)} />
       <Route path="/boh/*" element={renderProtectedRoute(<DashboardApp isAdmin={isSuperAdmin} />)} />
       <Route path="/menu/*" element={renderProtectedRoute(<MenuApp isAdmin={isSuperAdmin} />)} />
       <Route path="/ledger/*" element={renderProtectedRoute(<LedgerApp isAdmin={isSuperAdmin} />)} />
       <Route path="/crew/*" element={renderProtectedRoute(<CrewApp isAdmin={isSuperAdmin} />)} />
-      <Route path="/central/*" element={renderProtectedRoute(<CentralApp isAdmin={isSuperAdmin} />)} />
       <Route path="/keep/*" element={renderProtectedRoute(<KeepApp isAdmin={isSuperAdmin} />)} />
       <Route path="/vault/*" element={renderProtectedRoute(<VaultApp isAdmin={isSuperAdmin} />)} />
       <Route path="/switchboard/*" element={renderProtectedRoute(<SwitchboardApp isAdmin={isSuperAdmin} />)} />

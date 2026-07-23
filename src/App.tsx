@@ -387,6 +387,7 @@ function App() {
       <Route path="/loft/interview-room/:roomId" element={<ExternalInterviewRoomPage />} />
       <Route path="/t/:tenantSlug/loft/join/:slug" element={<PersonalRoomPublicJoinPage />} />
       <Route path="/loft/join/:slug" element={<PersonalRoomPublicJoinPage />} />
+      <Route path="/apps/loft/standalone/*" element={renderProtectedRoute(<LoftApp isAdmin={isSuperAdmin} standalone />)} />
       <Route path="/apps/loft/*" element={renderProtectedRoute(<LoftApp isAdmin={isSuperAdmin} />)} />
       <Route path="/loft/*" element={renderProtectedRoute(<LoftApp isAdmin={isSuperAdmin} />)} />
       <Route path="/cellar/*" element={renderProtectedRoute(<CellarApp isAdmin={isSuperAdmin} />)} />

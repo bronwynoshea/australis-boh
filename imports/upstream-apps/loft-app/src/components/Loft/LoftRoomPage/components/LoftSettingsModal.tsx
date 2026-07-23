@@ -347,6 +347,20 @@ const LoftAvatarToken: React.FC<{ kind: AvatarKind; className?: string }> = ({ k
 
 type BackgroundMode = 'none' | 'blur' | 'image';
 
+const describeBackgroundError = (error: unknown) => {
+  const message = String((error as { message?: string })?.message || error || '').toLowerCase();
+
+  if (message.includes('video not available') || message.includes('camera')) {
+    return 'Your camera was not ready for that background. Turn your camera on and try again.';
+  }
+
+  if (message.includes('not available') || message.includes('not supported') || message.includes('unsupported')) {
+    return 'Background effects are not available in this browser. You can continue without one or try from a supported desktop browser.';
+  }
+
+  return 'Loft could not apply that background. Try again, or continue without a background.';
+};
+
 type Props = {
   isOpen: boolean;
   onClose: () => void;
@@ -691,13 +705,13 @@ export const LoftSettingsModal: React.FC<Props> = ({
 
     try {
       if (typeof callObject.setBandwidth !== 'function') {
-        throw new Error('Daily bandwidth controls are unavailable.');
+        throw new Error('Video quality controls are unavailable in this browser session.');
       }
 
       switch (quality) {
         case 'auto':
           callObject.setBandwidth({ kbs: null });
-          setVideoQualityStatus('Daily will manage video bandwidth for this session.');
+          setVideoQualityStatus('Loft will manage video bandwidth for this session.');
           break;
 
         case 'high':
@@ -1116,7 +1130,7 @@ export const LoftSettingsModal: React.FC<Props> = ({
           }
 
           if (!confirmedProcessor) {
-            throw new Error('Daily did not activate the requested background effect.');
+            throw new Error('Loft could not confirm that the requested background started.');
           }
         }
 
@@ -1183,9 +1197,9 @@ export const LoftSettingsModal: React.FC<Props> = ({
       console.error('[Loft Settings] Failed to apply background');
       
       if (!isRestore) {
-        setBgStatus({ 
-          type: 'error', 
-          message: e.message || 'Failed to apply background. Please try again.' 
+        setBgStatus({
+          type: 'error',
+          message: describeBackgroundError(e)
         });
       }
     } finally {
@@ -1702,7 +1716,7 @@ export const LoftSettingsModal: React.FC<Props> = ({
                                 Auto
                               </div>
                               <div className="text-[10px] text-muted mt-1">
-                                Daily manages available bandwidth for the current connection.
+                                Loft manages available bandwidth for the current connection.
                               </div>
                             </div>
                             <div className="ml-3">

@@ -180,6 +180,41 @@ const withTimeout = async <T,>(promise: Promise<T> | T, ms = 1500): Promise<T | 
   }
 };
 
+const withRejectingTimeout = async <T,>(promise: Promise<T> | T, ms: number, message: string): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
+
+const isIOSLikeBrowser = () => {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const iOS = /iPad|iPhone|iPod/.test(ua);
+
+  const isProbablyIPad =
+    navigator.platform === 'MacIntel' &&
+    (navigator as any).maxTouchPoints > 1 &&
+    typeof window !== 'undefined' &&
+    window.screen.width <= 1366;
+
+  const isSafariOnMac =
+    navigator.platform === 'MacIntel' &&
+    (navigator as any).maxTouchPoints <= 1 &&
+    ua.includes('Safari') &&
+    !ua.includes('Chrome') &&
+    !ua.includes('Chromium');
+
+  return iOS || isProbablyIPad || isSafariOnMac;
+};
+
 const describeScreenShareError = (error: any) => {
   const name = error?.name || '';
   const message = String(error?.message || error || '');
@@ -342,7 +377,8 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
       guestNameFlag
     });
     
-    const shouldAutoJoin = (hostFlag && hostTokenFlag) || (guestFlag && approvalFlag && guestNameFlag);
+    const isApprovedGuest = guestFlag && approvalFlag && guestNameFlag;
+    const shouldAutoJoin = (hostFlag && hostTokenFlag) || (isApprovedGuest && !isIOSLikeBrowser());
     console.log('[PersonalRoomPage] shouldAutoJoin:', shouldAutoJoin);
     
     return shouldAutoJoin;
@@ -1884,11 +1920,15 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
           : guestDisplayName;
 
         log('join_daily', { dailyRoomUrl: dailyRoomUrl.replace(/\/\/[^/]+/, '//***'), displayName });
-        await callObj.join({
-          url: dailyRoomUrl,
-          token: tokenData.token,
-          userName: displayName,
-        });
+        await withRejectingTimeout(
+          callObj.join({
+            url: dailyRoomUrl,
+            token: tokenData.token,
+            userName: displayName,
+          }),
+          15000,
+          'The room took too long to open. On iPhone, close this tab, reopen the Loft link in Safari, and tap Enter Session again.'
+        );
         log('join_success', { roomId });
         setDailyJoined(true);
 
@@ -2014,7 +2054,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
     const guestName = localStorage.getItem('guestName');
     const hasGuestToken = !!(guestTokenString && guestName);
     
-    if (hasGuestToken && tokenData && !joinRequested) {
+    if (hasGuestToken && tokenData && !joinRequested && !isIOSLikeBrowser()) {
       setJoinRequested(true);
     }
   }, [tokenData, joinRequested]);
@@ -2667,25 +2707,58 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
 
     try {
       const callObj = callObjectRef.current;
-      if (!callObj) return;
+      const waitlistEntryId = participantId.startsWith('waitlist-')
+        ? participantId.replace(/^waitlist-/, '')
+        : null;
+      let participantName = '';
 
-      // Find the participant by session_id or user_id
-      const participants = callObj.participants() || {};
-      const participantToRemove = Object.values(participants).find((p: any) => {
-        const sessionId = p.session_id;
-        const userId = p.user_id;
-        return sessionId === participantId || userId === participantId || String(userId) === participantId;
-      });
-
-      if (participantToRemove && !(participantToRemove as any).local) {
-        // Remove the participant from the Daily call
-        await callObj.updateParticipant((participantToRemove as any).session_id, {
-          eject: true
+      if (callObj) {
+        const dailyParticipants = callObj.participants() || {};
+        const participantToRemove = Object.values(dailyParticipants).find((p: any) => {
+          const sessionId = p.session_id;
+          const userId = p.user_id;
+          return sessionId === participantId || userId === participantId || String(userId) === participantId;
         });
+
+        if (participantToRemove && !(participantToRemove as any).local) {
+          const userData = parseDailyUserData(participantToRemove);
+          participantName = String(userData?.displayName || (participantToRemove as any).user_name || '').trim();
+          await callObj.updateParticipant((participantToRemove as any).session_id, {
+            eject: true
+          });
+        }
       }
+
+      if (waitlistEntryId) {
+        await callEdgeFunction('reject_waitlist_entry', { waitlistEntryId });
+      } else if (participantName) {
+        try {
+          const waitlistResponse = await callEdgeFunction<{ waitlist: any[] }>('get_personal_room_waitlist', {
+            personalRoomId: roomId
+          });
+          const normalizedParticipantName = normalizeParticipantNameValue(participantName);
+          const matchingEntry = waitlistResponse?.waitlist?.find((entry: any) =>
+            entry.status === 'approved' &&
+            normalizeParticipantNameValue(entry.guestName) === normalizedParticipantName
+          );
+          if (matchingEntry?.id) {
+            await callEdgeFunction('reject_waitlist_entry', { waitlistEntryId: matchingEntry.id });
+          }
+        } catch {
+          // The participant was removed from the live room. Waitlist cleanup is best effort.
+        }
+      }
+
+      departedParticipantKeysRef.current.add(normalizeParticipantNameValue(participantName || participantId));
+      setParticipants(prev => prev.filter(participant => participant.id !== participantId));
+      setScreenShareNotice('Guest session ended.');
+      window.setTimeout(() => setScreenShareNotice(null), 2000);
+      syncDailyParticipants();
     } catch (error) {
+      setScreenShareNotice('Could not end that guest session. Try again.');
+      window.setTimeout(() => setScreenShareNotice(null), 2400);
     }
-  }, [isCurrentUserHost]);
+  }, [isCurrentUserHost, roomId, syncDailyParticipants]);
 
   const applyThemeClass = useCallback((shouldUseDark: boolean) => {
     try {
@@ -2807,31 +2880,8 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
     </div>
   ) : null;
 
-  // iOS/Safari detection - same as LoftRoomPage but also includes Safari on Mac
-  const isIOS = useMemo(() => {
-    if (typeof navigator === 'undefined') return false;
-    const ua = navigator.userAgent || '';
-    const iOS = /iPad|iPhone|iPod/.test(ua);
-    
-    // Detect iPadOS 13+ (reports as MacIntel but is actually iPad)
-    // iPads have maxTouchPoints > 1 AND typically have smaller screens than Macs
-    // Also check for touch events support which is more reliable on iPads
-    const isProbablyIPad = 
-      navigator.platform === 'MacIntel' && 
-      (navigator as any).maxTouchPoints > 1 &&
-      typeof window !== 'undefined' &&
-      window.screen.width <= 1366; // iPad Pro max width
-    
-    // Detect Safari on Mac (which also needs portal treatment for header/footer)
-    const isSafariOnMac = 
-      navigator.platform === 'MacIntel' && 
-      (navigator as any).maxTouchPoints <= 1 && // Not iPad (no touch or limited touch)
-      ua.includes('Safari') && 
-      !ua.includes('Chrome') && // Exclude Chrome
-      !ua.includes('Chromium'); // Exclude other Chromium browsers
-    
-    return iOS || isProbablyIPad || isSafariOnMac;
-  }, []);
+  // iOS/Safari detection - these browsers need a user tap before joining media.
+  const isIOS = useMemo(() => isIOSLikeBrowser(), []);
 
 
   // Pre-join screen

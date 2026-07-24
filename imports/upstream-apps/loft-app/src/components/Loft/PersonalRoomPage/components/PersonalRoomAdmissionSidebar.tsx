@@ -19,6 +19,7 @@ interface PersonalRoomAdmissionSidebarProps {
   onKeepOpenChange?: (keepOpen: boolean) => void;
   onPendingCountChange?: (count: number) => void;
   onClearAll?: () => void;
+  onGuestRemoved?: (entry: WaitlistEntry) => void;
 }
 
 const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> = ({
@@ -30,6 +31,7 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
   onKeepOpenChange,
   onPendingCountChange,
   onClearAll,
+  onGuestRemoved,
 }) => {
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -100,6 +102,7 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
   }, [onPendingCountChange, waitlist]);
 
   const handleReject = useCallback(async (entryId: string) => {
+    const targetEntry = waitlist.find(entry => entry.id === entryId);
     setActionEntryId(entryId);
     setFeedback(null);
     try {
@@ -113,6 +116,9 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
       );
       onPendingCountChange?.(waitlist.filter(entry => entry.status === 'pending' && entry.id !== entryId).length);
       setActiveTab('rejected');
+      if (targetEntry?.status === 'approved') {
+        onGuestRemoved?.(targetEntry);
+      }
       setFeedback('Guest declined.');
     } catch (error) {
       console.error('[Sidebar] Failed to decline guest:', error);
@@ -120,10 +126,11 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
     } finally {
       setActionEntryId(null);
     }
-  }, [onPendingCountChange, waitlist]);
+  }, [onGuestRemoved, onPendingCountChange, waitlist]);
 
   // 🔥 FIX: Allow toggling approval/rejection status for already-decided guests
   const handleToggleApproval = useCallback(async (entryId: string, currentStatus: 'approved' | 'rejected') => {
+    const targetEntry = waitlist.find(entry => entry.id === entryId);
     setActionEntryId(entryId);
     setFeedback(null);
     try {
@@ -138,6 +145,9 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
           )
         );
         setActiveTab('rejected');
+        if (targetEntry) {
+          onGuestRemoved?.(targetEntry);
+        }
         setFeedback('Guest moved to declined.');
       } else {
         // Change from declined to welcomed
@@ -158,7 +168,7 @@ const PersonalRoomAdmissionSidebar: React.FC<PersonalRoomAdmissionSidebarProps> 
     } finally {
       setActionEntryId(null);
     }
-  }, []);
+  }, [onGuestRemoved, waitlist]);
 
   const filteredWaitlist = waitlist.filter(entry => entry.status === activeTab);
 

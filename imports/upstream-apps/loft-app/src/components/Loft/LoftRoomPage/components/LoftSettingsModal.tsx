@@ -431,9 +431,7 @@ export const LoftSettingsModal: React.FC<Props> = ({
   const [selectedBackdropId, setSelectedBackdropId] = useState<string | null>(null);
   const [selectedBuiltinKey, setSelectedBuiltinKey] = useState<string | null>(null);
   
-  // Add noise reduction and mirror camera state
-  const [noiseReductionEnabled, setNoiseReductionEnabled] = useState(true);
-  const [mirrorCameraEnabled, setMirrorCameraEnabled] = useState(false);
+  const [mirrorCameraEnabled, setMirrorCameraEnabled] = useState(true);
   const [isApplyingBackground, setIsApplyingBackground] = useState(false);
   const isApplyingBackgroundRef = useRef(false); // Ref to prevent concurrent calls
   const [isUploadingCustom, setIsUploadingCustom] = useState(false);
@@ -1420,7 +1418,7 @@ export const LoftSettingsModal: React.FC<Props> = ({
         aria-label="Settings"
         onClick={(e) => e.stopPropagation()}
         className={` 
-          absolute inset-x-0 bottom-0 max-h-[86dvh] rounded-t-3xl border-t
+          absolute inset-x-0 bottom-0 max-h-[calc(100svh-env(safe-area-inset-top)-0.5rem)] rounded-t-3xl border-t
           md:inset-y-0 md:left-auto md:right-0 md:h-full md:max-h-none md:w-[640px] md:max-w-[calc(100vw-2rem)] md:rounded-none md:border-t-0 md:border-l
           bg-[var(--loft-glass-strong)] text-main border-[var(--loft-border)] shadow-2xl overflow-hidden
           flex flex-col
@@ -1484,7 +1482,7 @@ export const LoftSettingsModal: React.FC<Props> = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))]">
           {/* Mobile Home View */}
           {view.screen === 'home' && !isDesktop && (
             <div className="px-4 py-4 space-y-3">
@@ -1597,8 +1595,7 @@ export const LoftSettingsModal: React.FC<Props> = ({
                         )}
                       </div>
 
-                      {/* 🔥 FIX: Put microphone level and noise reduction on same line to save space */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                           <div className="text-sm font-medium text-muted">
                             Microphone level
@@ -1615,12 +1612,8 @@ export const LoftSettingsModal: React.FC<Props> = ({
                           <div className="text-sm font-medium text-muted">
                             Noise reduction
                           </div>
-                          <div className="flex items-center">
-                            <Toggle
-                              enabled={noiseReductionEnabled}
-                              onChange={() => setNoiseReductionEnabled(!noiseReductionEnabled)}
-                              label="Noise reduction"
-                            />
+                          <div className="rounded-xl border border-[var(--loft-border)] bg-[var(--loft-surface-2)] px-3 py-2 text-xs font-semibold text-muted">
+                            Not available in this browser session.
                           </div>
                         </div>
                       </div>
@@ -1634,7 +1627,7 @@ export const LoftSettingsModal: React.FC<Props> = ({
                     </div>
 
                     <div className="bg-[var(--loft-surface)] border border-[var(--loft-border)] rounded-2xl p-4 space-y-4 pb-4">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                           <div className="text-sm font-medium text-muted">
                             Camera

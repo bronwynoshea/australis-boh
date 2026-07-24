@@ -1680,7 +1680,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
       if (isCurrentUserHost) return;
 
       const messageType = event?.data?.type;
-      if (messageType !== 'host_mute_all_audio' && messageType !== 'room_ended') return;
+      if (messageType !== 'host_mute_all_audio' && messageType !== 'room_ended' && messageType !== 'guest_removed') return;
 
       const callObj = callObjectRef.current;
       if (!callObj) return;
@@ -1698,6 +1698,21 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
 
       if (messageType === 'room_ended') {
         await sendGuestToThanks('The host ended this session.');
+        return;
+      }
+
+      if (messageType === 'guest_removed') {
+        const localGuestName = typeof window !== 'undefined' ? (localStorage.getItem('guestName') || '').trim().toLowerCase() : '';
+        const localGuestEmail = typeof window !== 'undefined' ? (localStorage.getItem('personalRoomGuestEmail') || '').trim().toLowerCase() : '';
+        const targetGuestName = String(event?.data?.guestName || '').trim().toLowerCase();
+        const targetGuestEmail = String(event?.data?.guestEmail || '').trim().toLowerCase();
+        const isTargetGuest =
+          (!!targetGuestEmail && !!localGuestEmail && targetGuestEmail === localGuestEmail) ||
+          (!!targetGuestName && !!localGuestName && targetGuestName === localGuestName);
+
+        if (isTargetGuest) {
+          await sendGuestToThanks(event?.data?.message || 'The host removed you from this session.');
+        }
         return;
       }
 
@@ -1746,6 +1761,20 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
         const response = await callEdgeFunction<{ isOpen?: boolean }>('get_personal_room_by_slug', { slug });
         if (!stopped && response?.isOpen === false) {
           await sendGuestToThanks('The host ended this session.');
+          return;
+        }
+
+        const guestName = typeof window !== 'undefined' ? localStorage.getItem('guestName') || '' : '';
+        if (!guestName) return;
+
+        const guestEmail = typeof window !== 'undefined' ? localStorage.getItem('personalRoomGuestEmail') || undefined : undefined;
+        const statusResponse = await callEdgeFunction<{ userApprovalStatus?: string }>('check_guest_waitlist_status', {
+          slug,
+          guestName,
+          guestEmail,
+        });
+        if (!stopped && statusResponse?.userApprovalStatus === 'rejected') {
+          await sendGuestToThanks('The host removed you from this session.');
         }
       } catch (error) {
         console.error('[PersonalRoomPage] Could not verify personal table status:', error);
@@ -2568,6 +2597,28 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
     setIsClearGuestRequestsConfirmOpen(true);
   }, [isCurrentUserHost, roomId]);
 
+  const handleGuestRemovedFromTable = useCallback((entry: { guestName: string; guestEmail?: string | null }) => {
+    const callObj = callObjectRef.current;
+    if (!callObj || !isCurrentUserHost) return;
+
+    const guestName = (entry.guestName || '').trim();
+    const guestEmail = (entry.guestEmail || '').trim();
+
+    try {
+      callObj.sendAppMessage({
+        type: 'guest_removed',
+        roomId,
+        guestName,
+        guestEmail,
+        message: 'The host removed you from this session.',
+        removedAt: new Date().toISOString(),
+      }, '*');
+      setScreenShareNotice(`${guestName || 'Guest'} was removed from this session.`);
+    } catch {
+      setScreenShareNotice('Guest status changed, but the live removal message could not be sent.');
+    }
+  }, [isCurrentUserHost, roomId]);
+
   const performClearAllWaitlist = useCallback(async () => {
     if (!isCurrentUserHost || !roomId) return;
 
@@ -3211,6 +3262,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
           onKeepOpenChange={setKeepAdmissionSidebarOpen}
           onPendingCountChange={setPendingRequestCount}
           onClearAll={handleClearAllWaitlist}
+          onGuestRemoved={handleGuestRemovedFromTable}
         />
       )}
       {isClearGuestRequestsConfirmOpen && (

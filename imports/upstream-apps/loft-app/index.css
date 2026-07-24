@@ -99,7 +99,7 @@
   --z-daily-iframe: 1;
   --z-ui-base: 100;
   --z-header: 100;
-  --z-transport: 100;
+  --z-transport: 260;
   --z-sidebar-backdrop: 200;
   --z-sidebar-panel: 201;
 }
@@ -177,7 +177,9 @@ html {
 
 .personal-room-transport {
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow: visible;
+  position: relative;
+  z-index: var(--z-transport);
 }
 
 .personal-room-transport-shell {
@@ -185,6 +187,7 @@ html {
   max-width: calc(100vw - 1rem);
   flex-wrap: wrap;
   row-gap: 0.45rem;
+  overflow: visible;
 }
 
 @media (max-width: 430px) {

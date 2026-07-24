@@ -181,10 +181,20 @@ const App = () => {
       const pathFromCode = !pathFromRoom && code ? `/room/${encodeURIComponent(code)}` : '';
 
       const fromPathname = (window.location.pathname || '').trim();
-      const pathFromPathname = fromPathname.startsWith('/room/') ? fromPathname : '';
+      const pathFromPathname = (
+        fromPathname.startsWith('/room/') ||
+        fromPathname.startsWith('/personal/') ||
+        fromPathname.startsWith('/personal-room/')
+      ) ? fromPathname : '';
 
       // Prefer explicit intent (next/returnTo/room/code). Otherwise fall back to actual URL path.
-      return internalNext || internalReturnTo || pathFromRoom || pathFromCode || (hashPath.startsWith('/room/') ? hashPath : '') || pathFromPathname || null;
+      const pathFromHash = (
+        hashPath.startsWith('/room/') ||
+        hashPath.startsWith('/personal/') ||
+        hashPath.startsWith('/personal-room/')
+      ) ? hashPath : '';
+
+      return internalNext || internalReturnTo || pathFromRoom || pathFromCode || pathFromHash || pathFromPathname || null;
     } catch {
       return null;
     }

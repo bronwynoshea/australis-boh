@@ -1926,19 +1926,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
           ? (hostUserData?.name || tokenData.currentUserProfile?.displayName || 'Host')
           : guestDisplayName;
 
-        log('join_daily', { dailyRoomUrl: dailyRoomUrl.replace(/\/\/[^/]+/, '//***'), displayName });
-        await withRejectingTimeout(
-          callObj.join({
-            url: dailyRoomUrl,
-            token: tokenData.token,
-            userName: displayName,
-          }),
-          15000,
-          'The room took too long to open. On iPhone, close this tab, reopen the Loft link in Safari, and tap Enter Session again.'
-        );
-        log('join_success', { roomId });
-        setDailyJoined(true);
-
+        let dailyUserData: Record<string, unknown> | null = null;
         if (tokenData.currentUserProfile) {
           let sessionAvatarUrl: string | undefined;
           let sessionAvatarSeed: string | undefined;
@@ -1950,7 +1938,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
             sessionAvatarSeed = undefined;
           }
 
-          const userData = {
+          dailyUserData = {
             profileId: isCurrentUserHost ? tokenData.currentUserProfile.profileId : undefined,
             userId: isCurrentUserHost ? tokenData.currentUserProfile.userId : undefined,
             displayName,
@@ -1961,8 +1949,26 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
             participantType: isCurrentUserHost ? 'host' : 'guest',
             backgroundMode: backgroundMode, // 🔥 FIX: Include current background mode
           };
-          currentUserDataRef.current = userData; // 🔥 FIX: Track user data for merging
-          await callObj.setUserData(userData);
+          currentUserDataRef.current = dailyUserData; // 🔥 FIX: Track user data for merging
+          await callObj.setUserData(dailyUserData);
+        }
+
+        log('join_daily', { dailyRoomUrl: dailyRoomUrl.replace(/\/\/[^/]+/, '//***'), displayName });
+        await withRejectingTimeout(
+          callObj.join({
+            url: dailyRoomUrl,
+            token: tokenData.token,
+            userName: displayName,
+            ...(dailyUserData ? { userData: dailyUserData } : {}),
+          }),
+          15000,
+          'The room took too long to open. On iPhone, close this tab, reopen the Loft link in Safari, and tap Enter Session again.'
+        );
+        log('join_success', { roomId });
+        setDailyJoined(true);
+
+        if (dailyUserData) {
+          await callObj.setUserData(dailyUserData);
         }
 
         // 🔥 FIX: Enable audio and video by default on room join for better UX
@@ -2005,14 +2011,6 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
           }
         } else {
           console.log('[PersonalRoomPage] Join: No audio device selected yet');
-        }
-        
-        // Request microphone access immediately to ensure it's available
-        try {
-          await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-          console.log('[PersonalRoomPage] Join: Microphone access granted');
-        } catch (error) {
-          console.warn('[PersonalRoomPage] Join: Microphone access denied:', error);
         }
         
         setTimeout(async () => {

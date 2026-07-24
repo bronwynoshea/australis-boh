@@ -164,56 +164,6 @@ interface JoinTokenResponse {
   };
 }
 
-const buildLocalFallbackParticipant = (options: {
-  isCurrentUserHost: boolean;
-  hostDetails: { displayName: string; avatarUrl?: string } | null;
-  hostName: string;
-  hostUserData: { name: string; avatarUrl?: string } | null;
-  hostProfileData: { name: string; avatarUrl?: string } | null;
-  tokenData: JoinTokenResponse | null;
-  backgroundMode: 'none' | 'blur' | 'image';
-  audio: boolean;
-}): Participant => {
-  const profile = options.tokenData?.currentUserProfile;
-  const storageGuestName = (() => {
-    if (typeof window === 'undefined') return '';
-    try {
-      return localStorage.getItem('guestName')?.trim() || '';
-    } catch {
-      return '';
-    }
-  })();
-
-  const name = options.isCurrentUserHost
-    ? (
-        options.hostDetails?.displayName ||
-        options.hostUserData?.name ||
-        options.hostProfileData?.name ||
-        options.hostName ||
-        'Host'
-      )
-    : (profile?.displayName || storageGuestName || 'Guest');
-
-  const avatarUrl = options.isCurrentUserHost
-    ? (options.hostDetails?.avatarUrl || options.hostUserData?.avatarUrl || options.hostProfileData?.avatarUrl || profile?.avatarUrl)
-    : profile?.avatarUrl;
-
-  return {
-    id: 'local-fallback',
-    name,
-    isLocal: true,
-    audio: options.audio,
-    video: false,
-    avatarUrl: avatarUrl || undefined,
-    videoTrack: undefined,
-    isVideoOn: false,
-    role: options.isCurrentUserHost ? 'Host' : 'Guest',
-    isOnStage: true,
-    isHost: options.isCurrentUserHost,
-    backgroundMode: options.backgroundMode,
-  };
-};
-
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const withTimeout = async <T,>(promise: Promise<T> | T, ms = 1500): Promise<T | undefined> => {
@@ -1304,21 +1254,6 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
 
     let finalParticipants = [...mapped];
 
-    if (finalParticipants.length === 0 && dailyJoined) {
-      finalParticipants = [
-        buildLocalFallbackParticipant({
-          isCurrentUserHost,
-          hostDetails,
-          hostName,
-          hostUserData,
-          hostProfileData,
-          tokenData,
-          backgroundMode,
-          audio: localAudioOverrideRef.current ?? isMicEnabledRef.current,
-        }),
-      ];
-    }
-
     const previewTargetCount = isSuperUser ? getMockScenarioTargetCount(mockScenario) : 0;
 
     if (previewTargetCount > 0) {
@@ -1367,7 +1302,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
               isLocal: false,
               audio: false,
               video: false,
-              avatarUrl: undefined,
+              avatarUrl: null,
               videoTrack: undefined,
               isVideoOn: false,
               role: 'Guest',
@@ -1435,23 +1370,7 @@ const PersonalRoomPage: React.FC<PersonalRoomPageProps> = ({ roomId, onLeave }) 
     } else {
       setLayoutMode((current) => current === 'screenShare' ? previousLayoutRef.current : current);
     }
-  }, [hostDetails, hostName, hostUserData, hostProfileData, profile, tokenData, backgroundMode, avatarUpdateTrigger, mockScenario, roomId, isCurrentUserHost, isSuperUser, dailyJoined]);
-
-  useEffect(() => {
-    if (!dailyJoined || participants.length > 0) return;
-
-    const immediateSync = window.setTimeout(() => {
-      void syncDailyParticipants();
-    }, 0);
-    const settledSync = window.setTimeout(() => {
-      void syncDailyParticipants();
-    }, 750);
-
-    return () => {
-      window.clearTimeout(immediateSync);
-      window.clearTimeout(settledSync);
-    };
-  }, [dailyJoined, participants.length, syncDailyParticipants]);
+  }, [hostDetails, hostUserData, hostProfileData, profile, avatarUpdateTrigger, mockScenario, roomId, isCurrentUserHost, isSuperUser]);
 
   useEffect(() => {
     const callObj = callObjectRef.current;
